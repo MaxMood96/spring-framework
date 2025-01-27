@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,6 @@
 
 package org.springframework.http.client;
 
-import java.util.Collections;
-
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -25,7 +23,6 @@ import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
-import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,11 +38,9 @@ public abstract class AbstractMockWebServerTests {
 
 	protected String baseUrl;
 
-	protected static final MediaType textContentType =
-			new MediaType("text", "plain", Collections.singletonMap("charset", "UTF-8"));
 
 	@BeforeEach
-	public void setUp() throws Exception {
+	void setUp() throws Exception {
 		this.server = new MockWebServer();
 		this.server.setDispatcher(new TestDispatcher());
 		this.server.start();
@@ -54,17 +49,18 @@ public abstract class AbstractMockWebServerTests {
 	}
 
 	@AfterEach
-	public void tearDown() throws Exception {
+	void tearDown() throws Exception {
 		this.server.shutdown();
 	}
 
+
 	protected class TestDispatcher extends Dispatcher {
+
 		@Override
-		public MockResponse dispatch(RecordedRequest request) throws InterruptedException {
+		public MockResponse dispatch(RecordedRequest request) {
 			try {
 				if (request.getPath().equals("/echo")) {
-					assertThat(request.getHeader("Host"))
-							.contains("localhost:" + port);
+					assertThat(request.getHeader("Host")).contains("localhost:" + port);
 					MockResponse response = new MockResponse()
 							.setHeaders(request.getHeaders())
 							.setHeader("Content-Length", request.getBody().size())
@@ -78,6 +74,10 @@ public abstract class AbstractMockWebServerTests {
 				}
 				else if(request.getPath().equals("/status/notfound")) {
 					return new MockResponse().setResponseCode(404);
+				}
+				else if (request.getPath().equals("/status/299")) {
+					assertThat(request.getHeader("Expect")).contains("299");
+					return new MockResponse().setResponseCode(299);
 				}
 				else if(request.getPath().startsWith("/params")) {
 					assertThat(request.getPath()).contains("param1=value");
@@ -101,10 +101,14 @@ public abstract class AbstractMockWebServerTests {
 					assertThat(request.getMethod()).isEqualTo(expectedMethod);
 					return new MockResponse();
 				}
+				else if(request.getPath().startsWith("/header/")) {
+					String headerName = request.getPath().replace("/header/","");
+					return new MockResponse().setBody(headerName + ":" + request.getHeader(headerName)).setResponseCode(200);
+				}
 				return new MockResponse().setResponseCode(404);
 			}
-			catch (Throwable exc) {
-				return new MockResponse().setResponseCode(500).setBody(exc.toString());
+			catch (Throwable ex) {
+				return new MockResponse().setResponseCode(500).setBody(ex.toString());
 			}
 		}
 	}

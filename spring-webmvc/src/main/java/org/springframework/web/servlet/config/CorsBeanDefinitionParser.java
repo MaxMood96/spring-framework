@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,12 +21,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
 import org.w3c.dom.Element;
 
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.xml.BeanDefinitionParser;
 import org.springframework.beans.factory.xml.ParserContext;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 import org.springframework.util.xml.DomUtils;
 import org.springframework.web.cors.CorsConfiguration;
@@ -43,8 +43,7 @@ import org.springframework.web.cors.CorsConfiguration;
 public class CorsBeanDefinitionParser implements BeanDefinitionParser {
 
 	@Override
-	@Nullable
-	public BeanDefinition parse(Element element, ParserContext parserContext) {
+	public @Nullable BeanDefinition parse(Element element, ParserContext parserContext) {
 
 		Map<String, CorsConfiguration> corsConfigurations = new LinkedHashMap<>();
 		List<Element> mappings = DomUtils.getChildElementsByTagName(element, "mapping");
@@ -84,6 +83,7 @@ public class CorsBeanDefinitionParser implements BeanDefinitionParser {
 				}
 				config.applyPermitDefaultValues();
 				config.validateAllowCredentials();
+				config.validateAllowPrivateNetwork();
 				corsConfigurations.put(mapping.getAttribute("path"), config);
 			}
 		}

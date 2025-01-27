@@ -18,10 +18,11 @@ package org.springframework.core.io.support;
 
 import java.util.Locale;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -82,7 +83,7 @@ public class LocalizedResourceHelper {
 	 * <p>If none of the specific files can be found, a resource
 	 * descriptor for the default location will be returned.
 	 * @param name the name of the file, without localization part nor extension
-	 * @param extension the file extension (e.g. ".xls")
+	 * @param extension the file extension (for example, ".xls")
 	 * @param locale the current locale (may be {@code null})
 	 * @return the most specific localized resource found
 	 * @see java.util.ResourceBundle

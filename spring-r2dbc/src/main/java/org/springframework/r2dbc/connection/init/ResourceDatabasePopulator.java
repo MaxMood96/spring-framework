@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import io.r2dbc.spi.Connection;
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -29,7 +30,6 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.core.io.support.EncodedResource;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -59,8 +59,7 @@ public class ResourceDatabasePopulator implements DatabasePopulator {
 
 	List<Resource> scripts = new ArrayList<>();
 
-	@Nullable
-	private Charset sqlScriptEncoding;
+	private @Nullable Charset sqlScriptEncoding;
 
 	private String separator = ScriptUtils.DEFAULT_STATEMENT_SEPARATOR;
 
@@ -260,7 +259,7 @@ public class ResourceDatabasePopulator implements DatabasePopulator {
 
 
 	@Override
-	public Mono<Void> populate(Connection connection) throws ScriptException {
+	public Mono<Void> populate(Connection connection) {
 		Assert.notNull(connection, "Connection must not be null");
 		return Flux.fromIterable(this.scripts).concatMap(resource -> {
 			EncodedResource encodedScript = new EncodedResource(resource, this.sqlScriptEncoding);

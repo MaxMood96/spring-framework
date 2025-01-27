@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,17 @@
 package org.springframework.test.web.servlet.result;
 
 import java.io.UnsupportedEncodingException;
-import java.nio.charset.StandardCharsets;
 
 import com.jayway.jsonpath.JsonPath;
 import org.hamcrest.Matcher;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.StringStartsWith;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.test.util.JsonPathExpectationsHelper;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultMatcher;
+import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 /**
@@ -47,8 +47,7 @@ public class JsonPathResultMatchers {
 
 	private final JsonPathExpectationsHelper jsonPathHelper;
 
-	@Nullable
-	private String prefix;
+	private @Nullable String prefix;
 
 
 	/**
@@ -60,7 +59,8 @@ public class JsonPathResultMatchers {
 	 * using formatting specifiers defined in {@link String#format(String, Object...)}
 	 */
 	protected JsonPathResultMatchers(String expression, Object... args) {
-		this.jsonPathHelper = new JsonPathExpectationsHelper(expression, args);
+		Assert.hasText(expression, "expression must not be null or empty");
+		this.jsonPathHelper = new JsonPathExpectationsHelper(expression.formatted(args));
 	}
 
 	/**
@@ -236,7 +236,7 @@ public class JsonPathResultMatchers {
 	}
 
 	private String getContent(MvcResult result) throws UnsupportedEncodingException {
-		String content = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+		String content = result.getResponse().getContentAsString();
 		if (StringUtils.hasLength(this.prefix)) {
 			try {
 				String reason = String.format("Expected a JSON payload prefixed with \"%s\" but found: %s",

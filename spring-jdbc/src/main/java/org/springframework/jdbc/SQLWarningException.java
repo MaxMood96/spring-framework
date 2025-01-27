@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2012 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 package org.springframework.jdbc;
 
 import java.sql.SQLWarning;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.dao.UncategorizedDataAccessException;
 
@@ -44,11 +46,22 @@ public class SQLWarningException extends UncategorizedDataAccessException {
 		super(msg, ex);
 	}
 
+
 	/**
-	 * Return the underlying SQLWarning.
+	 * Return the underlying {@link SQLWarning}.
+	 * @since 5.3.29
 	 */
-	public SQLWarning SQLWarning() {
+	public @Nullable SQLWarning getSQLWarning() {
 		return (SQLWarning) getCause();
+	}
+
+	/**
+	 * Return the underlying {@link SQLWarning}.
+	 * @deprecated as of 5.3.29, in favor of {@link #getSQLWarning()}
+	 */
+	@Deprecated(since = "5.3.29")
+	public @Nullable SQLWarning SQLWarning() {
+		return getSQLWarning();
 	}
 
 }

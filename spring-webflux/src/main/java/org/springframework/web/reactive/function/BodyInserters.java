@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,12 @@
 
 package org.springframework.web.reactive.function;
 
+import java.io.OutputStream;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
@@ -27,6 +31,8 @@ import org.springframework.core.ReactiveAdapterRegistry;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferFactory;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.MediaType;
 import org.springframework.http.ReactiveHttpOutputMessage;
@@ -35,7 +41,6 @@ import org.springframework.http.client.reactive.ClientHttpRequest;
 import org.springframework.http.codec.HttpMessageWriter;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.http.server.reactive.ServerHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -99,24 +104,29 @@ public abstract class BodyInserters {
 	}
 
 	/**
-	 * Inserter to write the given object.
-	 * <p>Alternatively, consider using the {@code bodyValue(Object)} shortcuts on
+	 * Inserter to write the given value.
+	 * <p>Alternatively, consider using the {@code bodyValue(Object, ParameterizedTypeReference)} shortcuts on
 	 * {@link org.springframework.web.reactive.function.client.WebClient WebClient} and
 	 * {@link org.springframework.web.reactive.function.server.ServerResponse ServerResponse}.
-	 * @param body the body to write to the response
+	 * @param body the value to write
+	 * @param bodyType the type of the body, used to capture the generic type
 	 * @param <T> the type of the body
-	 * @return the inserter to write a single object
+	 * @return the inserter to write a single value
 	 * @throws IllegalArgumentException if {@code body} is a {@link Publisher} or an
 	 * instance of a type supported by {@link ReactiveAdapterRegistry#getSharedInstance()},
-	 * for which {@link #fromPublisher(Publisher, Class)} or
-	 * {@link #fromProducer(Object, Class)} should be used.
-	 * @see #fromPublisher(Publisher, Class)
-	 * @see #fromProducer(Object, Class)
-	 * @deprecated As of Spring Framework 5.2, in favor of {@link #fromValue(Object)}
+	 * for which {@link #fromPublisher(Publisher, ParameterizedTypeReference)} or
+	 * {@link #fromProducer(Object, ParameterizedTypeReference)} should be used.
+	 * @since 6.2
+	 * @see #fromPublisher(Publisher, ParameterizedTypeReference)
+	 * @see #fromProducer(Object, ParameterizedTypeReference)
 	 */
-	@Deprecated
-	public static <T> BodyInserter<T, ReactiveHttpOutputMessage> fromObject(T body) {
-		return fromValue(body);
+	public static <T> BodyInserter<T, ReactiveHttpOutputMessage> fromValue(T body, ParameterizedTypeReference<T> bodyType) {
+		Assert.notNull(body, "'body' must not be null");
+		Assert.notNull(bodyType, "'bodyType' must not be null");
+		Assert.isNull(registry.getAdapter(body.getClass()),
+				"'body' should be an object, for reactive types use a variant specifying a publisher/producer and its related element type");
+		return (message, context) ->
+				writeWithMessageWriters(message, context, Mono.just(body), ResolvableType.forType(bodyType), null);
 	}
 
 	/**
@@ -356,6 +366,49 @@ public abstract class BodyInserters {
 
 		Assert.notNull(publisher, "'publisher' must not be null");
 		return (outputMessage, context) -> outputMessage.writeWith(publisher);
+	}
+
+	/**
+	 * Inserter based on bytes written to a {@code OutputStream}.
+	 * @param outputStreamConsumer invoked with an {@link OutputStream} that
+	 * writes to the output message
+	 * @param executor used to invoke the {@code outputStreamHandler} on a
+	 * separate thread
+	 * @return an inserter that writes what is written to the output stream
+	 * @since 6.1
+	 * @see DataBufferUtils#outputStreamPublisher(Consumer, DataBufferFactory, Executor)
+	 */
+	public static <T extends Publisher<DataBuffer>> BodyInserter<T, ReactiveHttpOutputMessage> fromOutputStream(
+			Consumer<OutputStream> outputStreamConsumer, Executor executor) {
+
+		Assert.notNull(outputStreamConsumer, "OutputStreamConsumer must not be null");
+		Assert.notNull(executor, "Executor must not be null");
+
+		return (outputMessage, context) -> outputMessage.writeWith(
+				DataBufferUtils.outputStreamPublisher(outputStreamConsumer, outputMessage.bufferFactory(), executor));
+	}
+
+	/**
+	 * Inserter based on bytes written to a {@code OutputStream}.
+	 * @param outputStreamConsumer invoked with an {@link OutputStream} that
+	 * writes to the output message
+	 * @param executor used to invoke the {@code outputStreamHandler} on a
+	 * separate thread
+	 * @param chunkSize minimum size of the buffer produced by the publisher
+	 * @return an inserter that writes what is written to the output stream
+	 * @since 6.1
+	 * @see DataBufferUtils#outputStreamPublisher(Consumer, DataBufferFactory, Executor, int)
+	 */
+	public static <T extends Publisher<DataBuffer>> BodyInserter<T, ReactiveHttpOutputMessage> fromOutputStream(
+			Consumer<OutputStream> outputStreamConsumer, Executor executor, int chunkSize) {
+
+		Assert.notNull(outputStreamConsumer, "OutputStreamConsumer must not be null");
+		Assert.notNull(executor, "Executor must not be null");
+		Assert.isTrue(chunkSize > 0, "Chunk size must be > 0");
+
+		return (outputMessage, context) -> outputMessage.writeWith(
+				DataBufferUtils.outputStreamPublisher(outputStreamConsumer, outputMessage.bufferFactory(), executor,
+						chunkSize));
 	}
 
 

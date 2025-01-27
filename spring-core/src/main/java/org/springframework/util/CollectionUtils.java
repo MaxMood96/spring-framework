@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,15 +22,21 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.SortedSet;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
+import org.springframework.lang.Contract;
 
 /**
  * Miscellaneous collection utility methods.
@@ -57,7 +63,8 @@ public abstract class CollectionUtils {
 	 * @param collection the Collection to check
 	 * @return whether the given Collection is empty
 	 */
-	public static boolean isEmpty(@Nullable Collection<?> collection) {
+	@Contract("null -> true")
+	public static boolean isEmpty(@Nullable Collection<? extends @Nullable Object> collection) {
 		return (collection == null || collection.isEmpty());
 	}
 
@@ -67,7 +74,8 @@ public abstract class CollectionUtils {
 	 * @param map the Map to check
 	 * @return whether the given Map is empty
 	 */
-	public static boolean isEmpty(@Nullable Map<?, ?> map) {
+	@Contract("null -> true")
+	public static boolean isEmpty(@Nullable Map<?, ? extends @Nullable Object> map) {
 		return (map == null || map.isEmpty());
 	}
 
@@ -85,7 +93,7 @@ public abstract class CollectionUtils {
 	 * @see #newLinkedHashMap(int)
 	 */
 	public static <K, V> HashMap<K, V> newHashMap(int expectedSize) {
-		return new HashMap<>(computeMapInitialCapacity(expectedSize), DEFAULT_LOAD_FACTOR);
+		return new HashMap<>(computeInitialCapacity(expectedSize), DEFAULT_LOAD_FACTOR);
 	}
 
 	/**
@@ -102,10 +110,36 @@ public abstract class CollectionUtils {
 	 * @see #newHashMap(int)
 	 */
 	public static <K, V> LinkedHashMap<K, V> newLinkedHashMap(int expectedSize) {
-		return new LinkedHashMap<>(computeMapInitialCapacity(expectedSize), DEFAULT_LOAD_FACTOR);
+		return new LinkedHashMap<>(computeInitialCapacity(expectedSize), DEFAULT_LOAD_FACTOR);
 	}
 
-	private static int computeMapInitialCapacity(int expectedSize) {
+	/**
+	 * Instantiate a new {@link HashSet} with an initial capacity that can
+	 * accommodate the specified number of elements without any immediate
+	 * resize/rehash operations to be expected.
+	 * @param expectedSize the expected number of elements (with a corresponding
+	 * capacity to be derived so that no resize/rehash operations are needed)
+	 * @since 6.2
+	 * @see #newLinkedHashSet(int)
+	 */
+	public static <E> HashSet<E> newHashSet(int expectedSize) {
+		return new HashSet<>(computeInitialCapacity(expectedSize), DEFAULT_LOAD_FACTOR);
+	}
+
+	/**
+	 * Instantiate a new {@link LinkedHashSet} with an initial capacity that can
+	 * accommodate the specified number of elements without any immediate
+	 * resize/rehash operations to be expected.
+	 * @param expectedSize the expected number of elements (with a corresponding
+	 * capacity to be derived so that no resize/rehash operations are needed)
+	 * @since 6.2
+	 * @see #newHashSet(int)
+	 */
+	public static <E> LinkedHashSet<E> newLinkedHashSet(int expectedSize) {
+		return new LinkedHashSet<>(computeInitialCapacity(expectedSize), DEFAULT_LOAD_FACTOR);
+	}
+
+	private static int computeInitialCapacity(int expectedSize) {
 		return (int) Math.ceil(expectedSize / (double) DEFAULT_LOAD_FACTOR);
 	}
 
@@ -235,8 +269,7 @@ public abstract class CollectionUtils {
 	 * @param candidates the candidates to search for
 	 * @return the first present object, or {@code null} if not found
 	 */
-	@Nullable
-	public static <E> E findFirstMatch(Collection<?> source, Collection<E> candidates) {
+	public static <E> @Nullable E findFirstMatch(Collection<?> source, Collection<E> candidates) {
 		if (isEmpty(source) || isEmpty(candidates)) {
 			return null;
 		}
@@ -256,8 +289,7 @@ public abstract class CollectionUtils {
 	 * or {@code null} if none or more than one such value found
 	 */
 	@SuppressWarnings("unchecked")
-	@Nullable
-	public static <T> T findValueOfType(Collection<?> collection, @Nullable Class<T> type) {
+	public static <T> @Nullable T findValueOfType(@Nullable Collection<?> collection, @Nullable Class<T> type) {
 		if (isEmpty(collection)) {
 			return null;
 		}
@@ -283,8 +315,7 @@ public abstract class CollectionUtils {
 	 * @return a value of one of the given types found if there is a clear match,
 	 * or {@code null} if none or more than one such value found
 	 */
-	@Nullable
-	public static Object findValueOfType(Collection<?> collection, Class<?>[] types) {
+	public static @Nullable Object findValueOfType(Collection<?> collection, Class<?>[] types) {
 		if (isEmpty(collection) || ObjectUtils.isEmpty(types)) {
 			return null;
 		}
@@ -327,8 +358,7 @@ public abstract class CollectionUtils {
 	 * @return the common element type, or {@code null} if no clear
 	 * common type has been found (or the collection was empty)
 	 */
-	@Nullable
-	public static Class<?> findCommonElementType(Collection<?> collection) {
+	public static @Nullable Class<?> findCommonElementType(Collection<?> collection) {
 		if (isEmpty(collection)) {
 			return null;
 		}
@@ -356,8 +386,7 @@ public abstract class CollectionUtils {
 	 * @see LinkedHashMap#keySet()
 	 * @see java.util.LinkedHashSet
 	 */
-	@Nullable
-	public static <T> T firstElement(@Nullable Set<T> set) {
+	public static <T> @Nullable T firstElement(@Nullable Set<T> set) {
 		if (isEmpty(set)) {
 			return null;
 		}
@@ -379,8 +408,7 @@ public abstract class CollectionUtils {
 	 * @return the first element, or {@code null} if none
 	 * @since 5.2.3
 	 */
-	@Nullable
-	public static <T> T firstElement(@Nullable List<T> list) {
+	public static <T> @Nullable T firstElement(@Nullable List<T> list) {
 		if (isEmpty(list)) {
 			return null;
 		}
@@ -397,8 +425,7 @@ public abstract class CollectionUtils {
 	 * @see LinkedHashMap#keySet()
 	 * @see java.util.LinkedHashSet
 	 */
-	@Nullable
-	public static <T> T lastElement(@Nullable Set<T> set) {
+	public static <T> @Nullable T lastElement(@Nullable Set<T> set) {
 		if (isEmpty(set)) {
 			return null;
 		}
@@ -421,8 +448,7 @@ public abstract class CollectionUtils {
 	 * @return the last element, or {@code null} if none
 	 * @since 5.0.3
 	 */
-	@Nullable
-	public static <T> T lastElement(@Nullable List<T> list) {
+	public static <T> @Nullable T lastElement(@Nullable List<T> list) {
 		if (isEmpty(list)) {
 			return null;
 		}
@@ -478,5 +504,48 @@ public abstract class CollectionUtils {
 		return new UnmodifiableMultiValueMap<>(targetMap);
 	}
 
+	/**
+	 * Return a (partially unmodifiable) map that combines the provided two
+	 * maps. Invoking {@link Map#put(Object, Object)} or {@link Map#putAll(Map)}
+	 * on the returned map results in an {@link UnsupportedOperationException}.
+	 * <p>In the case of a key collision, {@code first} takes precedence over
+	 * {@code second}. In other words, entries in {@code second} with a key
+	 * that is also mapped by {@code first} are effectively ignored.
+	 * @param first the first map to compose
+	 * @param second the second map to compose
+	 * @return a new map that composes the given two maps
+	 * @since 6.2
+	 */
+	public static <K, V> Map<K, V> compositeMap(Map<K,V> first, Map<K,V> second) {
+		return new CompositeMap<>(first, second);
+	}
+
+	/**
+	 * Return a map that combines the provided maps. Invoking
+	 * {@link Map#put(Object, Object)} on the returned map will apply
+	 * {@code putFunction}, or will throw an
+	 * {@link UnsupportedOperationException} {@code putFunction} is
+	 * {@code null}. The same applies to {@link Map#putAll(Map)} and
+	 * {@code putAllFunction}.
+	 * <p>In the case of a key collision, {@code first} takes precedence over
+	 * {@code second}. In other words, entries in {@code second} with a key
+	 * that is also mapped by {@code first} are effectively ignored.
+	 * @param first the first map to compose
+	 * @param second the second map to compose
+	 * @param putFunction applied when {@code Map::put} is invoked. If
+	 * {@code null}, {@code Map::put} throws an
+	 * {@code UnsupportedOperationException}.
+	 * @param putAllFunction applied when {@code Map::putAll} is invoked. If
+	 * {@code null}, {@code Map::putAll} throws an
+	 * {@code UnsupportedOperationException}.
+	 * @return a new map that composes the give maps
+	 * @since 6.2
+	 */
+	public static <K, V> Map<K, V> compositeMap(Map<K,V> first, Map<K,V> second,
+			@Nullable BiFunction<K, V, V> putFunction,
+			@Nullable Consumer<Map<K, V>> putAllFunction) {
+
+		return new CompositeMap<>(first, second, putFunction, putAllFunction);
+	}
 
 }

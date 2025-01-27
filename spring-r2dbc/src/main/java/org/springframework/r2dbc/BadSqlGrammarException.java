@@ -17,6 +17,7 @@
 package org.springframework.r2dbc;
 
 import io.r2dbc.spi.R2dbcException;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.dao.InvalidDataAccessResourceUsageException;
 
@@ -52,7 +53,7 @@ public class BadSqlGrammarException extends InvalidDataAccessResourceUsageExcept
 	/**
 	 * Return the wrapped {@link R2dbcException}.
 	 */
-	public R2dbcException getR2dbcException() {
+	public @Nullable R2dbcException getR2dbcException() {
 		return (R2dbcException) getCause();
 	}
 

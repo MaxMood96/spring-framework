@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 
 import jakarta.servlet.ServletContext;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeansException;
@@ -47,7 +48,6 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePatternResolver;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.context.WebApplicationContext;
@@ -130,7 +130,7 @@ class StubWebApplicationContext implements WebApplicationContext {
 	}
 
 	@Override
-	public ApplicationContext getParent() {
+	public @Nullable ApplicationContext getParent() {
 		return null;
 	}
 
@@ -168,7 +168,7 @@ class StubWebApplicationContext implements WebApplicationContext {
 	}
 
 	@Override
-	public Object getBean(String name, Object... args) throws BeansException {
+	public Object getBean(String name, @Nullable Object @Nullable ... args) throws BeansException {
 		return this.beanFactory.getBean(name, args);
 	}
 
@@ -178,7 +178,7 @@ class StubWebApplicationContext implements WebApplicationContext {
 	}
 
 	@Override
-	public <T> T getBean(Class<T> requiredType, Object... args) throws BeansException {
+	public <T> T getBean(Class<T> requiredType, @Nullable Object @Nullable ... args) throws BeansException {
 		return this.beanFactory.getBean(requiredType, args);
 	}
 
@@ -218,12 +218,12 @@ class StubWebApplicationContext implements WebApplicationContext {
 	}
 
 	@Override
-	public Class<?> getType(String name) throws NoSuchBeanDefinitionException {
+	public @Nullable Class<?> getType(String name) throws NoSuchBeanDefinitionException {
 		return this.beanFactory.getType(name);
 	}
 
 	@Override
-	public Class<?> getType(String name, boolean allowFactoryBeanInit) throws NoSuchBeanDefinitionException {
+	public @Nullable Class<?> getType(String name, boolean allowFactoryBeanInit) throws NoSuchBeanDefinitionException {
 		return this.beanFactory.getType(name, allowFactoryBeanInit);
 	}
 
@@ -307,16 +307,14 @@ class StubWebApplicationContext implements WebApplicationContext {
 	}
 
 	@Override
-	@Nullable
-	public <A extends Annotation> A findAnnotationOnBean(String beanName, Class<A> annotationType)
+	public <A extends Annotation> @Nullable A findAnnotationOnBean(String beanName, Class<A> annotationType)
 			throws NoSuchBeanDefinitionException{
 
 		return this.beanFactory.findAnnotationOnBean(beanName, annotationType);
 	}
 
 	@Override
-	@Nullable
-	public <A extends Annotation> A findAnnotationOnBean(
+	public <A extends Annotation> @Nullable A findAnnotationOnBean(
 			String beanName, Class<A> annotationType, boolean allowFactoryBeanInit)
 			throws NoSuchBeanDefinitionException {
 
@@ -337,7 +335,7 @@ class StubWebApplicationContext implements WebApplicationContext {
 	//---------------------------------------------------------------------
 
 	@Override
-	public BeanFactory getParentBeanFactory() {
+	public @Nullable BeanFactory getParentBeanFactory() {
 		return null;
 	}
 
@@ -352,12 +350,12 @@ class StubWebApplicationContext implements WebApplicationContext {
 	//---------------------------------------------------------------------
 
 	@Override
-	public String getMessage(String code, @Nullable Object[] args, @Nullable String defaultMessage, Locale locale) {
+	public @Nullable String getMessage(String code, Object @Nullable [] args, @Nullable String defaultMessage, Locale locale) {
 		return this.messageSource.getMessage(code, args, defaultMessage, locale);
 	}
 
 	@Override
-	public String getMessage(String code, @Nullable Object[] args, Locale locale) throws NoSuchMessageException {
+	public String getMessage(String code, Object @Nullable [] args, Locale locale) throws NoSuchMessageException {
 		return this.messageSource.getMessage(code, args, locale);
 	}
 
@@ -372,8 +370,7 @@ class StubWebApplicationContext implements WebApplicationContext {
 	//---------------------------------------------------------------------
 
 	@Override
-	@Nullable
-	public ClassLoader getClassLoader() {
+	public @Nullable ClassLoader getClassLoader() {
 		return ClassUtils.getDefaultClassLoader();
 	}
 
@@ -456,14 +453,12 @@ class StubWebApplicationContext implements WebApplicationContext {
 		}
 
 		@Override
-		@Nullable
-		public Object resolveDependency(DependencyDescriptor descriptor, @Nullable String requestingBeanName) {
+		public @Nullable Object resolveDependency(DependencyDescriptor descriptor, @Nullable String requestingBeanName) {
 			throw new UnsupportedOperationException("Dependency resolution not supported");
 		}
 
 		@Override
-		@Nullable
-		public Object resolveDependency(DependencyDescriptor descriptor, @Nullable String requestingBeanName,
+		public @Nullable Object resolveDependency(DependencyDescriptor descriptor, @Nullable String requestingBeanName,
 				@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) {
 			throw new UnsupportedOperationException("Dependency resolution not supported");
 		}
@@ -472,11 +467,13 @@ class StubWebApplicationContext implements WebApplicationContext {
 		public void applyBeanPropertyValues(Object existingBean, String beanName) throws BeansException {
 		}
 
+		@SuppressWarnings("deprecation")
 		@Override
 		public Object applyBeanPostProcessorsBeforeInitialization(Object existingBean, String beanName) {
 			return existingBean;
 		}
 
+		@SuppressWarnings("deprecation")
 		@Override
 		public Object applyBeanPostProcessorsAfterInitialization(Object existingBean, String beanName) {
 			return existingBean;

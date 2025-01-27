@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,11 @@ package org.springframework.web.reactive.socket;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.Netty5DataBufferFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ObjectUtils;
@@ -46,8 +47,7 @@ public class WebSocketMessage {
 
 	private final DataBuffer payload;
 
-	@Nullable
-	private final Object nativeMessage;
+	private final @Nullable Object nativeMessage;
 
 
 	/**
@@ -99,9 +99,8 @@ public class WebSocketMessage {
 	 * @return the underlying message, or {@code null}
 	 * @since 5.3
 	 */
-	@Nullable
 	@SuppressWarnings("unchecked")
-	public <T> T getNativeMessage() {
+	public <T> @Nullable T getNativeMessage() {
 		return (T) this.nativeMessage;
 	}
 
@@ -126,7 +125,7 @@ public class WebSocketMessage {
 
 	/**
 	 * Retain the data buffer for the message payload, which is useful on
-	 * runtimes (e.g. Netty) with pooled buffers. A shortcut for:
+	 * runtimes (for example, Netty) with pooled buffers. A shortcut for:
 	 * <pre>
 	 * DataBuffer payload = message.getPayload();
 	 * DataBufferUtils.retain(payload);
@@ -143,7 +142,7 @@ public class WebSocketMessage {
 
 	/**
 	 * Release the payload {@code DataBuffer} which is useful on runtimes
-	 * (e.g. Netty) with pooled buffers such as Netty. A shortcut for:
+	 * (for example, Netty) with pooled buffers such as Netty. A shortcut for:
 	 * <pre>
 	 * DataBuffer payload = message.getPayload();
 	 * DataBufferUtils.release(payload);
@@ -157,14 +156,9 @@ public class WebSocketMessage {
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof WebSocketMessage otherMessage)) {
-			return false;
-		}
-		return (this.type.equals(otherMessage.type) &&
-				ObjectUtils.nullSafeEquals(this.payload, otherMessage.payload));
+		return (this == other || (other instanceof WebSocketMessage that &&
+				this.type.equals(that.type) &&
+				ObjectUtils.nullSafeEquals(this.payload, that.payload)));
 	}
 
 	@Override

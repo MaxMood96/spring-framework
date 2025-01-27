@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.DirectFieldAccessor;
@@ -32,7 +33,6 @@ import org.springframework.beans.factory.config.CustomScopeConfigurer;
 import org.springframework.beans.factory.xml.XmlBeanDefinitionReader;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.converter.ByteArrayMessageConverter;
@@ -101,13 +101,13 @@ import static org.assertj.core.api.InstanceOfAssertFactories.BOOLEAN;
  * @author Artem Bilan
  * @author Rossen Stoyanchev
  */
-public class MessageBrokerBeanDefinitionParserTests {
+class MessageBrokerBeanDefinitionParserTests {
 
 	private final GenericWebApplicationContext appContext = new GenericWebApplicationContext();
 
 
 	@Test
-	public void simpleBroker() throws Exception {
+	void simpleBroker() throws Exception {
 		loadBeanDefinitions("websocket-config-broker-simple.xml");
 
 		HandlerMapping hm = this.appContext.getBean(HandlerMapping.class);
@@ -231,7 +231,7 @@ public class MessageBrokerBeanDefinitionParserTests {
 	}
 
 	@Test
-	public void stompBrokerRelay() {
+	void stompBrokerRelay() {
 		loadBeanDefinitions("websocket-config-broker-relay.xml");
 
 		HandlerMapping hm = this.appContext.getBean(HandlerMapping.class);
@@ -319,7 +319,7 @@ public class MessageBrokerBeanDefinitionParserTests {
 	}
 
 	@Test
-	public void annotationMethodMessageHandler() {
+	void annotationMethodMessageHandler() {
 		loadBeanDefinitions("websocket-config-broker-simple.xml");
 
 		SimpAnnotationMethodMessageHandler annotationMethodMessageHandler =
@@ -341,9 +341,9 @@ public class MessageBrokerBeanDefinitionParserTests {
 
 		List<MessageConverter> converters = compositeMessageConverter.getConverters();
 		assertThat(converters).hasSize(3);
-		assertThat(converters.get(0)).isInstanceOf(StringMessageConverter.class);
-		assertThat(converters.get(1)).isInstanceOf(ByteArrayMessageConverter.class);
-		assertThat(converters.get(2)).isInstanceOf(MappingJackson2MessageConverter.class);
+		assertThat(converters).element(0).isInstanceOf(StringMessageConverter.class);
+		assertThat(converters).element(1).isInstanceOf(ByteArrayMessageConverter.class);
+		assertThat(converters).element(2).isInstanceOf(MappingJackson2MessageConverter.class);
 
 		ContentTypeResolver resolver = ((MappingJackson2MessageConverter) converters.get(2)).getContentTypeResolver();
 		assertThat(((DefaultContentTypeResolver) resolver).getDefaultMimeType()).isEqualTo(MimeTypeUtils.APPLICATION_JSON);
@@ -355,7 +355,7 @@ public class MessageBrokerBeanDefinitionParserTests {
 	}
 
 	@Test
-	public void customChannels() {
+	void customChannels() {
 		loadBeanDefinitions("websocket-config-broker-customchannels.xml");
 
 		SimpAnnotationMethodMessageHandler annotationMethodMessageHandler =
@@ -393,24 +393,24 @@ public class MessageBrokerBeanDefinitionParserTests {
 	}
 
 	@Test
-	public void customArgumentAndReturnValueTypes() {
+	void customArgumentAndReturnValueTypes() {
 		loadBeanDefinitions("websocket-config-broker-custom-argument-and-return-value-types.xml");
 
 		SimpAnnotationMethodMessageHandler handler = this.appContext.getBean(SimpAnnotationMethodMessageHandler.class);
 
 		List<HandlerMethodArgumentResolver> customResolvers = handler.getCustomArgumentResolvers();
 		assertThat(customResolvers).hasSize(2);
-		assertThat(handler.getArgumentResolvers().contains(customResolvers.get(0))).isTrue();
-		assertThat(handler.getArgumentResolvers().contains(customResolvers.get(1))).isTrue();
+		assertThat(handler.getArgumentResolvers()).contains(customResolvers.get(0));
+		assertThat(handler.getArgumentResolvers()).contains(customResolvers.get(1));
 
 		List<HandlerMethodReturnValueHandler> customHandlers = handler.getCustomReturnValueHandlers();
 		assertThat(customHandlers).hasSize(2);
-		assertThat(handler.getReturnValueHandlers().contains(customHandlers.get(0))).isTrue();
-		assertThat(handler.getReturnValueHandlers().contains(customHandlers.get(1))).isTrue();
+		assertThat(handler.getReturnValueHandlers()).contains(customHandlers.get(0));
+		assertThat(handler.getReturnValueHandlers()).contains(customHandlers.get(1));
 	}
 
 	@Test
-	public void messageConverters() {
+	void messageConverters() {
 		loadBeanDefinitions("websocket-config-broker-converters.xml");
 
 		CompositeMessageConverter compositeConverter = this.appContext.getBean(CompositeMessageConverter.class);
@@ -421,7 +421,7 @@ public class MessageBrokerBeanDefinitionParserTests {
 	}
 
 	@Test
-	public void messageConvertersDefaultsOff() {
+	void messageConvertersDefaultsOff() {
 		loadBeanDefinitions("websocket-config-broker-converters-defaults-off.xml");
 
 		CompositeMessageConverter compositeConverter = this.appContext.getBean(CompositeMessageConverter.class);
@@ -433,10 +433,10 @@ public class MessageBrokerBeanDefinitionParserTests {
 
 
 	private void testChannel(
-			String channelName, List<Class<? extends  MessageHandler>> subscriberTypes, int interceptorCount) {
+			String channelName, List<Class<? extends MessageHandler>> subscriberTypes, int interceptorCount) {
 
 		AbstractSubscribableChannel channel = this.appContext.getBean(channelName, AbstractSubscribableChannel.class);
-		for (Class<? extends  MessageHandler> subscriberType : subscriberTypes) {
+		for (Class<? extends MessageHandler> subscriberType : subscriberTypes) {
 			MessageHandler subscriber = this.appContext.getBean(subscriberType);
 			assertThat(subscriber).as("No subscription for " + subscriberType).isNotNull();
 			assertThat(channel.hasSubscription(subscriber)).isTrue();
@@ -478,7 +478,7 @@ class CustomArgumentResolver implements HandlerMethodArgumentResolver {
 	}
 
 	@Override
-	public Object resolveArgument(MethodParameter parameter, Message<?> message) throws Exception {
+	public Object resolveArgument(MethodParameter parameter, Message<?> message) {
 		return null;
 	}
 }
@@ -492,7 +492,7 @@ class CustomReturnValueHandler implements HandlerMethodReturnValueHandler {
 	}
 
 	@Override
-	public void handleReturnValue(Object returnValue, MethodParameter returnType, Message<?> message) throws Exception {
+	public void handleReturnValue(Object returnValue, MethodParameter returnType, Message<?> message) {
 	}
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
-
-import org.springframework.lang.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -75,7 +74,6 @@ class CustomEnvironmentTests {
 	void withMultiCustomReservedDefaultProfile() {
 		class CustomEnvironment extends AbstractEnvironment {
 			@Override
-			@SuppressWarnings("serial")
 			protected Set<String> getReservedDefaultProfiles() {
 				return Set.of("rd1", "rd2");
 			}
@@ -110,13 +108,11 @@ class CustomEnvironmentTests {
 	void withNoProfileProperties() {
 		ConfigurableEnvironment env = new AbstractEnvironment() {
 			@Override
-			@Nullable
-			protected String doGetActiveProfilesProperty() {
+			protected @Nullable String doGetActiveProfilesProperty() {
 				return null;
 			}
 			@Override
-			@Nullable
-			protected String doGetDefaultProfilesProperty() {
+			protected @Nullable String doGetDefaultProfilesProperty() {
 				return null;
 			}
 		};
@@ -144,8 +140,7 @@ class CustomEnvironmentTests {
 				super(propertySources);
 			}
 			@Override
-			@Nullable
-			public String getProperty(String key) {
+			public @Nullable String getProperty(String key) {
 				return super.getProperty(key) + "-test";
 			}
 		}

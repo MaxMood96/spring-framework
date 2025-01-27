@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,18 +20,21 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aot.hint.ExecutableMode;
 import org.springframework.beans.BeanInstantiationException;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.TypeConverter;
-import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.UnsatisfiedDependencyException;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.beans.factory.config.ConstructorArgumentValues;
 import org.springframework.beans.factory.config.ConstructorArgumentValues.ValueHolder;
 import org.springframework.beans.factory.config.DependencyDescriptor;
@@ -42,10 +45,9 @@ import org.springframework.beans.factory.support.RegisteredBean;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.beans.factory.support.SimpleInstantiationStrategy;
 import org.springframework.core.MethodParameter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
-import org.springframework.util.ObjectUtils;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.util.function.ThrowingBiFunction;
 import org.springframework.util.function.ThrowingFunction;
@@ -75,6 +77,7 @@ import org.springframework.util.function.ThrowingSupplier;
  *
  * @author Phillip Webb
  * @author Stephane Nicoll
+ * @author Juergen Hoeller
  * @since 6.0
  * @param <T> the type of instance supplied by this supplier
  * @see AutowiredArguments
@@ -83,20 +86,22 @@ public final class BeanInstanceSupplier<T> extends AutowiredElementResolver impl
 
 	private final ExecutableLookup lookup;
 
-	@Nullable
-	private final ThrowingBiFunction<RegisteredBean, AutowiredArguments, T> generator;
+	private final @Nullable ThrowingFunction<RegisteredBean, T> generatorWithoutArguments;
 
-	@Nullable
-	private final String[] shortcuts;
+	private final @Nullable ThrowingBiFunction<RegisteredBean, AutowiredArguments, T> generatorWithArguments;
+
+	private final String @Nullable [] shortcutBeanNames;
 
 
 	private BeanInstanceSupplier(ExecutableLookup lookup,
-			@Nullable ThrowingBiFunction<RegisteredBean, AutowiredArguments, T> generator,
-			@Nullable String[] shortcuts) {
+			@Nullable ThrowingFunction<RegisteredBean, T> generatorWithoutArguments,
+			@Nullable ThrowingBiFunction<RegisteredBean, AutowiredArguments, T> generatorWithArguments,
+			String @Nullable [] shortcutBeanNames) {
 
 		this.lookup = lookup;
-		this.generator = generator;
-		this.shortcuts = shortcuts;
+		this.generatorWithoutArguments = generatorWithoutArguments;
+		this.generatorWithArguments = generatorWithArguments;
+		this.shortcutBeanNames = shortcutBeanNames;
 	}
 
 
@@ -110,7 +115,7 @@ public final class BeanInstanceSupplier<T> extends AutowiredElementResolver impl
 	public static <T> BeanInstanceSupplier<T> forConstructor(Class<?>... parameterTypes) {
 		Assert.notNull(parameterTypes, "'parameterTypes' must not be null");
 		Assert.noNullElements(parameterTypes, "'parameterTypes' must not contain null elements");
-		return new BeanInstanceSupplier<>(new ConstructorLookup(parameterTypes), null, null);
+		return new BeanInstanceSupplier<>(new ConstructorLookup(parameterTypes), null, null, null);
 	}
 
 	/**
@@ -131,7 +136,7 @@ public final class BeanInstanceSupplier<T> extends AutowiredElementResolver impl
 		Assert.noNullElements(parameterTypes, "'parameterTypes' must not contain null elements");
 		return new BeanInstanceSupplier<>(
 				new FactoryMethodLookup(declaringClass, methodName, parameterTypes),
-				null, null);
+				null, null, null);
 	}
 
 
@@ -147,11 +152,9 @@ public final class BeanInstanceSupplier<T> extends AutowiredElementResolver impl
 	 * instantiate the underlying bean
 	 * @return a new {@link BeanInstanceSupplier} instance with the specified generator
 	 */
-	public BeanInstanceSupplier<T> withGenerator(
-			ThrowingBiFunction<RegisteredBean, AutowiredArguments, T> generator) {
-
+	public BeanInstanceSupplier<T> withGenerator(ThrowingBiFunction<RegisteredBean, AutowiredArguments, T> generator) {
 		Assert.notNull(generator, "'generator' must not be null");
-		return new BeanInstanceSupplier<>(this.lookup, generator, this.shortcuts);
+		return new BeanInstanceSupplier<>(this.lookup, null, generator, this.shortcutBeanNames);
 	}
 
 	/**
@@ -163,66 +166,68 @@ public final class BeanInstanceSupplier<T> extends AutowiredElementResolver impl
 	 */
 	public BeanInstanceSupplier<T> withGenerator(ThrowingFunction<RegisteredBean, T> generator) {
 		Assert.notNull(generator, "'generator' must not be null");
-		return new BeanInstanceSupplier<>(this.lookup,
-				(registeredBean, args) -> generator.apply(registeredBean), this.shortcuts);
+		return new BeanInstanceSupplier<>(this.lookup, generator, null, this.shortcutBeanNames);
 	}
 
 	/**
-	 * Return a new {@link BeanInstanceSupplier} instance that uses the specified
-	 * {@code generator} supplier to instantiate the underlying bean.
-	 * @param generator a {@link ThrowingSupplier} to instantiate the underlying bean
-	 * @return a new {@link BeanInstanceSupplier} instance with the specified generator
-	 */
-	public BeanInstanceSupplier<T> withGenerator(ThrowingSupplier<T> generator) {
-		Assert.notNull(generator, "'generator' must not be null");
-		return new BeanInstanceSupplier<>(this.lookup,
-				(registeredBean, args) -> generator.get(), this.shortcuts);
-	}
-
-	/**
-	 * Return a new {@link BeanInstanceSupplier} instance
-	 * that uses direct bean name injection shortcuts for specific parameters.
-	 * @param beanNames the bean names to use as shortcuts (aligned with the
+	 * Return a new {@link BeanInstanceSupplier} instance that uses
+	 * direct bean name injection shortcuts for specific parameters.
+	 * @param beanNames the bean names to use as shortcut (aligned with the
 	 * constructor or factory method parameters)
-	 * @return a new {@link BeanInstanceSupplier} instance
-	 * that uses the shortcuts
+	 * @return a new {@link BeanInstanceSupplier} instance that uses the
+	 * given shortcut bean names
+	 * @since 6.2
 	 */
-	public BeanInstanceSupplier<T> withShortcuts(String... beanNames) {
-		return new BeanInstanceSupplier<>(this.lookup, this.generator, beanNames);
+	public BeanInstanceSupplier<T> withShortcut(String... beanNames) {
+		return new BeanInstanceSupplier<>(
+				this.lookup, this.generatorWithoutArguments, this.generatorWithArguments, beanNames);
 	}
 
+
+	@SuppressWarnings("unchecked")
 	@Override
-	public T get(RegisteredBean registeredBean) throws Exception {
+	public T get(RegisteredBean registeredBean) {
 		Assert.notNull(registeredBean, "'registeredBean' must not be null");
-		Executable executable = this.lookup.get(registeredBean);
-		AutowiredArguments arguments = resolveArguments(registeredBean, executable);
-		if (this.generator != null) {
-			return invokeBeanSupplier(executable, () -> this.generator.apply(registeredBean, arguments));
+		if (this.generatorWithoutArguments != null) {
+			Executable executable = getFactoryMethodForGenerator();
+			return invokeBeanSupplier(executable, () -> this.generatorWithoutArguments.apply(registeredBean));
 		}
-		return invokeBeanSupplier(executable,
-				() -> instantiate(registeredBean.getBeanFactory(), executable, arguments.toArray()));
-	}
-
-	private T invokeBeanSupplier(Executable executable, ThrowingSupplier<T> beanSupplier) {
-		if (!(executable instanceof Method method)) {
-			return beanSupplier.get();
+		else if (this.generatorWithArguments != null) {
+			Executable executable = getFactoryMethodForGenerator();
+			AutowiredArguments arguments = resolveArguments(registeredBean,
+					executable != null ? executable : this.lookup.get(registeredBean));
+			return invokeBeanSupplier(executable, () -> this.generatorWithArguments.apply(registeredBean, arguments));
 		}
-		try {
-			SimpleInstantiationStrategy.setCurrentlyInvokedFactoryMethod(method);
-			return beanSupplier.get();
-		}
-		finally {
-			SimpleInstantiationStrategy.setCurrentlyInvokedFactoryMethod(null);
+		else {
+			Executable executable = this.lookup.get(registeredBean);
+			@Nullable Object[] arguments = resolveArguments(registeredBean, executable).toArray();
+			return invokeBeanSupplier(executable, () -> (T) instantiate(registeredBean, executable, arguments));
 		}
 	}
 
-	@Nullable
 	@Override
-	public Method getFactoryMethod() {
+	public @Nullable Method getFactoryMethod() {
+		// Cached factory method retrieval for qualifier introspection etc.
 		if (this.lookup instanceof FactoryMethodLookup factoryMethodLookup) {
 			return factoryMethodLookup.get();
 		}
 		return null;
+	}
+
+	private @Nullable Method getFactoryMethodForGenerator() {
+		// Avoid unnecessary currentlyInvokedFactoryMethod exposure outside of full configuration classes.
+		if (this.lookup instanceof FactoryMethodLookup factoryMethodLookup &&
+				factoryMethodLookup.declaringClass.getName().contains(ClassUtils.CGLIB_CLASS_SEPARATOR)) {
+			return factoryMethodLookup.get();
+		}
+		return null;
+	}
+
+	private T invokeBeanSupplier(@Nullable Executable executable, ThrowingSupplier<T> beanSupplier) {
+		if (executable instanceof Method method) {
+			return SimpleInstantiationStrategy.instantiateWithFactoryMethod(method, beanSupplier);
+		}
+		return beanSupplier.get();
 	}
 
 	/**
@@ -236,28 +241,27 @@ public final class BeanInstanceSupplier<T> extends AutowiredElementResolver impl
 	}
 
 	private AutowiredArguments resolveArguments(RegisteredBean registeredBean, Executable executable) {
-		Assert.isInstanceOf(AbstractAutowireCapableBeanFactory.class, registeredBean.getBeanFactory());
-
-		int startIndex = (executable instanceof Constructor<?> constructor &&
-				ClassUtils.isInnerClass(constructor.getDeclaringClass())) ? 1 : 0;
 		int parameterCount = executable.getParameterCount();
-		Object[] resolved = new Object[parameterCount - startIndex];
-		Assert.isTrue(this.shortcuts == null || this.shortcuts.length == resolved.length,
+		@Nullable Object[] resolved = new Object[parameterCount];
+		Assert.isTrue(this.shortcutBeanNames == null || this.shortcutBeanNames.length == resolved.length,
 				() -> "'shortcuts' must contain " + resolved.length + " elements");
 
-		ConstructorArgumentValues argumentValues = resolveArgumentValues(registeredBean);
-		Set<String> autowiredBeans = new LinkedHashSet<>(resolved.length);
+		ValueHolder[] argumentValues = resolveArgumentValues(registeredBean, executable);
+		Set<String> autowiredBeanNames = new LinkedHashSet<>(resolved.length * 2);
+		int startIndex = (executable instanceof Constructor<?> constructor &&
+				ClassUtils.isInnerClass(constructor.getDeclaringClass())) ? 1 : 0;
 		for (int i = startIndex; i < parameterCount; i++) {
 			MethodParameter parameter = getMethodParameter(executable, i);
 			DependencyDescriptor descriptor = new DependencyDescriptor(parameter, true);
-			String shortcut = (this.shortcuts != null ? this.shortcuts[i - startIndex] : null);
+			String shortcut = (this.shortcutBeanNames != null ? this.shortcutBeanNames[i] : null);
 			if (shortcut != null) {
-				descriptor = new ShortcutDependencyDescriptor(descriptor, shortcut, registeredBean.getBeanClass());
+				descriptor = new ShortcutDependencyDescriptor(descriptor, shortcut);
 			}
-			ValueHolder argumentValue = argumentValues.getIndexedArgumentValue(i, null);
-			resolved[i - startIndex] = resolveArgument(registeredBean, descriptor, argumentValue, autowiredBeans);
+			ValueHolder argumentValue = argumentValues[i];
+			resolved[i] = resolveAutowiredArgument(
+					registeredBean, descriptor, argumentValue, autowiredBeanNames);
 		}
-		registerDependentBeans(registeredBean.getBeanFactory(), registeredBean.getBeanName(), autowiredBeans);
+		registerDependentBeans(registeredBean.getBeanFactory(), registeredBean.getBeanName(), autowiredBeanNames);
 
 		return AutowiredArguments.of(resolved);
 	}
@@ -272,20 +276,42 @@ public final class BeanInstanceSupplier<T> extends AutowiredElementResolver impl
 		throw new IllegalStateException("Unsupported executable: " + executable.getClass().getName());
 	}
 
-	private ConstructorArgumentValues resolveArgumentValues(RegisteredBean registeredBean) {
-		ConstructorArgumentValues resolved = new ConstructorArgumentValues();
+	private ValueHolder[] resolveArgumentValues(RegisteredBean registeredBean, Executable executable) {
+		Parameter[] parameters = executable.getParameters();
+		ValueHolder[] resolved = new ValueHolder[parameters.length];
 		RootBeanDefinition beanDefinition = registeredBean.getMergedBeanDefinition();
 		if (beanDefinition.hasConstructorArgumentValues() &&
 				registeredBean.getBeanFactory() instanceof AbstractAutowireCapableBeanFactory beanFactory) {
 			BeanDefinitionValueResolver valueResolver = new BeanDefinitionValueResolver(
 					beanFactory, registeredBean.getBeanName(), beanDefinition, beanFactory.getTypeConverter());
-			ConstructorArgumentValues values = beanDefinition.getConstructorArgumentValues();
-			values.getIndexedArgumentValues().forEach((index, valueHolder) -> {
-				ValueHolder resolvedValue = resolveArgumentValue(valueResolver, valueHolder);
-				resolved.addIndexedArgumentValue(index, resolvedValue);
-			});
+			ConstructorArgumentValues values = resolveConstructorArguments(
+					valueResolver, beanDefinition.getConstructorArgumentValues());
+			Set<ValueHolder> usedValueHolders = CollectionUtils.newHashSet(parameters.length);
+			for (int i = 0; i < parameters.length; i++) {
+				Class<?> parameterType = parameters[i].getType();
+				String parameterName = (parameters[i].isNamePresent() ? parameters[i].getName() : null);
+				ValueHolder valueHolder = values.getArgumentValue(
+						i, parameterType, parameterName, usedValueHolders);
+				if (valueHolder != null) {
+					resolved[i] = valueHolder;
+					usedValueHolders.add(valueHolder);
+				}
+			}
 		}
 		return resolved;
+	}
+
+	private ConstructorArgumentValues resolveConstructorArguments(
+			BeanDefinitionValueResolver valueResolver, ConstructorArgumentValues constructorArguments) {
+
+		ConstructorArgumentValues resolvedConstructorArguments = new ConstructorArgumentValues();
+		for (Map.Entry<Integer, ConstructorArgumentValues.ValueHolder> entry : constructorArguments.getIndexedArgumentValues().entrySet()) {
+			resolvedConstructorArguments.addIndexedArgumentValue(entry.getKey(), resolveArgumentValue(valueResolver, entry.getValue()));
+		}
+		for (ConstructorArgumentValues.ValueHolder valueHolder : constructorArguments.getGenericArgumentValues()) {
+			resolvedConstructorArguments.addGenericArgumentValue(resolveArgumentValue(valueResolver, valueHolder));
+		}
+		return resolvedConstructorArguments;
 	}
 
 	private ValueHolder resolveArgumentValue(BeanDefinitionValueResolver resolver, ValueHolder valueHolder) {
@@ -298,9 +324,8 @@ public final class BeanInstanceSupplier<T> extends AutowiredElementResolver impl
 		return resolvedHolder;
 	}
 
-	@Nullable
-	private Object resolveArgument(RegisteredBean registeredBean, DependencyDescriptor descriptor,
-			@Nullable ValueHolder argumentValue, Set<String> autowiredBeans) {
+	private @Nullable Object resolveAutowiredArgument(RegisteredBean registeredBean, DependencyDescriptor descriptor,
+			@Nullable ValueHolder argumentValue, Set<String> autowiredBeanNames) {
 
 		TypeConverter typeConverter = registeredBean.getBeanFactory().getTypeConverter();
 		if (argumentValue != null) {
@@ -309,68 +334,35 @@ public final class BeanInstanceSupplier<T> extends AutowiredElementResolver impl
 							descriptor.getDependencyType(), descriptor.getMethodParameter()));
 		}
 		try {
-			return registeredBean.resolveAutowiredArgument(descriptor, typeConverter, autowiredBeans);
+			return registeredBean.resolveAutowiredArgument(descriptor, typeConverter, autowiredBeanNames);
 		}
 		catch (BeansException ex) {
 			throw new UnsatisfiedDependencyException(null, registeredBean.getBeanName(), descriptor, ex);
 		}
 	}
 
-	@SuppressWarnings("unchecked")
-	private T instantiate(ConfigurableBeanFactory beanFactory, Executable executable, Object[] args) {
+	private Object instantiate(RegisteredBean registeredBean, Executable executable, @Nullable Object[] args) {
 		if (executable instanceof Constructor<?> constructor) {
-			try {
-				return (T) instantiate(constructor, args);
-			}
-			catch (Exception ex) {
-				throw new BeanInstantiationException(constructor, ex.getMessage(), ex);
-			}
+			return BeanUtils.instantiateClass(constructor, args);
 		}
 		if (executable instanceof Method method) {
-			try {
-				return (T) instantiate(beanFactory, method, args);
+			Object target = null;
+			String factoryBeanName = registeredBean.getMergedBeanDefinition().getFactoryBeanName();
+			if (factoryBeanName != null) {
+				target = registeredBean.getBeanFactory().getBean(factoryBeanName, method.getDeclaringClass());
 			}
-			catch (Exception ex) {
+			else if (!Modifier.isStatic(method.getModifiers())) {
+				throw new IllegalStateException("Cannot invoke instance method without factoryBeanName: " + method);
+			}
+			try {
+				ReflectionUtils.makeAccessible(method);
+				return method.invoke(target, args);
+			}
+			catch (Throwable ex) {
 				throw new BeanInstantiationException(method, ex.getMessage(), ex);
 			}
 		}
 		throw new IllegalStateException("Unsupported executable " + executable.getClass().getName());
-	}
-
-	private Object instantiate(Constructor<?> constructor, Object[] args) throws Exception {
-		Class<?> declaringClass = constructor.getDeclaringClass();
-		if (ClassUtils.isInnerClass(declaringClass)) {
-			Object enclosingInstance = createInstance(declaringClass.getEnclosingClass());
-			args = ObjectUtils.addObjectToArray(args, enclosingInstance, 0);
-		}
-		ReflectionUtils.makeAccessible(constructor);
-		return constructor.newInstance(args);
-	}
-
-	private Object instantiate(ConfigurableBeanFactory beanFactory, Method method, Object[] args) throws Exception {
-		Object target = getFactoryMethodTarget(beanFactory, method);
-		ReflectionUtils.makeAccessible(method);
-		return method.invoke(target, args);
-	}
-
-	@Nullable
-	private Object getFactoryMethodTarget(BeanFactory beanFactory, Method method) {
-		if (Modifier.isStatic(method.getModifiers())) {
-			return null;
-		}
-		Class<?> declaringClass = method.getDeclaringClass();
-		return beanFactory.getBean(declaringClass);
-	}
-
-	private Object createInstance(Class<?> clazz) throws Exception {
-		if (!ClassUtils.isInnerClass(clazz)) {
-			Constructor<?> constructor = clazz.getDeclaredConstructor();
-			ReflectionUtils.makeAccessible(constructor);
-			return constructor.newInstance();
-		}
-		Class<?> enclosingClass = clazz.getEnclosingClass();
-		Constructor<?> constructor = clazz.getDeclaredConstructor(enclosingClass);
-		return constructor.newInstance(createInstance(enclosingClass));
 	}
 
 
@@ -382,7 +374,7 @@ public final class BeanInstanceSupplier<T> extends AutowiredElementResolver impl
 	/**
 	 * Performs lookup of the {@link Executable}.
 	 */
-	static abstract class ExecutableLookup {
+	abstract static class ExecutableLookup {
 
 		abstract Executable get(RegisteredBean registeredBean);
 	}
@@ -401,12 +393,9 @@ public final class BeanInstanceSupplier<T> extends AutowiredElementResolver impl
 
 		@Override
 		public Executable get(RegisteredBean registeredBean) {
-			Class<?> beanClass = registeredBean.getBeanClass();
+			Class<?> beanClass = registeredBean.getMergedBeanDefinition().getBeanClass();
 			try {
-				Class<?>[] actualParameterTypes = (!ClassUtils.isInnerClass(beanClass)) ?
-						this.parameterTypes : ObjectUtils.addObjectToArray(
-								this.parameterTypes, beanClass.getEnclosingClass(), 0);
-				return beanClass.getDeclaredConstructor(actualParameterTypes);
+				return beanClass.getDeclaredConstructor(this.parameterTypes);
 			}
 			catch (NoSuchMethodException ex) {
 				throw new IllegalArgumentException(
@@ -432,6 +421,8 @@ public final class BeanInstanceSupplier<T> extends AutowiredElementResolver impl
 
 		private final Class<?>[] parameterTypes;
 
+		private volatile @Nullable Method resolvedMethod;
+
 		FactoryMethodLookup(Class<?> declaringClass, String methodName, Class<?>[] parameterTypes) {
 			this.declaringClass = declaringClass;
 			this.methodName = methodName;
@@ -444,8 +435,13 @@ public final class BeanInstanceSupplier<T> extends AutowiredElementResolver impl
 		}
 
 		Method get() {
-			Method method = ReflectionUtils.findMethod(this.declaringClass, this.methodName, this.parameterTypes);
-			Assert.notNull(method, () -> "%s cannot be found".formatted(this));
+			Method method = this.resolvedMethod;
+			if (method == null) {
+				method = ReflectionUtils.findMethod(
+						ClassUtils.getUserClass(this.declaringClass), this.methodName, this.parameterTypes);
+				Assert.notNull(method, () -> "%s cannot be found".formatted(this));
+				this.resolvedMethod = method;
+			}
 			return method;
 		}
 

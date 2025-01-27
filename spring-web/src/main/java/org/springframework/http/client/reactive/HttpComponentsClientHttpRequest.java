@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,9 @@ package org.springframework.http.client.reactive;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
-import java.util.Collection;
+import java.util.List;
 import java.util.function.Function;
 
-import org.apache.hc.client5.http.cookie.CookieStore;
-import org.apache.hc.client5.http.impl.cookie.BasicClientCookie;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpRequest;
@@ -31,16 +29,19 @@ import org.apache.hc.core5.http.message.BasicHttpRequest;
 import org.apache.hc.core5.http.nio.AsyncRequestProducer;
 import org.apache.hc.core5.http.nio.support.BasicRequestProducer;
 import org.apache.hc.core5.reactive.ReactiveEntityProducer;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
+import org.springframework.http.HttpCookie;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
+import org.springframework.http.support.HttpComponentsHeadersAdapter;
+import org.springframework.util.CollectionUtils;
 
 /**
  * {@link ClientHttpRequest} implementation for the Apache HttpComponents HttpClient 5.x.
@@ -58,8 +59,7 @@ class HttpComponentsClientHttpRequest extends AbstractClientHttpRequest {
 
 	private final HttpClientContext context;
 
-	@Nullable
-	private Flux<ByteBuffer> byteBufferFlux;
+	private @Nullable Flux<ByteBuffer> byteBufferFlux;
 
 	private transient long contentLength = -1;
 
@@ -125,7 +125,7 @@ class HttpComponentsClientHttpRequest extends AbstractClientHttpRequest {
 	protected void applyHeaders() {
 		HttpHeaders headers = getHeaders();
 
-		headers.entrySet()
+		headers.headerSet()
 				.stream()
 				.filter(entry -> !HttpHeaders.CONTENT_LENGTH.equals(entry.getKey()))
 				.forEach(entry -> entry.getValue().forEach(v -> this.httpRequest.addHeader(entry.getKey(), v)));
@@ -142,18 +142,38 @@ class HttpComponentsClientHttpRequest extends AbstractClientHttpRequest {
 		if (getCookies().isEmpty()) {
 			return;
 		}
+		if (!CollectionUtils.isEmpty(getCookies())) {
+			this.httpRequest.setHeader(HttpHeaders.COOKIE, serializeCookies());
+		}
+	}
 
-		CookieStore cookieStore = this.context.getCookieStore();
+	private String serializeCookies() {
+		boolean first = true;
+		StringBuilder sb = new StringBuilder();
+		for (List<HttpCookie> cookies : getCookies().values()) {
+			for (HttpCookie cookie : cookies) {
+				if (!first) {
+					sb.append("; ");
+				}
+				else {
+					first = false;
+				}
+				sb.append(cookie.getName()).append("=").append(cookie.getValue());
+			}
+		}
+		return sb.toString();
+	}
 
-		getCookies().values()
-				.stream()
-				.flatMap(Collection::stream)
-				.forEach(cookie -> {
-					BasicClientCookie clientCookie = new BasicClientCookie(cookie.getName(), cookie.getValue());
-					clientCookie.setDomain(getURI().getHost());
-					clientCookie.setPath(getURI().getPath());
-					cookieStore.addCookie(clientCookie);
-				});
+	/**
+	 * Applies the attributes to the {@link HttpClientContext}.
+	 */
+	@Override
+	protected void applyAttributes() {
+		getAttributes().forEach((key, value) -> {
+			if (this.context.getAttribute(key) == null) {
+				this.context.setAttribute(key, value);
+			}
+		});
 	}
 
 	@Override

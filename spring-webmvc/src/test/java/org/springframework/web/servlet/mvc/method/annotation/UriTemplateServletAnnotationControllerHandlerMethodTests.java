@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author Rossen Stoyanchev
  * @since 3.1
  */
-public class UriTemplateServletAnnotationControllerHandlerMethodTests extends AbstractServletHandlerMethodTests {
+class UriTemplateServletAnnotationControllerHandlerMethodTests extends AbstractServletHandlerMethodTests {
 
 	@SuppressWarnings("unused")
 	static Stream<Boolean> pathPatternsArguments() {
@@ -173,7 +173,6 @@ public class UriTemplateServletAnnotationControllerHandlerMethodTests extends Ab
 		initDispatcherServlet(SimpleUriTemplateController.class, usePathPatterns, wac -> {
 			if (!usePathPatterns) {
 				RootBeanDefinition mappingDef = new RootBeanDefinition(RequestMappingHandlerMapping.class);
-				mappingDef.getPropertyValues().add("useSuffixPatternMatch", true);
 				mappingDef.getPropertyValues().add("removeSemicolonContent", "false");
 				wac.registerBeanDefinition("handlerMapping", mappingDef);
 			}
@@ -182,8 +181,7 @@ public class UriTemplateServletAnnotationControllerHandlerMethodTests extends Ab
 		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/42;jsessionid=c0o7fszeb1;q=24.xml");
 		MockHttpServletResponse response = new MockHttpServletResponse();
 		getServlet().service(request, response);
-		assertThat(response.getContentAsString())
-				.isEqualTo(!usePathPatterns ? "test-42-24" : "test-42-24.xml");
+		assertThat(response.getContentAsString()).isEqualTo("test-42-24.xml");
 	}
 
 	@PathPatternsParameterizedTest
@@ -320,18 +318,12 @@ public class UriTemplateServletAnnotationControllerHandlerMethodTests extends Ab
 
 	@PathPatternsParameterizedTest // gh-13187
 	void variableNamesWithUrlExtension(boolean usePathPatterns) throws Exception {
-		initDispatcherServlet(VariableNamesController.class, usePathPatterns, wac -> {
-			if (!usePathPatterns) {
-				RootBeanDefinition mappingDef = new RootBeanDefinition(RequestMappingHandlerMapping.class);
-				mappingDef.getPropertyValues().add("useSuffixPatternMatch", true);
-				wac.registerBeanDefinition("handlerMapping", mappingDef);
-			}
-		});
+		initDispatcherServlet(VariableNamesController.class, usePathPatterns);
 
 		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/test/foo.json");
 		MockHttpServletResponse response = new MockHttpServletResponse();
 		getServlet().service(request, response);
-		assertThat(response.getContentAsString()).isEqualTo(!usePathPatterns ? "foo-foo" : "foo-foo.json");
+		assertThat(response.getContentAsString()).isEqualTo("foo-foo.json");
 	}
 
 	@PathPatternsParameterizedTest // gh-11643
@@ -664,15 +656,15 @@ public class UriTemplateServletAnnotationControllerHandlerMethodTests extends Ab
 		}
 
 		@Override
-		public View resolveViewName(final String viewName, Locale locale) throws Exception {
-			return new AbstractView () {
+		public View resolveViewName(final String viewName, Locale locale) {
+			return new AbstractView() {
 				@Override
 				public String getContentType() {
 					return null;
 				}
 				@Override
 				protected void renderMergedOutputModel(Map<String, Object> model, HttpServletRequest request,
-						HttpServletResponse response) throws Exception {
+						HttpServletResponse response) {
 					for (String key : attrsToValidate.keySet()) {
 						assertThat(model.containsKey(key)).as("Model should contain attribute named " + key).isTrue();
 						assertThat(model.get(key)).isEqualTo(attrsToValidate.get(key));
@@ -682,14 +674,5 @@ public class UriTemplateServletAnnotationControllerHandlerMethodTests extends Ab
 			};
 		}
 	}
-
-// @Disabled("ControllerClassNameHandlerMapping")
-//	void controllerClassName() throws Exception {
-
-//	@Disabled("useDefaultSuffixPattern property not supported")
-//	void doubles() throws Exception {
-
-//	@Disabled("useDefaultSuffixPattern property not supported")
-//	void noDefaultSuffixPattern() throws Exception {
 
 }

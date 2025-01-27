@@ -18,7 +18,8 @@ package org.springframework.http;
 
 import java.io.Serializable;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 
 /**
@@ -129,7 +130,7 @@ public final class HttpMethod implements Comparable<HttpMethod>, Serializable {
 
 
 	/**
-	 * Return the name of this method, e.g. "GET", "POST".
+	 * Return the name of this method, for example, "GET", "POST".
 	 */
 	public String name() {
 		return this.name;
@@ -157,8 +158,8 @@ public final class HttpMethod implements Comparable<HttpMethod>, Serializable {
 	}
 
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return (this == obj) || (obj instanceof HttpMethod that && this.name.equals(that.name));
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof HttpMethod that && this.name.equals(that.name)));
 	}
 
 	@Override

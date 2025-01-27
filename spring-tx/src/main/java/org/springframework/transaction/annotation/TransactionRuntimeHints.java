@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,17 @@
 
 package org.springframework.transaction.annotation;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
 import org.springframework.aot.hint.TypeHint;
 import org.springframework.aot.hint.TypeReference;
-import org.springframework.transaction.TransactionDefinition;
 
 /**
- * {@link RuntimeHintsRegistrar} implementation that registers runtime hints for
- * transaction management.
+ * {@link RuntimeHintsRegistrar} implementation that registers runtime hints
+ * for transaction management.
  *
  * @author Sebastien Deleuze
  * @since 6.0
@@ -34,10 +35,10 @@ import org.springframework.transaction.TransactionDefinition;
 class TransactionRuntimeHints implements RuntimeHintsRegistrar {
 
 	@Override
-	public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
-		hints.reflection().registerTypes(TypeReference.listOf(
-					Isolation.class, Propagation.class, TransactionDefinition.class),
-				TypeHint.builtWith(MemberCategory.DECLARED_FIELDS));
+	public void registerHints(RuntimeHints hints, @Nullable ClassLoader classLoader) {
+		hints.reflection().registerTypes(
+				TypeReference.listOf(Isolation.class, Propagation.class),
+				TypeHint.builtWith(MemberCategory.ACCESS_DECLARED_FIELDS));
 	}
 
 }

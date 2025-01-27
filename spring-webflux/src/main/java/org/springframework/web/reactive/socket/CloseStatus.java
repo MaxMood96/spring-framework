@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,10 @@
 
 package org.springframework.web.reactive.socket;
 
-import org.springframework.lang.Nullable;
+import java.util.Objects;
+
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -48,11 +51,11 @@ public final class CloseStatus {
 	 * "1002 indicates that an endpoint is terminating the connection due to a protocol
 	 * error."
 	 */
-	public static final CloseStatus PROTOCOL_ERROR  = new CloseStatus(1002);
+	public static final CloseStatus PROTOCOL_ERROR = new CloseStatus(1002);
 
 	/**
 	 * "1003 indicates that an endpoint is terminating the connection because it has
-	 * received a type of data it cannot accept (e.g., an endpoint that understands only
+	 * received a type of data it cannot accept (for example, an endpoint that understands only
 	 * text data MAY send this if it receives a binary message)."
 	 */
 	public static final CloseStatus NOT_ACCEPTABLE = new CloseStatus(1003);
@@ -70,7 +73,7 @@ public final class CloseStatus {
 	/**
 	 * "1006 is a reserved value and MUST NOT be set as a status code in a Close control
 	 * frame by an endpoint. It is designated for use in applications expecting a status
-	 * code to indicate that the connection was closed abnormally, e.g., without sending
+	 * code to indicate that the connection was closed abnormally, for example, without sending
 	 * or receiving a Close control frame."
 	 */
 	public static final CloseStatus NO_CLOSE_FRAME = new CloseStatus(1006);
@@ -78,14 +81,14 @@ public final class CloseStatus {
 	/**
 	 * "1007 indicates that an endpoint is terminating the connection because it has
 	 * received data within a message that was not consistent with the type of the message
-	 * (e.g., non-UTF-8 [RFC3629] data within a text message)."
+	 * (for example, non-UTF-8 [RFC3629] data within a text message)."
 	 */
 	public static final CloseStatus BAD_DATA = new CloseStatus(1007);
 
 	/**
 	 * "1008 indicates that an endpoint is terminating the connection because it has
 	 * received a message that violates its policy. This is a generic status code that can
-	 * be returned when there is no other more suitable status code (e.g., 1003 or 1009)
+	 * be returned when there is no other more suitable status code (for example, 1003 or 1009)
 	 * or if there is a need to hide specific details about the policy."
 	 */
 	public static final CloseStatus POLICY_VIOLATION = new CloseStatus(1008);
@@ -129,15 +132,14 @@ public final class CloseStatus {
 	 * "1015 is a reserved value and MUST NOT be set as a status code in a Close control
 	 * frame by an endpoint. It is designated for use in applications expecting a status
 	 * code to indicate that the connection was closed due to a failure to perform a TLS
-	 * handshake (e.g., the server certificate can't be verified)."
+	 * handshake (for example, the server certificate can't be verified)."
 	 */
 	public static final CloseStatus TLS_HANDSHAKE_FAILURE = new CloseStatus(1015);
 
 
 	private final int code;
 
-	@Nullable
-	private final String reason;
+	private final @Nullable String reason;
 
 
 	/**
@@ -170,8 +172,7 @@ public final class CloseStatus {
 	/**
 	 * Return the reason, or {@code null} if none.
 	 */
-	@Nullable
-	public String getReason() {
+	public @Nullable String getReason() {
 		return this.reason;
 	}
 
@@ -183,14 +184,6 @@ public final class CloseStatus {
 	public CloseStatus withReason(String reason) {
 		Assert.hasText(reason, "Reason must not be empty");
 		return new CloseStatus(this.code, reason);
-	}
-
-	/**
-	 * @deprecated as of 5.3 in favor of comparing codes directly
-	 */
-	@Deprecated
-	public boolean equalsCode(CloseStatus other) {
-		return (this.code == other.code);
 	}
 
 
@@ -224,19 +217,14 @@ public final class CloseStatus {
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof CloseStatus otherStatus)) {
-			return false;
-		}
-		return (this.code == otherStatus.code &&
-				ObjectUtils.nullSafeEquals(this.reason, otherStatus.reason));
+		return (this == other || (other instanceof CloseStatus that &&
+				this.code == that.code &&
+				ObjectUtils.nullSafeEquals(this.reason, that.reason)));
 	}
 
 	@Override
 	public int hashCode() {
-		return this.code * 29 + ObjectUtils.nullSafeHashCode(this.reason);
+		return Objects.hash(this.code, this.reason);
 	}
 
 	@Override

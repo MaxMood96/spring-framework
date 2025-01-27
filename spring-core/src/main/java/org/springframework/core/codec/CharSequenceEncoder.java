@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 
@@ -31,7 +32,6 @@ import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.log.LogFormatUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.MimeType;
 import org.springframework.util.MimeTypeUtils;
 
@@ -51,8 +51,7 @@ public final class CharSequenceEncoder extends AbstractEncoder<CharSequence> {
 	 */
 	public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
 
-	private final ConcurrentMap<Charset, Float> charsetToMaxBytesPerChar =
-			new ConcurrentHashMap<>(3);
+	private final ConcurrentMap<Charset, Float> charsetToMaxBytesPerChar = new ConcurrentHashMap<>(3);
 
 
 	private CharSequenceEncoder(MimeType... mimeTypes) {
@@ -105,8 +104,8 @@ public final class CharSequenceEncoder extends AbstractEncoder<CharSequence> {
 	}
 
 	int calculateCapacity(CharSequence sequence, Charset charset) {
-		float maxBytesPerChar = this.charsetToMaxBytesPerChar
-				.computeIfAbsent(charset, cs -> cs.newEncoder().maxBytesPerChar());
+		float maxBytesPerChar = this.charsetToMaxBytesPerChar.computeIfAbsent(charset,
+				cs -> cs.newEncoder().maxBytesPerChar());
 		float maxBytesForSequence = sequence.length() * maxBytesPerChar;
 		return (int) Math.ceil(maxBytesForSequence);
 	}

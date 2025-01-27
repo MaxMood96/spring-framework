@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,19 @@
 
 package org.springframework.test.context.aot;
 
+import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.junit.platform.engine.discovery.ClassNameFilter;
+import org.junit.platform.engine.TestSource;
+import org.junit.platform.engine.support.descriptor.ClassSource;
+import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.LauncherDiscoveryRequest;
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
 import org.junit.platform.launcher.core.LauncherFactory;
@@ -36,7 +40,9 @@ import org.opentest4j.MultipleFailuresError;
 import org.springframework.aot.AotDetector;
 import org.springframework.aot.generate.GeneratedFiles.Kind;
 import org.springframework.aot.generate.InMemoryGeneratedFiles;
+import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.test.generate.CompilerFiles;
+import org.springframework.context.aot.AbstractAotProcessor;
 import org.springframework.core.test.tools.CompileWithForkedClassLoader;
 import org.springframework.core.test.tools.TestCompiler;
 import org.springframework.test.context.aot.samples.basic.BasicSpringJupiterImportedConfigTests;
@@ -44,8 +50,12 @@ import org.springframework.test.context.aot.samples.basic.BasicSpringJupiterShar
 import org.springframework.test.context.aot.samples.basic.BasicSpringJupiterTests;
 import org.springframework.test.context.aot.samples.basic.BasicSpringTestNGTests;
 import org.springframework.test.context.aot.samples.basic.BasicSpringVintageTests;
+import org.springframework.test.context.aot.samples.basic.DisabledInAotProcessingTests;
+import org.springframework.test.context.aot.samples.basic.DisabledInAotRuntimeClassLevelTests;
+import org.springframework.test.context.aot.samples.basic.DisabledInAotRuntimeMethodLevelTests;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.platform.engine.discovery.ClassNameFilter.includeClassNamePatterns;
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass;
 import static org.junit.platform.launcher.TagFilter.excludeTags;
 
@@ -58,16 +68,16 @@ import static org.junit.platform.launcher.TagFilter.excludeTags;
 @CompileWithForkedClassLoader
 class AotIntegrationTests extends AbstractAotTests {
 
-	private static final String CLASSPATH_ROOT = "AotSmokeTests.classpath_root";
+	private static final String CLASSPATH_ROOT = "AotIntegrationTests.classpath_root";
 
 	// We have to determine the classpath root and store it in a system property
-	// since @CompileWithTargetClassAccess uses a custom ClassLoader that does
+	// since @CompileWithForkedClassLoader uses a custom ClassLoader that does
 	// not support CodeSource.
 	//
 	// The system property will only be set when this class is loaded by the
 	// original ClassLoader used to launch the JUnit Platform. The attempt to
 	// access the CodeSource will fail when the tests are executed in the
-	// nested JUnit Platform launched by the CompileWithTargetClassAccessExtension.
+	// nested JUnit Platform launched by the CompileWithForkedClassLoaderExtension.
 	static {
 		try {
 			Path classpathRoot = Paths.get(AotIntegrationTests.class.getProtectionDomain().getCodeSource().getLocation().toURI());
@@ -86,8 +96,17 @@ class AotIntegrationTests extends AbstractAotTests {
 
 		// AOT BUILD-TIME: PROCESSING
 		InMemoryGeneratedFiles generatedFiles = new InMemoryGeneratedFiles();
-		TestContextAotGenerator generator = new TestContextAotGenerator(generatedFiles);
-		generator.processAheadOfTime(testClasses);
+		TestContextAotGenerator generator = new TestContextAotGenerator(generatedFiles, new RuntimeHints());
+		try {
+			// Emulate AbstractAotProcessor.process().
+			System.setProperty(AbstractAotProcessor.AOT_PROCESSING, "true");
+
+			generator.processAheadOfTime(testClasses);
+		}
+		finally {
+			// Emulate AbstractAotProcessor.process().
+			System.clearProperty(AbstractAotProcessor.AOT_PROCESSING);
+		}
 
 		List<String> sourceFiles = generatedFiles.getGeneratedFiles(Kind.SOURCE).keySet().stream().toList();
 		assertThat(sourceFiles).containsExactlyInAnyOrder(expectedSourceFilesForBasicSpringTests);
@@ -97,35 +116,82 @@ class AotIntegrationTests extends AbstractAotTests {
 			// .printFiles(System.out)
 			.compile(compiled ->
 				// AOT RUN-TIME: EXECUTION
-				runTestsInAotMode(6, List.of(
-					BasicSpringJupiterSharedConfigTests.class,
-					BasicSpringJupiterTests.class, // NestedTests get executed automatically
+				runTestsInAotMode(7, List.of(
+					// The #s represent how many tests should run from each test class, which
+					// must add up to the expectedNumTests above.
+					/* 1 */ BasicSpringJupiterSharedConfigTests.class,
+					/* 2 */ BasicSpringJupiterTests.class, // NestedTests get executed automatically
 					// Run @Import tests AFTER the tests with otherwise identical config
 					// in order to ensure that the other test classes are not accidentally
 					// using the config for the @Import tests.
-					BasicSpringJupiterImportedConfigTests.class,
-					BasicSpringTestNGTests.class,
-					BasicSpringVintageTests.class)));
+					/* 1 */ BasicSpringJupiterImportedConfigTests.class,
+					/* 1 */ BasicSpringTestNGTests.class,
+					/* 1 */ BasicSpringVintageTests.class,
+					/* 0 */ DisabledInAotProcessingTests.class,
+					/* 0 */ DisabledInAotRuntimeClassLevelTests.class,
+					/* 1 */ DisabledInAotRuntimeMethodLevelTests.class)));
 	}
 
-	@Disabled("Uncomment to run all Spring integration tests in `spring-test`")
+	@Disabled("Comment out to run all integration tests in spring-test in AOT mode")
 	@Test
 	void endToEndTestsForEntireSpringTestModule() {
 		// AOT BUILD-TIME: CLASSPATH SCANNING
-		List<Class<?>> testClasses =
-				// FYI: you can limit execution to a particular set of test classes as follows.
-				// List.of(DirtiesContextTransactionalTestNGSpringContextTests.class, ...);
-				createTestClassScanner()
-				.scan()
-				// FYI: you can limit execution to a particular package and its subpackages as follows.
-				// .scan("org.springframework.test.context.junit.jupiter")
+		List<Class<?>> testClasses = createTestClassScanner()
+				// Scan all base packages in spring-test.
+				.scan("org.springframework.mock", "org.springframework.test")
+				// Or limit execution to a particular package and its subpackages.
+				//   - For example, to test JDBC support:
+				//     .scan("org.springframework.test.context.jdbc")
+				// We only include test classes named *Tests so that we don't pick up
+				// internal TestCase classes that aren't really tests.
+				.filter(clazz -> clazz.getSimpleName().endsWith("Tests"))
+				// TestNG EJB tests use @PersistenceContext which is not yet supported in tests in AOT mode.
+				.filter(clazz -> !clazz.getPackageName().contains("testng.transaction.ejb"))
+				// Uncomment the following to disable Bean Override tests since they are not yet supported in AOT mode.
+				// .filter(clazz -> !clazz.getPackageName().contains("test.context.bean.override"))
 				.toList();
 
+		// Optionally set failOnError flag to true to halt processing at the first failure.
+		runEndToEndTests(testClasses, false);
+	}
+
+	@Test
+	void endToEndTestsForBeanOverrides() {
+		List<Class<?>> testClasses = createTestClassScanner()
+				.scan("org.springframework.test.context.bean.override")
+				.filter(clazz -> clazz.getSimpleName().endsWith("Tests"))
+				.toList();
+		runEndToEndTests(testClasses, true);
+	}
+
+	@Disabled("Comment out to run selected integration tests in AOT mode")
+	@Test
+	void endToEndTestsForSelectedTestClasses() {
+		List<Class<?>> testClasses = List.of(
+				org.springframework.test.context.bean.override.easymock.EasyMockBeanIntegrationTests.class,
+				org.springframework.test.context.bean.override.mockito.MockitoBeanForByNameLookupIntegrationTests.class,
+				org.springframework.test.context.junit4.SpringJUnit4ClassRunnerAppCtxTests.class,
+				org.springframework.test.context.junit4.ParameterizedDependencyInjectionTests.class
+		);
+
+		runEndToEndTests(testClasses, true);
+	}
+
+	private void runEndToEndTests(List<Class<?>> testClasses, boolean failOnError) {
+		InMemoryGeneratedFiles generatedFiles = new InMemoryGeneratedFiles();
+		TestContextAotGenerator generator = new TestContextAotGenerator(generatedFiles, new RuntimeHints(), failOnError);
 
 		// AOT BUILD-TIME: PROCESSING
-		InMemoryGeneratedFiles generatedFiles = new InMemoryGeneratedFiles();
-		TestContextAotGenerator generator = new TestContextAotGenerator(generatedFiles);
-		generator.processAheadOfTime(testClasses.stream());
+		try {
+			// Emulate AbstractAotProcessor.process().
+			System.setProperty(AbstractAotProcessor.AOT_PROCESSING, "true");
+
+			generator.processAheadOfTime(testClasses.stream());
+		}
+		finally {
+			// Emulate AbstractAotProcessor.process().
+			System.clearProperty(AbstractAotProcessor.AOT_PROCESSING);
+		}
 
 		// AOT BUILD-TIME: COMPILATION
 		TestCompiler.forSystem().with(CompilerFiles.from(generatedFiles))
@@ -144,14 +210,18 @@ class AotIntegrationTests extends AbstractAotTests {
 			System.setProperty(AotDetector.AOT_ENABLED, "true");
 
 			LauncherDiscoveryRequestBuilder builder = LauncherDiscoveryRequestBuilder.request()
-					.filters(ClassNameFilter.includeClassNamePatterns(".*Tests?$"))
+					.filters(includeClassNamePatterns(".*Tests?$"))
 					.filters(excludeTags("failing-test-case"));
 			testClasses.forEach(testClass -> builder.selectors(selectClass(testClass)));
 			LauncherDiscoveryRequest request = builder.build();
 			SummaryGeneratingListener listener = new SummaryGeneratingListener();
 			LauncherFactory.create().execute(request, listener);
 			TestExecutionSummary summary = listener.getSummary();
+			if (expectedNumTests < 0) {
+				summary.printTo(new PrintWriter(System.err));
+			}
 			if (summary.getTotalFailureCount() > 0) {
+				printFailingTestClasses(summary);
 				List<Throwable> exceptions = summary.getFailures().stream().map(Failure::getException).toList();
 				throw new MultipleFailuresError("Test execution failures", exceptions);
 			}
@@ -162,6 +232,33 @@ class AotIntegrationTests extends AbstractAotTests {
 		finally {
 			System.clearProperty(AotDetector.AOT_ENABLED);
 		}
+	}
+
+	private static void printFailingTestClasses(TestExecutionSummary summary) {
+		System.err.println("Failing Test Classes:");
+		summary.getFailures().stream()
+				.map(failure -> failure.getTestIdentifier().getSource())
+				.flatMap(Optional::stream)
+				.map(AotIntegrationTests::getJavaClassName)
+				.distinct()
+				.sorted()
+				.forEach(System.err::println);
+		System.err.println();
+	}
+
+	private static String getJavaClassName(TestSource source) {
+		try {
+			if (source instanceof ClassSource classSource) {
+				return classSource.getJavaClass().getName();
+			}
+			else if (source instanceof MethodSource methodSource) {
+				return methodSource.getJavaClass().getName();
+			}
+		}
+		catch (Exception ex) {
+			// ignore
+		}
+		return "<unknown>";
 	}
 
 	private static TestClassScanner createTestClassScanner() {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,28 +23,22 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import io.vavr.control.Try;
-import kotlin.coroutines.Continuation;
-import kotlin.coroutines.CoroutineContext;
-import kotlinx.coroutines.Job;
-import kotlinx.coroutines.reactive.ReactiveFlowKt;
-import kotlinx.coroutines.reactor.MonoKt;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.reactivestreams.Publisher;
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.annotation.BeanFactoryAnnotationUtils;
-import org.springframework.core.CoroutinesUtils;
 import org.springframework.core.KotlinDetector;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.NamedThreadLocal;
 import org.springframework.core.ReactiveAdapter;
 import org.springframework.core.ReactiveAdapterRegistry;
-import org.springframework.lang.Nullable;
 import org.springframework.transaction.NoTransactionException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.ReactiveTransaction;
@@ -74,7 +68,7 @@ import org.springframework.util.StringUtils;
  *
  * <p>Uses the <b>Strategy</b> design pattern. A {@link PlatformTransactionManager} or
  * {@link ReactiveTransactionManager} implementation will perform the actual transaction
- * management, and a {@link TransactionAttributeSource} (e.g. annotation-based) is used
+ * management, and a {@link TransactionAttributeSource} (for example, annotation-based) is used
  * for determining transaction definitions for a particular class or method.
  *
  * <p>A transaction aspect is serializable if its {@code TransactionManager} and
@@ -108,21 +102,21 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	private static final String COROUTINES_FLOW_CLASS_NAME = "kotlinx.coroutines.flow.Flow";
 
 	/**
+	 * Reactive Streams API present on the classpath?
+	 */
+	private static final boolean reactiveStreamsPresent = ClassUtils.isPresent(
+			"org.reactivestreams.Publisher", TransactionAspectSupport.class.getClassLoader());
+
+	/**
 	 * Vavr library present on the classpath?
 	 */
 	private static final boolean vavrPresent = ClassUtils.isPresent(
 			"io.vavr.control.Try", TransactionAspectSupport.class.getClassLoader());
 
 	/**
-	 * Reactive Streams API present on the classpath?
-	 */
-	private static final boolean reactiveStreamsPresent =
-			ClassUtils.isPresent("org.reactivestreams.Publisher", TransactionAspectSupport.class.getClassLoader());
-
-	/**
 	 * Holder to support the {@code currentTransactionStatus()} method,
 	 * and to support communication between different cooperating advices
-	 * (e.g. before and after advice) if the aspect involves more than a
+	 * (for example, before and after advice) if the aspect involves more than a
 	 * single method (as will be the case for around advice).
 	 */
 	private static final ThreadLocal<TransactionInfo> transactionInfoHolder =
@@ -146,8 +140,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	 * @see org.springframework.transaction.support.TransactionSynchronizationManager#isSynchronizationActive()
 	 * @see org.springframework.transaction.support.TransactionSynchronizationManager#isActualTransactionActive()
 	 */
-	@Nullable
-	protected static TransactionInfo currentTransactionInfo() throws NoTransactionException {
+	protected static @Nullable TransactionInfo currentTransactionInfo() throws NoTransactionException {
 		return transactionInfoHolder.get();
 	}
 
@@ -155,8 +148,15 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	 * Return the transaction status of the current method invocation.
 	 * Mainly intended for code that wants to set the current transaction
 	 * rollback-only but not throw an application exception.
+	 * <p>This exposes the locally declared transaction boundary with its declared name
+	 * and characteristics, as managed by the aspect. Ar runtime, the local boundary may
+	 * participate in an outer transaction: If you need transaction metadata from such
+	 * an outer transaction (the actual resource transaction) instead, consider using
+	 * {@link org.springframework.transaction.support.TransactionSynchronizationManager}.
 	 * @throws NoTransactionException if the transaction info cannot be found,
 	 * because the method was invoked outside an AOP invocation context
+	 * @see org.springframework.transaction.support.TransactionSynchronizationManager#getCurrentTransactionName()
+	 * @see org.springframework.transaction.support.TransactionSynchronizationManager#isCurrentTransactionReadOnly()
 	 */
 	public static TransactionStatus currentTransactionStatus() throws NoTransactionException {
 		TransactionInfo info = currentTransactionInfo();
@@ -169,20 +169,15 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 
 	protected final Log logger = LogFactory.getLog(getClass());
 
-	@Nullable
-	private final ReactiveAdapterRegistry reactiveAdapterRegistry;
+	private final @Nullable ReactiveAdapterRegistry reactiveAdapterRegistry;
 
-	@Nullable
-	private String transactionManagerBeanName;
+	private @Nullable String transactionManagerBeanName;
 
-	@Nullable
-	private TransactionManager transactionManager;
+	private @Nullable TransactionManager transactionManager;
 
-	@Nullable
-	private TransactionAttributeSource transactionAttributeSource;
+	private @Nullable TransactionAttributeSource transactionAttributeSource;
 
-	@Nullable
-	private BeanFactory beanFactory;
+	private @Nullable BeanFactory beanFactory;
 
 	private final ConcurrentMap<Object, TransactionManager> transactionManagerCache =
 			new ConcurrentReferenceHashMap<>(4);
@@ -213,8 +208,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	/**
 	 * Return the name of the default transaction manager bean.
 	 */
-	@Nullable
-	protected final String getTransactionManagerBeanName() {
+	protected final @Nullable String getTransactionManagerBeanName() {
 		return this.transactionManagerBeanName;
 	}
 
@@ -236,15 +230,14 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	 * <p>This can either be a traditional {@link PlatformTransactionManager} or a
 	 * {@link ReactiveTransactionManager} for reactive transaction management.
 	 */
-	@Nullable
-	public TransactionManager getTransactionManager() {
+	public @Nullable TransactionManager getTransactionManager() {
 		return this.transactionManager;
 	}
 
 	/**
 	 * Set properties with method names as keys and transaction attribute
 	 * descriptors (parsed via TransactionAttributeEditor) as values:
-	 * e.g. key = "myMethod", value = "PROPAGATION_REQUIRED,readOnly".
+	 * for example, key = "myMethod", value = "PROPAGATION_REQUIRED,readOnly".
 	 * <p>Note: Method names are always applied to the target class,
 	 * no matter if defined in an interface or the class itself.
 	 * <p>Internally, a NameMatchTransactionAttributeSource will be
@@ -287,8 +280,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	/**
 	 * Return the transaction attribute source.
 	 */
-	@Nullable
-	public TransactionAttributeSource getTransactionAttributeSource() {
+	public @Nullable TransactionAttributeSource getTransactionAttributeSource() {
 		return this.transactionAttributeSource;
 	}
 
@@ -303,8 +295,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	/**
 	 * Return the BeanFactory to use for retrieving {@code TransactionManager} beans.
 	 */
-	@Nullable
-	protected final BeanFactory getBeanFactory() {
+	protected final @Nullable BeanFactory getBeanFactory() {
 		return this.beanFactory;
 	}
 
@@ -337,45 +328,31 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	 * @return the return value of the method, if any
 	 * @throws Throwable propagated from the target invocation
 	 */
-	@Nullable
-	protected Object invokeWithinTransaction(Method method, @Nullable Class<?> targetClass,
+	protected @Nullable Object invokeWithinTransaction(Method method, @Nullable Class<?> targetClass,
 			final InvocationCallback invocation) throws Throwable {
 
 		// If the transaction attribute is null, the method is non-transactional.
 		TransactionAttributeSource tas = getTransactionAttributeSource();
 		final TransactionAttribute txAttr = (tas != null ? tas.getTransactionAttribute(method, targetClass) : null);
-		final TransactionManager tm = determineTransactionManager(txAttr);
+		final TransactionManager tm = determineTransactionManager(txAttr, targetClass);
 
 		if (this.reactiveAdapterRegistry != null && tm instanceof ReactiveTransactionManager rtm) {
 			boolean isSuspendingFunction = KotlinDetector.isSuspendingFunction(method);
 			boolean hasSuspendingFlowReturnType = isSuspendingFunction &&
 					COROUTINES_FLOW_CLASS_NAME.equals(new MethodParameter(method, -1).getParameterType().getName());
-			if (isSuspendingFunction && !(invocation instanceof CoroutinesInvocationCallback)) {
-				throw new IllegalStateException("Coroutines invocation not supported: " + method);
-			}
-			CoroutinesInvocationCallback corInv = (isSuspendingFunction ? (CoroutinesInvocationCallback) invocation : null);
 
 			ReactiveTransactionSupport txSupport = this.transactionSupportCache.computeIfAbsent(method, key -> {
 				Class<?> reactiveType =
 						(isSuspendingFunction ? (hasSuspendingFlowReturnType ? Flux.class : Mono.class) : method.getReturnType());
 				ReactiveAdapter adapter = this.reactiveAdapterRegistry.getAdapter(reactiveType);
 				if (adapter == null) {
-					throw new IllegalStateException("Cannot apply reactive transaction to non-reactive return type: " +
-							method.getReturnType());
+					throw new IllegalStateException("Cannot apply reactive transaction to non-reactive return type [" +
+							method.getReturnType() + "] with specified transaction manager: " + tm);
 				}
 				return new ReactiveTransactionSupport(adapter);
 			});
 
-			InvocationCallback callback = invocation;
-			if (corInv != null) {
-				callback = () -> KotlinDelegate.invokeSuspendingFunction(method, corInv);
-			}
-			Object result = txSupport.invokeWithinTransaction(method, targetClass, callback, txAttr, rtm);
-			if (corInv != null) {
-				return (hasSuspendingFlowReturnType ? KotlinDelegate.asFlow((Publisher<?>) result) :
-						KotlinDelegate.awaitSingleOrNull((Mono<?>) result, corInv.getContinuation()));
-			}
-			return result;
+			return txSupport.invokeWithinTransaction(method, targetClass, invocation, txAttr, rtm);
 		}
 
 		PlatformTransactionManager ptm = asPlatformTransactionManager(tm);
@@ -408,7 +385,9 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 							future.get();
 						}
 						catch (ExecutionException ex) {
-							if (txAttr.rollbackOn(ex.getCause())) {
+							Throwable cause = ex.getCause();
+							Assert.state(cause != null, "Cause must not be null");
+							if (txAttr.rollbackOn(cause)) {
 								status.setRollbackOnly();
 							}
 						}
@@ -499,9 +478,18 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 
 	/**
 	 * Determine the specific transaction manager to use for the given transaction.
+	 * @param txAttr the current transaction attribute
+	 * @param targetClass the target class that the attribute has been declared on
+	 * @since 6.2
 	 */
-	@Nullable
-	protected TransactionManager determineTransactionManager(@Nullable TransactionAttribute txAttr) {
+	protected @Nullable TransactionManager determineTransactionManager(
+			@Nullable TransactionAttribute txAttr, @Nullable Class<?> targetClass) {
+
+		TransactionManager tm = determineTransactionManager(txAttr);
+		if (tm != null) {
+			return tm;
+		}
+
 		// Do not attempt to lookup tx manager if no tx attributes are set
 		if (txAttr == null || this.beanFactory == null) {
 			return getTransactionManager();
@@ -511,7 +499,20 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 		if (StringUtils.hasText(qualifier)) {
 			return determineQualifiedTransactionManager(this.beanFactory, qualifier);
 		}
-		else if (StringUtils.hasText(this.transactionManagerBeanName)) {
+		else if (targetClass != null) {
+			// Consider type-level qualifier annotations for transaction manager selection
+			String typeQualifier = BeanFactoryAnnotationUtils.getQualifierValue(targetClass);
+			if (StringUtils.hasText(typeQualifier)) {
+				try {
+					return determineQualifiedTransactionManager(this.beanFactory, typeQualifier);
+				}
+				catch (NoSuchBeanDefinitionException ex) {
+					// Consider type qualifier as optional, proceed with regular resolution below.
+				}
+			}
+		}
+
+		if (StringUtils.hasText(this.transactionManagerBeanName)) {
 			return determineQualifiedTransactionManager(this.beanFactory, this.transactionManagerBeanName);
 		}
 		else {
@@ -528,6 +529,15 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 		}
 	}
 
+	/**
+	 * Determine the specific transaction manager to use for the given transaction.
+	 * @deprecated as of 6.2, in favor of {@link #determineTransactionManager(TransactionAttribute, Class)}
+	 */
+	@Deprecated
+	protected @Nullable TransactionManager determineTransactionManager(@Nullable TransactionAttribute txAttr) {
+		return null;
+	}
+
 	private TransactionManager determineQualifiedTransactionManager(BeanFactory beanFactory, String qualifier) {
 		TransactionManager txManager = this.transactionManagerCache.get(qualifier);
 		if (txManager == null) {
@@ -538,9 +548,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 		return txManager;
 	}
 
-
-	@Nullable
-	private PlatformTransactionManager asPlatformTransactionManager(@Nullable Object transactionManager) {
+	private @Nullable PlatformTransactionManager asPlatformTransactionManager(@Nullable Object transactionManager) {
 		if (transactionManager == null) {
 			return null;
 		}
@@ -580,8 +588,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	 * @return a String representation identifying this method
 	 * @see org.springframework.util.ClassUtils#getQualifiedMethodName
 	 */
-	@Nullable
-	protected String methodIdentification(Method method, @Nullable Class<?> targetClass) {
+	protected @Nullable String methodIdentification(Method method, @Nullable Class<?> targetClass) {
 		return null;
 	}
 
@@ -740,19 +747,15 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	 */
 	protected static final class TransactionInfo {
 
-		@Nullable
-		private final PlatformTransactionManager transactionManager;
+		private final @Nullable PlatformTransactionManager transactionManager;
 
-		@Nullable
-		private final TransactionAttribute transactionAttribute;
+		private final @Nullable TransactionAttribute transactionAttribute;
 
 		private final String joinpointIdentification;
 
-		@Nullable
-		private TransactionStatus transactionStatus;
+		private @Nullable TransactionStatus transactionStatus;
 
-		@Nullable
-		private TransactionInfo oldTransactionInfo;
+		private @Nullable TransactionInfo oldTransactionInfo;
 
 		public TransactionInfo(@Nullable PlatformTransactionManager transactionManager,
 				@Nullable TransactionAttribute transactionAttribute, String joinpointIdentification) {
@@ -767,8 +770,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 			return this.transactionManager;
 		}
 
-		@Nullable
-		public TransactionAttribute getTransactionAttribute() {
+		public @Nullable TransactionAttribute getTransactionAttribute() {
 			return this.transactionAttribute;
 		}
 
@@ -784,8 +786,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 			this.transactionStatus = status;
 		}
 
-		@Nullable
-		public TransactionStatus getTransactionStatus() {
+		public @Nullable TransactionStatus getTransactionStatus() {
 			return this.transactionStatus;
 		}
 
@@ -824,24 +825,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	@FunctionalInterface
 	protected interface InvocationCallback {
 
-		@Nullable
-		Object proceedWithInvocation() throws Throwable;
-	}
-
-
-	/**
-	 * Coroutines-supporting extension of the callback interface.
-	 */
-	protected interface CoroutinesInvocationCallback extends InvocationCallback {
-
-		Object getTarget();
-
-		Object[] getArguments();
-
-		default Object getContinuation() {
-			Object[] args = getArguments();
-			return args[args.length - 1];
-		}
+		@Nullable Object proceedWithInvocation() throws Throwable;
 	}
 
 
@@ -850,8 +834,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	 */
 	private static class ThrowableHolder {
 
-		@Nullable
-		public Throwable throwable;
+		public @Nullable Throwable throwable;
 	}
 
 
@@ -868,7 +851,9 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 
 		@Override
 		public String toString() {
-			return getCause().toString();
+			Throwable cause = getCause();
+			Assert.state(cause != null, "Cause must not be null");
+			return cause.toString();
 		}
 	}
 
@@ -889,28 +874,6 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 				}
 			});
 		}
-	}
-
-	/**
-	 * Inner class to avoid a hard dependency on Kotlin at runtime.
-	 */
-	private static class KotlinDelegate {
-
-		private static Object asFlow(Publisher<?> publisher) {
-			return ReactiveFlowKt.asFlow(publisher);
-		}
-
-		@SuppressWarnings("unchecked")
-		@Nullable
-		private static Object awaitSingleOrNull(Mono<?> publisher, Object continuation) {
-			return MonoKt.awaitSingleOrNull(publisher, (Continuation<Object>) continuation);
-		}
-
-		public static Publisher<?> invokeSuspendingFunction(Method method, CoroutinesInvocationCallback callback) {
-			CoroutineContext coroutineContext = ((Continuation<?>) callback.getContinuation()).getContext().minusKey(Job.Key);
-			return CoroutinesUtils.invokeSuspendingFunction(coroutineContext, method, callback.getTarget(), callback.getArguments());
-		}
-
 	}
 
 
@@ -1083,10 +1046,11 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 		 * @param ex the throwable to try to unwrap
 		 */
 		private Throwable unwrapIfResourceCleanupFailure(Throwable ex) {
-			if (ex instanceof RuntimeException &&
-					ex.getCause() != null &&
-					ex.getMessage().startsWith("Async resource cleanup failed")) {
-				return ex.getCause();
+			if (ex instanceof RuntimeException && ex.getCause() != null) {
+				String msg = ex.getMessage();
+				if (msg != null && msg.startsWith("Async resource cleanup failed")) {
+					return ex.getCause();
+				}
 			}
 			return ex;
 		}
@@ -1098,16 +1062,13 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	 */
 	private static final class ReactiveTransactionInfo {
 
-		@Nullable
-		private final ReactiveTransactionManager transactionManager;
+		private final @Nullable ReactiveTransactionManager transactionManager;
 
-		@Nullable
-		private final TransactionAttribute transactionAttribute;
+		private final @Nullable TransactionAttribute transactionAttribute;
 
 		private final String joinpointIdentification;
 
-		@Nullable
-		private ReactiveTransaction reactiveTransaction;
+		private @Nullable ReactiveTransaction reactiveTransaction;
 
 		public ReactiveTransactionInfo(@Nullable ReactiveTransactionManager transactionManager,
 				@Nullable TransactionAttribute transactionAttribute, String joinpointIdentification) {
@@ -1122,8 +1083,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 			return this.transactionManager;
 		}
 
-		@Nullable
-		public TransactionAttribute getTransactionAttribute() {
+		public @Nullable TransactionAttribute getTransactionAttribute() {
 			return this.transactionAttribute;
 		}
 
@@ -1139,8 +1099,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 			this.reactiveTransaction = transaction;
 		}
 
-		@Nullable
-		public ReactiveTransaction getReactiveTransaction() {
+		public @Nullable ReactiveTransaction getReactiveTransaction() {
 			return this.reactiveTransaction;
 		}
 

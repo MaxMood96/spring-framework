@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,13 +28,14 @@ import java.util.Optional;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.CollectionFactory;
 import org.springframework.core.convert.ConversionFailedException;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.TypeDescriptor;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.NumberUtils;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
@@ -48,6 +49,7 @@ import org.springframework.util.StringUtils;
  * @author Juergen Hoeller
  * @author Rob Harrop
  * @author Dave Syer
+ * @author Yanming Zhou
  * @since 2.0
  * @see BeanWrapperImpl
  * @see SimpleTypeConverter
@@ -58,8 +60,7 @@ class TypeConverterDelegate {
 
 	private final PropertyEditorRegistrySupport propertyEditorRegistry;
 
-	@Nullable
-	private final Object targetObject;
+	private final @Nullable Object targetObject;
 
 
 	/**
@@ -91,8 +92,7 @@ class TypeConverterDelegate {
 	 * @return the new value, possibly the result of type conversion
 	 * @throws IllegalArgumentException if type conversion failed
 	 */
-	@Nullable
-	public <T> T convertIfNecessary(@Nullable String propertyName, @Nullable Object oldValue,
+	public <T> @Nullable T convertIfNecessary(@Nullable String propertyName, @Nullable Object oldValue,
 			Object newValue, @Nullable Class<T> requiredType) throws IllegalArgumentException {
 
 		return convertIfNecessary(propertyName, oldValue, newValue, requiredType, TypeDescriptor.valueOf(requiredType));
@@ -111,8 +111,7 @@ class TypeConverterDelegate {
 	 * @throws IllegalArgumentException if type conversion failed
 	 */
 	@SuppressWarnings("unchecked")
-	@Nullable
-	public <T> T convertIfNecessary(@Nullable String propertyName, @Nullable Object oldValue, @Nullable Object newValue,
+	public <T> @Nullable T convertIfNecessary(@Nullable String propertyName, @Nullable Object oldValue, @Nullable Object newValue,
 			@Nullable Class<T> requiredType, @Nullable TypeDescriptor typeDescriptor) throws IllegalArgumentException {
 
 		// Custom editor for this type?
@@ -139,13 +138,17 @@ class TypeConverterDelegate {
 
 		// Value not of required type?
 		if (editor != null || (requiredType != null && !ClassUtils.isAssignableValue(requiredType, convertedValue))) {
-			if (typeDescriptor != null && requiredType != null && Collection.class.isAssignableFrom(requiredType) &&
-					convertedValue instanceof String text) {
+			if (typeDescriptor != null && requiredType != null && Collection.class.isAssignableFrom(requiredType)) {
 				TypeDescriptor elementTypeDesc = typeDescriptor.getElementTypeDescriptor();
 				if (elementTypeDesc != null) {
 					Class<?> elementType = elementTypeDesc.getType();
-					if (Class.class == elementType || Enum.class.isAssignableFrom(elementType)) {
-						convertedValue = StringUtils.commaDelimitedListToStringArray(text);
+					if (convertedValue instanceof String text) {
+						if (Class.class == elementType || Enum.class.isAssignableFrom(elementType)) {
+							convertedValue = StringUtils.commaDelimitedListToStringArray(text);
+						}
+						if (editor == null && String.class != elementType) {
+							editor = findDefaultEditor(elementType.arrayType());
+						}
 					}
 				}
 			}
@@ -166,10 +169,22 @@ class TypeConverterDelegate {
 				}
 				else if (requiredType.isArray()) {
 					// Array required -> apply appropriate conversion of elements.
-					if (convertedValue instanceof String text && Enum.class.isAssignableFrom(requiredType.getComponentType())) {
+					if (convertedValue instanceof String text &&
+							Enum.class.isAssignableFrom(requiredType.componentType())) {
 						convertedValue = StringUtils.commaDelimitedListToStringArray(text);
 					}
-					return (T) convertToTypedArray(convertedValue, propertyName, requiredType.getComponentType());
+					return (T) convertToTypedArray(convertedValue, propertyName, requiredType.componentType());
+				}
+				else if (convertedValue.getClass().isArray()) {
+					if (Collection.class.isAssignableFrom(requiredType)) {
+						convertedValue = convertToTypedCollection(CollectionUtils.arrayToList(convertedValue),
+								propertyName, requiredType, typeDescriptor);
+						standardConversion = true;
+					}
+					else if (Array.getLength(convertedValue) == 1) {
+						convertedValue = Array.get(convertedValue, 0);
+						standardConversion = true;
+					}
 				}
 				else if (convertedValue instanceof Collection<?> coll) {
 					// Convert elements to target type, if determined.
@@ -179,10 +194,6 @@ class TypeConverterDelegate {
 				else if (convertedValue instanceof Map<?, ?> map) {
 					// Convert keys and values to respective target type, if determined.
 					convertedValue = convertToTypedMap(map, propertyName, requiredType, typeDescriptor);
-					standardConversion = true;
-				}
-				if (convertedValue.getClass().isArray() && Array.getLength(convertedValue) == 1) {
-					convertedValue = Array.get(convertedValue, 0);
 					standardConversion = true;
 				}
 				if (String.class == requiredType && ClassUtils.isPrimitiveOrWrapper(convertedValue.getClass())) {
@@ -301,7 +312,7 @@ class TypeConverterDelegate {
 		}
 
 		if (convertedValue == currentConvertedValue) {
-			// Try field lookup as fallback: for JDK 1.5 enum or custom enum
+			// Try field lookup as fallback: for Java enum or custom enum
 			// with values defined as static fields. Resulting value still needs
 			// to be checked, hence we don't return it right away.
 			try {
@@ -323,8 +334,7 @@ class TypeConverterDelegate {
 	 * @param requiredType the type to find an editor for
 	 * @return the corresponding editor, or {@code null} if none
 	 */
-	@Nullable
-	private PropertyEditor findDefaultEditor(@Nullable Class<?> requiredType) {
+	private @Nullable PropertyEditor findDefaultEditor(@Nullable Class<?> requiredType) {
 		PropertyEditor editor = null;
 		if (requiredType != null) {
 			// No custom editor -> check BeanWrapperImpl's default editors.
@@ -348,8 +358,7 @@ class TypeConverterDelegate {
 	 * @return the new value, possibly the result of type conversion
 	 * @throws IllegalArgumentException if type conversion failed
 	 */
-	@Nullable
-	private Object doConvertValue(@Nullable Object oldValue, @Nullable Object newValue,
+	private @Nullable Object doConvertValue(@Nullable Object oldValue, @Nullable Object newValue,
 			@Nullable Class<?> requiredType, @Nullable PropertyEditor editor) {
 
 		Object convertedValue = newValue;
@@ -440,7 +449,7 @@ class TypeConverterDelegate {
 		}
 		else if (input.getClass().isArray()) {
 			// Convert array elements, if necessary.
-			if (componentType.equals(input.getClass().getComponentType()) &&
+			if (componentType.equals(input.getClass().componentType()) &&
 					!this.propertyEditorRegistry.hasCustomEditorForElement(componentType, propertyName)) {
 				return input;
 			}
@@ -501,12 +510,11 @@ class TypeConverterDelegate {
 
 		Collection<Object> convertedCopy;
 		try {
-			if (approximable) {
+			if (approximable && requiredType.isInstance(original)) {
 				convertedCopy = CollectionFactory.createApproximateCollection(original, original.size());
 			}
 			else {
-				convertedCopy = (Collection<Object>)
-						ReflectionUtils.accessibleConstructor(requiredType).newInstance();
+				convertedCopy = CollectionFactory.createCollection(requiredType, original.size());
 			}
 		}
 		catch (Throwable ex) {
@@ -576,12 +584,11 @@ class TypeConverterDelegate {
 
 		Map<Object, Object> convertedCopy;
 		try {
-			if (approximable) {
+			if (approximable && requiredType.isInstance(original)) {
 				convertedCopy = CollectionFactory.createApproximateMap(original, original.size());
 			}
 			else {
-				convertedCopy = (Map<Object, Object>)
-						ReflectionUtils.accessibleConstructor(requiredType).newInstance();
+				convertedCopy = CollectionFactory.createMap(requiredType, original.size());
 			}
 		}
 		catch (Throwable ex) {
@@ -616,15 +623,13 @@ class TypeConverterDelegate {
 		return (originalAllowed ? original : convertedCopy);
 	}
 
-	@Nullable
-	private String buildIndexedPropertyName(@Nullable String propertyName, int index) {
+	private @Nullable String buildIndexedPropertyName(@Nullable String propertyName, int index) {
 		return (propertyName != null ?
 				propertyName + PropertyAccessor.PROPERTY_KEY_PREFIX + index + PropertyAccessor.PROPERTY_KEY_SUFFIX :
 				null);
 	}
 
-	@Nullable
-	private String buildKeyedPropertyName(@Nullable String propertyName, Object key) {
+	private @Nullable String buildKeyedPropertyName(@Nullable String propertyName, Object key) {
 		return (propertyName != null ?
 				propertyName + PropertyAccessor.PROPERTY_KEY_PREFIX + key + PropertyAccessor.PROPERTY_KEY_SUFFIX :
 				null);

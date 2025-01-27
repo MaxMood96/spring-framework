@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,15 @@ package org.springframework.beans.factory.support;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.BeanCurrentlyInCreationException;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.FactoryBeanNotInitializedException;
-import org.springframework.lang.Nullable;
+import org.springframework.core.AttributeAccessor;
+import org.springframework.core.ResolvableType;
 
 /**
  * Support base class for singleton registries which need to handle
@@ -48,8 +51,7 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	 * @return the FactoryBean's object type,
 	 * or {@code null} if the type cannot be determined yet
 	 */
-	@Nullable
-	protected Class<?> getTypeForFactoryBean(FactoryBean<?> factoryBean) {
+	protected @Nullable Class<?> getTypeForFactoryBean(FactoryBean<?> factoryBean) {
 		try {
 			return factoryBean.getObjectType();
 		}
@@ -62,14 +64,45 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	}
 
 	/**
+	 * Determine the bean type for a FactoryBean by inspecting its attributes for a
+	 * {@link FactoryBean#OBJECT_TYPE_ATTRIBUTE} value.
+	 * @param attributes the attributes to inspect
+	 * @return a {@link ResolvableType} extracted from the attributes or
+	 * {@code ResolvableType.NONE}
+	 * @since 5.2
+	 */
+	ResolvableType getTypeForFactoryBeanFromAttributes(AttributeAccessor attributes) {
+		Object attribute = attributes.getAttribute(FactoryBean.OBJECT_TYPE_ATTRIBUTE);
+		if (attribute == null) {
+			return ResolvableType.NONE;
+		}
+		if (attribute instanceof ResolvableType resolvableType) {
+			return resolvableType;
+		}
+		if (attribute instanceof Class<?> clazz) {
+			return ResolvableType.forClass(clazz);
+		}
+		throw new IllegalArgumentException("Invalid value type for attribute '" +
+				FactoryBean.OBJECT_TYPE_ATTRIBUTE + "': " + attribute.getClass().getName());
+	}
+
+	/**
+	 * Determine the FactoryBean object type from the given generic declaration.
+	 * @param type the FactoryBean type
+	 * @return the nested object type, or {@code NONE} if not resolvable
+	 */
+	ResolvableType getFactoryBeanGeneric(@Nullable ResolvableType type) {
+		return (type != null ? type.as(FactoryBean.class).getGeneric() : ResolvableType.NONE);
+	}
+
+	/**
 	 * Obtain an object to expose from the given FactoryBean, if available
 	 * in cached form. Quick check for minimal synchronization.
 	 * @param beanName the name of the bean
 	 * @return the object obtained from the FactoryBean,
 	 * or {@code null} if not available
 	 */
-	@Nullable
-	protected Object getCachedObjectForFactoryBean(String beanName) {
+	protected @Nullable Object getCachedObjectForFactoryBean(String beanName) {
 		return this.factoryBeanObjectCache.get(beanName);
 	}
 
@@ -84,12 +117,13 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	 */
 	protected Object getObjectFromFactoryBean(FactoryBean<?> factory, String beanName, boolean shouldPostProcess) {
 		if (factory.isSingleton() && containsSingleton(beanName)) {
-			synchronized (getSingletonMutex()) {
+			this.singletonLock.lock();
+			try {
 				Object object = this.factoryBeanObjectCache.get(beanName);
 				if (object == null) {
 					object = doGetObjectFromFactoryBean(factory, beanName);
 					// Only post-process and store if not put there already during getObject() call above
-					// (e.g. because of circular reference processing triggered by custom getBean calls)
+					// (for example, because of circular reference processing triggered by custom getBean calls)
 					Object alreadyThere = this.factoryBeanObjectCache.get(beanName);
 					if (alreadyThere != null) {
 						object = alreadyThere;
@@ -97,7 +131,7 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 					else {
 						if (shouldPostProcess) {
 							if (isSingletonCurrentlyInCreation(beanName)) {
-								// Temporarily return non-post-processed object, not storing it yet..
+								// Temporarily return non-post-processed object, not storing it yet
 								return object;
 							}
 							beforeSingletonCreation(beanName);
@@ -118,6 +152,9 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 					}
 				}
 				return object;
+			}
+			finally {
+				this.singletonLock.unlock();
 			}
 		}
 		else {
@@ -200,10 +237,8 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	 */
 	@Override
 	protected void removeSingleton(String beanName) {
-		synchronized (getSingletonMutex()) {
-			super.removeSingleton(beanName);
-			this.factoryBeanObjectCache.remove(beanName);
-		}
+		super.removeSingleton(beanName);
+		this.factoryBeanObjectCache.remove(beanName);
 	}
 
 	/**
@@ -211,10 +246,8 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	 */
 	@Override
 	protected void clearSingletonCache() {
-		synchronized (getSingletonMutex()) {
-			super.clearSingletonCache();
-			this.factoryBeanObjectCache.clear();
-		}
+		super.clearSingletonCache();
+		this.factoryBeanObjectCache.clear();
 	}
 
 }

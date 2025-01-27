@@ -23,8 +23,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.web.context.support.WebApplicationObjectSupport;
 import org.springframework.web.servlet.View;
@@ -51,8 +51,7 @@ public abstract class AbstractCachingViewResolver extends WebApplicationObjectSu
 	/** Dummy marker object for unresolved views in the cache Maps. */
 	private static final View UNRESOLVED_VIEW = new View() {
 		@Override
-		@Nullable
-		public String getContentType() {
+		public @Nullable String getContentType() {
 			return null;
 		}
 		@Override
@@ -133,7 +132,7 @@ public abstract class AbstractCachingViewResolver extends WebApplicationObjectSu
 	 * Note that this flag only applies if the general {@link #setCache "cache"}
 	 * flag is kept at its default of "true" as well.
 	 * <p>Of specific interest is the ability for some {@link AbstractUrlBasedView}
-	 * implementations (e.g., FreeMarker) to check if an underlying resource
+	 * implementations (for example, FreeMarker) to check if an underlying resource
 	 * exists via {@link AbstractUrlBasedView#checkResource(Locale)}.
 	 * With this flag set to "false", an underlying resource that re-appears
 	 * is noticed and used. With the flag set to "true", only one check is made.
@@ -168,8 +167,7 @@ public abstract class AbstractCachingViewResolver extends WebApplicationObjectSu
 	}
 
 	@Override
-	@Nullable
-	public View resolveViewName(String viewName, Locale locale) throws Exception {
+	public @Nullable View resolveViewName(String viewName, Locale locale) throws Exception {
 		if (!isCache()) {
 			return createView(viewName, locale);
 		}
@@ -219,7 +217,7 @@ public abstract class AbstractCachingViewResolver extends WebApplicationObjectSu
 	/**
 	 * Provides functionality to clear the cache for a certain view.
 	 * <p>This can be handy in case developers are able to modify views
-	 * (e.g., FreeMarker templates) at runtime after which you'd need to
+	 * (for example, FreeMarker templates) at runtime after which you'd need to
 	 * clear the cache for the specified view.
 	 * @param viewName the view name for which the cached view object
 	 * (if any) needs to be removed
@@ -270,8 +268,7 @@ public abstract class AbstractCachingViewResolver extends WebApplicationObjectSu
 	 * @throws Exception if the view couldn't be resolved
 	 * @see #loadView
 	 */
-	@Nullable
-	protected View createView(String viewName, Locale locale) throws Exception {
+	protected @Nullable View createView(String viewName, Locale locale) throws Exception {
 		return loadView(viewName, locale);
 	}
 
@@ -288,8 +285,7 @@ public abstract class AbstractCachingViewResolver extends WebApplicationObjectSu
 	 * @throws Exception if the view couldn't be resolved
 	 * @see #resolveViewName
 	 */
-	@Nullable
-	protected abstract View loadView(String viewName, Locale locale) throws Exception;
+	protected abstract @Nullable View loadView(String viewName, Locale locale) throws Exception;
 
 
 	/**

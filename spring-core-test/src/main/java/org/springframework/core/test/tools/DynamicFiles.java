@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Internal class used by {@link SourceFiles} and {@link ResourceFiles} to
@@ -38,7 +38,6 @@ import org.springframework.lang.Nullable;
 final class DynamicFiles<F extends DynamicFile> implements Iterable<F> {
 
 	private static final DynamicFiles<?> NONE = new DynamicFiles<>(Collections.emptyMap());
-
 
 	private final Map<String, F> files;
 
@@ -84,8 +83,7 @@ final class DynamicFiles<F extends DynamicFile> implements Iterable<F> {
 		return this.files.isEmpty();
 	}
 
-	@Nullable
-	F get(String path) {
+	@Nullable F get(String path) {
 		return this.files.get(path);
 	}
 
@@ -101,15 +99,10 @@ final class DynamicFiles<F extends DynamicFile> implements Iterable<F> {
 		return files.iterator().next();
 	}
 
+
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		if (this == obj) {
-			return true;
-		}
-		if (obj == null || getClass() != obj.getClass()) {
-			return false;
-		}
-		return this.files.equals(((DynamicFiles<?>) obj).files);
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof DynamicFiles<?> that && this.files.equals(that.files)));
 	}
 
 	@Override

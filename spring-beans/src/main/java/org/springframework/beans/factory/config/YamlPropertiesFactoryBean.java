@@ -18,10 +18,11 @@ package org.springframework.beans.factory.config;
 
 import java.util.Properties;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.core.CollectionFactory;
-import org.springframework.lang.Nullable;
 
 /**
  * Factory for {@link java.util.Properties} that reads from a YAML source,
@@ -32,7 +33,7 @@ import org.springframework.lang.Nullable;
  * has a lot of similar features.
  *
  * <p><b>Note: All exposed values are of type {@code String}</b> for access through
- * the common {@link Properties#getProperty} method (e.g. in configuration property
+ * the common {@link Properties#getProperty} method (for example, in configuration property
  * resolution through {@link PropertyResourceConfigurer#setProperties(Properties)}).
  * If this is not desirable, use {@link YamlMapFactoryBean} instead.
  *
@@ -74,7 +75,7 @@ import org.springframework.lang.Nullable;
  * servers[1]=foo.bar.com
  * </pre>
  *
- * <p>Requires SnakeYAML 2.0 or higher, as of Spring Framework 6.1.0.
+ * <p>Requires SnakeYAML 2.0 or higher, as of Spring Framework 6.1.
  *
  * @author Dave Syer
  * @author Stephane Nicoll
@@ -85,8 +86,7 @@ public class YamlPropertiesFactoryBean extends YamlProcessor implements FactoryB
 
 	private boolean singleton = true;
 
-	@Nullable
-	private Properties properties;
+	private @Nullable Properties properties;
 
 
 	/**
@@ -110,8 +110,7 @@ public class YamlPropertiesFactoryBean extends YamlProcessor implements FactoryB
 	}
 
 	@Override
-	@Nullable
-	public Properties getObject() {
+	public @Nullable Properties getObject() {
 		return (this.properties != null ? this.properties : createProperties());
 	}
 

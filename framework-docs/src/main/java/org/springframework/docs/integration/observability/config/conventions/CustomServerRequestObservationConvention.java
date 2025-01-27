@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package org.springframework.docs.integration.observability.config.conventions;
+
+import java.util.Locale;
 
 import io.micrometer.common.KeyValue;
 import io.micrometer.common.KeyValues;
@@ -34,7 +36,7 @@ public class CustomServerRequestObservationConvention implements ServerRequestOb
 	@Override
 	public String getContextualName(ServerRequestObservationContext context) {
 		// will be used for the trace name
-		return "http " + context.getCarrier().getMethod().toLowerCase();
+		return "http " + context.getCarrier().getMethod().toLowerCase(Locale.ROOT);
 	}
 
 	@Override
@@ -59,7 +61,7 @@ public class CustomServerRequestObservationConvention implements ServerRequestOb
 	}
 
 	private KeyValue exception(ServerRequestObservationContext context) {
-		String exception = (context.getError() != null) ? context.getError().getClass().getSimpleName() : KeyValue.NONE_VALUE;
+		String exception = (context.getError() != null ? context.getError().getClass().getSimpleName() : KeyValue.NONE_VALUE);
 		return KeyValue.of(ServerHttpObservationDocumentation.LowCardinalityKeyNames.EXCEPTION, exception);
 	}
 

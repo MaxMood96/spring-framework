@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,10 +26,11 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 /**
- * Unit tests for {@link SimpleCommandLineArgsParser}.
+ * Tests for {@link SimpleCommandLineArgsParser}.
  *
  * @author Chris Beams
  * @author Sam Brannen
+ * @author Brian Clozel
  */
 class SimpleCommandLineArgsParserTests {
 
@@ -45,7 +46,7 @@ class SimpleCommandLineArgsParserTests {
 	void withSingleOptionAndNoValue() {
 		CommandLineArgs args = parser.parse("--o1");
 		assertThat(args.containsOption("o1")).isTrue();
-		assertThat(args.getOptionValues("o1")).isEqualTo(Collections.EMPTY_LIST);
+		assertThat(args.getOptionValues("o1")).isEmpty();
 	}
 
 	@Test
@@ -53,6 +54,20 @@ class SimpleCommandLineArgsParserTests {
 		CommandLineArgs args = parser.parse("--o1=v1");
 		assertThat(args.containsOption("o1")).isTrue();
 		assertThat(args.getOptionValues("o1")).containsExactly("v1");
+	}
+
+	@Test
+	void withRepeatedOptionAndSameValues() {
+		CommandLineArgs args = parser.parse("--o1=v1", "--o1=v1", "--o1=v1");
+		assertThat(args.containsOption("o1")).isTrue();
+		assertThat(args.getOptionValues("o1")).containsExactly("v1", "v1", "v1");
+	}
+
+	@Test
+	void withRepeatedOptionAndDifferentValues() {
+		CommandLineArgs args = parser.parse("--o1=v1", "--o1=v2", "--o1=v3");
+		assertThat(args.containsOption("o1")).isTrue();
+		assertThat(args.getOptionValues("o1")).containsExactly("v1", "v2", "v3");
 	}
 
 	@Test
@@ -64,11 +79,6 @@ class SimpleCommandLineArgsParserTests {
 		assertThat(args.getOptionValues("o1")).containsExactly("v1");
 		assertThat(args.getOptionValues("o2")).isEqualTo(Collections.EMPTY_LIST);
 		assertThat(args.getOptionValues("o3")).isNull();
-	}
-
-	@Test
-	void withEmptyOptionText() {
-		assertThatIllegalArgumentException().isThrownBy(() -> parser.parse("--"));
 	}
 
 	@Test
@@ -99,17 +109,26 @@ class SimpleCommandLineArgsParserTests {
 	}
 
 	@Test
-	void assertOptionNamesIsUnmodifiable() {
+	void optionNamesSetIsUnmodifiable() {
 		CommandLineArgs args = new SimpleCommandLineArgsParser().parse();
-		assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(() ->
-				args.getOptionNames().add("bogus"));
+		assertThatExceptionOfType(UnsupportedOperationException.class)
+				.isThrownBy(() -> args.getOptionNames().add("bogus"));
 	}
 
 	@Test
-	void assertNonOptionArgsIsUnmodifiable() {
+	void nonOptionArgsListIsUnmodifiable() {
 		CommandLineArgs args = new SimpleCommandLineArgsParser().parse();
-		assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(() ->
-				args.getNonOptionArgs().add("foo"));
+		assertThatExceptionOfType(UnsupportedOperationException.class)
+				.isThrownBy(() -> args.getNonOptionArgs().add("foo"));
+	}
+
+	@Test
+	void supportsEndOfOptionsDelimiter() {
+		CommandLineArgs args = parser.parse("--o1=v1", "--", "--o2=v2");
+		assertThat(args.containsOption("o1")).isTrue();
+		assertThat(args.containsOption("o2")).isFalse();
+		assertThat(args.getOptionValues("o1")).containsExactly("v1");
+		assertThat(args.getNonOptionArgs()).contains("--o2=v2");
 	}
 
 }

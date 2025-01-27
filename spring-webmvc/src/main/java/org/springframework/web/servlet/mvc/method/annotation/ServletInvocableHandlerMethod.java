@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import java.util.concurrent.Callable;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.MessageSource;
 import org.springframework.core.KotlinDetector;
@@ -32,7 +33,6 @@ import org.springframework.core.MethodParameter;
 import org.springframework.core.ResolvableType;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
@@ -67,8 +67,7 @@ public class ServletInvocableHandlerMethod extends InvocableHandlerMethod {
 
 	private static final Method CALLABLE_METHOD = ClassUtils.getMethod(Callable.class, "call");
 
-	@Nullable
-	private HandlerMethodReturnValueHandlerComposite returnValueHandlers;
+	private @Nullable HandlerMethodReturnValueHandlerComposite returnValueHandlers;
 
 
 	/**
@@ -80,7 +79,7 @@ public class ServletInvocableHandlerMethod extends InvocableHandlerMethod {
 
 	/**
 	 * Variant of {@link #ServletInvocableHandlerMethod(Object, Method)} that
-	 * also accepts a {@link MessageSource}, e.g. to resolve
+	 * also accepts a {@link MessageSource}, for example, to resolve
 	 * {@code @ResponseStatus} messages with.
 	 * @since 5.3.10
 	 */
@@ -113,7 +112,7 @@ public class ServletInvocableHandlerMethod extends InvocableHandlerMethod {
 	 * @param providedArgs "given" arguments matched by type (not resolved)
 	 */
 	public void invokeAndHandle(ServletWebRequest webRequest, ModelAndViewContainer mavContainer,
-			Object... providedArgs) throws Exception {
+			@Nullable Object... providedArgs) throws Exception {
 
 		Object returnValue = invokeForRequest(webRequest, mavContainer, providedArgs);
 		setResponseStatus(webRequest);
@@ -198,9 +197,9 @@ public class ServletInvocableHandlerMethod extends InvocableHandlerMethod {
 	 * Create a nested ServletInvocableHandlerMethod subclass that returns the
 	 * given value (or raises an Exception if the value is one) rather than
 	 * actually invoking the controller method. This is useful when processing
-	 * async return values (e.g. Callable, DeferredResult, ListenableFuture).
+	 * async return values (for example, Callable, DeferredResult, ListenableFuture).
 	 */
-	ServletInvocableHandlerMethod wrapConcurrentResult(Object result) {
+	ServletInvocableHandlerMethod wrapConcurrentResult(@Nullable Object result) {
 		return new ConcurrentResultHandlerMethod(result, new ConcurrentResultMethodParameter(result));
 	}
 
@@ -215,7 +214,7 @@ public class ServletInvocableHandlerMethod extends InvocableHandlerMethod {
 
 		private final MethodParameter returnType;
 
-		public ConcurrentResultHandlerMethod(final Object result, ConcurrentResultMethodParameter returnType) {
+		public ConcurrentResultHandlerMethod(@Nullable Object result, ConcurrentResultMethodParameter returnType) {
 			super((Callable<Object>) () -> {
 				if (result instanceof Exception exception) {
 					throw exception;
@@ -242,7 +241,7 @@ public class ServletInvocableHandlerMethod extends InvocableHandlerMethod {
 
 		/**
 		 * Bridge to actual return value or generic type within the declared
-		 * async return type, e.g. Foo instead of {@code DeferredResult<Foo>}.
+		 * async return type, for example, Foo instead of {@code DeferredResult<Foo>}.
 		 */
 		@Override
 		public MethodParameter getReturnValueType(@Nullable Object returnValue) {
@@ -253,7 +252,7 @@ public class ServletInvocableHandlerMethod extends InvocableHandlerMethod {
 		 * Bridge to controller method-level annotations.
 		 */
 		@Override
-		public <A extends Annotation> A getMethodAnnotation(Class<A> annotationType) {
+		public <A extends Annotation> @Nullable A getMethodAnnotation(Class<A> annotationType) {
 			return ServletInvocableHandlerMethod.this.getMethodAnnotation(annotationType);
 		}
 
@@ -270,16 +269,15 @@ public class ServletInvocableHandlerMethod extends InvocableHandlerMethod {
 	/**
 	 * MethodParameter subclass based on the actual return value type or if
 	 * that's null falling back on the generic type within the declared async
-	 * return type, e.g. Foo instead of {@code DeferredResult<Foo>}.
+	 * return type, for example, Foo instead of {@code DeferredResult<Foo>}.
 	 */
-	private class ConcurrentResultMethodParameter extends HandlerMethodParameter {
+	private class ConcurrentResultMethodParameter extends AnnotatedMethodParameter {
 
-		@Nullable
-		private final Object returnValue;
+		private final @Nullable Object returnValue;
 
 		private final ResolvableType returnType;
 
-		public ConcurrentResultMethodParameter(Object returnValue) {
+		public ConcurrentResultMethodParameter(@Nullable Object returnValue) {
 			super(-1);
 			this.returnValue = returnValue;
 			this.returnType = (returnValue instanceof CollectedValuesList cvList ?

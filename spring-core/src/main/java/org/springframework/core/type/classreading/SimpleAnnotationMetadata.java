@@ -20,11 +20,12 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.asm.Opcodes;
 import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.core.type.MethodMetadata;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 
 /**
@@ -42,11 +43,9 @@ final class SimpleAnnotationMetadata implements AnnotationMetadata {
 
 	private final int access;
 
-	@Nullable
-	private final String enclosingClassName;
+	private final @Nullable String enclosingClassName;
 
-	@Nullable
-	private final String superClassName;
+	private final @Nullable String superClassName;
 
 	private final boolean independentInnerClass;
 
@@ -56,15 +55,14 @@ final class SimpleAnnotationMetadata implements AnnotationMetadata {
 
 	private final Set<MethodMetadata> declaredMethods;
 
-	private final MergedAnnotations annotations;
+	private final MergedAnnotations mergedAnnotations;
 
-	@Nullable
-	private Set<String> annotationTypes;
+	private @Nullable Set<String> annotationTypes;
 
 
 	SimpleAnnotationMetadata(String className, int access, @Nullable String enclosingClassName,
 			@Nullable String superClassName, boolean independentInnerClass, Set<String> interfaceNames,
-			Set<String> memberClassNames, Set<MethodMetadata> declaredMethods, MergedAnnotations annotations) {
+			Set<String> memberClassNames, Set<MethodMetadata> declaredMethods, MergedAnnotations mergedAnnotations) {
 
 		this.className = className;
 		this.access = access;
@@ -74,7 +72,7 @@ final class SimpleAnnotationMetadata implements AnnotationMetadata {
 		this.interfaceNames = interfaceNames;
 		this.memberClassNames = memberClassNames;
 		this.declaredMethods = declaredMethods;
-		this.annotations = annotations;
+		this.mergedAnnotations = mergedAnnotations;
 	}
 
 	@Override
@@ -108,14 +106,12 @@ final class SimpleAnnotationMetadata implements AnnotationMetadata {
 	}
 
 	@Override
-	@Nullable
-	public String getEnclosingClassName() {
+	public @Nullable String getEnclosingClassName() {
 		return this.enclosingClassName;
 	}
 
 	@Override
-	@Nullable
-	public String getSuperClassName() {
+	public @Nullable String getSuperClassName() {
 		return this.superClassName;
 	}
 
@@ -131,7 +127,7 @@ final class SimpleAnnotationMetadata implements AnnotationMetadata {
 
 	@Override
 	public MergedAnnotations getAnnotations() {
-		return this.annotations;
+		return this.mergedAnnotations;
 	}
 
 	@Override
@@ -163,8 +159,8 @@ final class SimpleAnnotationMetadata implements AnnotationMetadata {
 
 
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return (this == obj || (obj instanceof SimpleAnnotationMetadata that && this.className.equals(that.className)));
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof SimpleAnnotationMetadata that && this.className.equals(that.className)));
 	}
 
 	@Override

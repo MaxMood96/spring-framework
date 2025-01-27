@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,10 @@
 
 package org.springframework.build;
 
+import java.io.File;
+import java.nio.file.Path;
+import java.util.List;
+
 import io.spring.javaformat.gradle.SpringJavaFormatPlugin;
 import io.spring.nohttp.gradle.NoHttpExtension;
 import io.spring.nohttp.gradle.NoHttpPlugin;
@@ -27,12 +31,9 @@ import org.gradle.api.plugins.quality.Checkstyle;
 import org.gradle.api.plugins.quality.CheckstyleExtension;
 import org.gradle.api.plugins.quality.CheckstylePlugin;
 
-import java.io.File;
-import java.nio.file.Path;
-import java.util.List;
-
 /**
  * {@link Plugin} that applies conventions for checkstyle.
+ *
  * @author Brian Clozel
  */
 public class CheckstyleConventions {
@@ -49,12 +50,12 @@ public class CheckstyleConventions {
 			project.getPlugins().apply(CheckstylePlugin.class);
 			project.getTasks().withType(Checkstyle.class).forEach(checkstyle -> checkstyle.getMaxHeapSize().set("1g"));
 			CheckstyleExtension checkstyle = project.getExtensions().getByType(CheckstyleExtension.class);
-			checkstyle.setToolVersion("10.10.0");
+			checkstyle.setToolVersion("10.21.1");
 			checkstyle.getConfigDirectory().set(project.getRootProject().file("src/checkstyle"));
 			String version = SpringJavaFormatPlugin.class.getPackage().getImplementationVersion();
 			DependencySet checkstyleDependencies = project.getConfigurations().getByName("checkstyle").getDependencies();
-			checkstyleDependencies
-				.add(project.getDependencies().create("io.spring.javaformat:spring-javaformat-checkstyle:" + version));
+			checkstyleDependencies.add(
+					project.getDependencies().create("io.spring.javaformat:spring-javaformat-checkstyle:" + version));
 		});
 	}
 
@@ -63,7 +64,7 @@ public class CheckstyleConventions {
 		NoHttpExtension noHttp = project.getExtensions().getByType(NoHttpExtension.class);
 		noHttp.setAllowlistFile(project.file("src/nohttp/allowlist.lines"));
 		noHttp.getSource().exclude("**/test-output/**", "**/.settings/**",
-				"**/.classpath", "**/.project", "**/.gradle/**");
+				"**/.classpath", "**/.project", "**/.gradle/**", "**/node_modules/**", "**/spring-jcl/**");
 		List<String> buildFolders = List.of("bin", "build", "out");
 		project.allprojects(subproject -> {
 			Path rootPath = project.getRootDir().toPath();

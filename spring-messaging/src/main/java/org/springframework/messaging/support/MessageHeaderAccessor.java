@@ -26,7 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHeaders;
@@ -120,15 +121,18 @@ public class MessageHeaderAccessor {
 
 	private boolean enableTimestamp = false;
 
-	@Nullable
-	private IdGenerator idGenerator;
+	private @Nullable IdGenerator idGenerator;
+
+	private MessageHeaderAccessor(@Nullable MessageHeaders headers) {
+		this.headers = new MutableMessageHeaders(headers);
+	}
 
 
 	/**
 	 * A constructor to create new headers.
 	 */
 	public MessageHeaderAccessor() {
-		this(null);
+		this((MessageHeaders) null);
 	}
 
 	/**
@@ -136,7 +140,26 @@ public class MessageHeaderAccessor {
 	 * @param message a message to copy the headers from, or {@code null} if none
 	 */
 	public MessageHeaderAccessor(@Nullable Message<?> message) {
-		this.headers = new MutableMessageHeaders(message != null ? message.getHeaders() : null);
+		this(message != null ? message.getHeaders() : null);
+	}
+
+
+	/**
+	 * Create an instance from a plain {@link Map}.
+	 * @param map the raw headers
+	 * @since 6.2
+	 */
+	public static MessageHeaderAccessor fromMap(@Nullable Map<String, Object> map) {
+		return fromMessageHeaders(new MessageHeaders(map));
+	}
+
+	/**
+	 * Create an instance from an existing {@link MessageHeaders} instance.
+	 * @param headers the headers
+	 * @since 6.2
+	 */
+	public static MessageHeaderAccessor fromMessageHeaders(@Nullable MessageHeaders headers) {
+		return new MessageHeaderAccessor(headers);
 	}
 
 
@@ -276,8 +299,7 @@ public class MessageHeaderAccessor {
 	 * @param headerName the name of the header
 	 * @return the associated value, or {@code null} if none found
 	 */
-	@Nullable
-	public Object getHeader(String headerName) {
+	public @Nullable Object getHeader(String headerName) {
 		return this.headers.get(headerName);
 	}
 
@@ -410,8 +432,7 @@ public class MessageHeaderAccessor {
 
 	// Specific header accessors
 
-	@Nullable
-	public UUID getId() {
+	public @Nullable UUID getId() {
 		Object value = getHeader(MessageHeaders.ID);
 		if (value == null) {
 			return null;
@@ -419,8 +440,7 @@ public class MessageHeaderAccessor {
 		return (value instanceof UUID uuid ? uuid : UUID.fromString(value.toString()));
 	}
 
-	@Nullable
-	public Long getTimestamp() {
+	public @Nullable Long getTimestamp() {
 		Object value = getHeader(MessageHeaders.TIMESTAMP);
 		if (value == null) {
 			return null;
@@ -432,8 +452,7 @@ public class MessageHeaderAccessor {
 		setHeader(MessageHeaders.CONTENT_TYPE, contentType);
 	}
 
-	@Nullable
-	public MimeType getContentType() {
+	public @Nullable MimeType getContentType() {
 		Object value = getHeader(MessageHeaders.CONTENT_TYPE);
 		if (value == null) {
 			return null;
@@ -455,8 +474,7 @@ public class MessageHeaderAccessor {
 		setHeader(MessageHeaders.REPLY_CHANNEL, replyChannel);
 	}
 
-	@Nullable
-	public Object getReplyChannel() {
+	public @Nullable Object getReplyChannel() {
 		return getHeader(MessageHeaders.REPLY_CHANNEL);
 	}
 
@@ -468,8 +486,7 @@ public class MessageHeaderAccessor {
 		setHeader(MessageHeaders.ERROR_CHANNEL, errorChannel);
 	}
 
-	@Nullable
-	public Object getErrorChannel() {
+	public @Nullable Object getErrorChannel() {
 		return getHeader(MessageHeaders.ERROR_CHANNEL);
 	}
 
@@ -563,8 +580,7 @@ public class MessageHeaderAccessor {
 	 * @return an accessor instance of the specified type, or {@code null} if none
 	 * @since 5.1.19
 	 */
-	@Nullable
-	public static MessageHeaderAccessor getAccessor(Message<?> message) {
+	public static @Nullable MessageHeaderAccessor getAccessor(Message<?> message) {
 		return getAccessor(message.getHeaders(), null);
 	}
 
@@ -579,8 +595,7 @@ public class MessageHeaderAccessor {
 	 * @return an accessor instance of the specified type, or {@code null} if none
 	 * @since 4.1
 	 */
-	@Nullable
-	public static <T extends MessageHeaderAccessor> T getAccessor(Message<?> message, @Nullable Class<T> requiredType) {
+	public static <T extends MessageHeaderAccessor> @Nullable T getAccessor(Message<?> message, @Nullable Class<T> requiredType) {
 		return getAccessor(message.getHeaders(), requiredType);
 	}
 
@@ -594,13 +609,12 @@ public class MessageHeaderAccessor {
 	 * @since 4.1
 	 */
 	@SuppressWarnings("unchecked")
-	@Nullable
-	public static <T extends MessageHeaderAccessor> T getAccessor(
+	public static <T extends MessageHeaderAccessor> @Nullable T getAccessor(
 			MessageHeaders messageHeaders, @Nullable Class<T> requiredType) {
 
 		if (messageHeaders instanceof MutableMessageHeaders mutableHeaders) {
 			MessageHeaderAccessor headerAccessor = mutableHeaders.getAccessor();
-			if (requiredType == null || requiredType.isInstance(headerAccessor))  {
+			if (requiredType == null || requiredType.isInstance(headerAccessor)) {
 				return (T) headerAccessor;
 			}
 		}

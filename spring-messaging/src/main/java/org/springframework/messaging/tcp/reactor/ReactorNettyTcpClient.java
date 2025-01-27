@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.util.concurrent.ImmediateEventExecutor;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
@@ -45,7 +46,6 @@ import reactor.netty.resources.LoopResources;
 import reactor.netty.tcp.TcpClient;
 import reactor.util.retry.Retry;
 
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.tcp.ReconnectStrategy;
 import org.springframework.messaging.tcp.TcpConnection;
@@ -70,14 +70,11 @@ public class ReactorNettyTcpClient<P> implements TcpOperations<P> {
 
 	private final ReactorNettyCodec<P> codec;
 
-	@Nullable
-	private final ChannelGroup channelGroup;
+	private final @Nullable ChannelGroup channelGroup;
 
-	@Nullable
-	private final LoopResources loopResources;
+	private final @Nullable LoopResources loopResources;
 
-	@Nullable
-	private final ConnectionProvider poolResources;
+	private final @Nullable ConnectionProvider poolResources;
 
 	private final Scheduler scheduler = Schedulers.newParallel("tcp-client-scheduler");
 
@@ -254,12 +251,12 @@ public class ReactorNettyTcpClient<P> implements TcpOperations<P> {
 		if (this.channelGroup != null) {
 			result = FutureMono.from(this.channelGroup.close());
 			if (this.loopResources != null) {
-				result = result.onErrorResume(ex -> Mono.empty()).then(this.loopResources.disposeLater());
+				result = result.onErrorComplete().then(this.loopResources.disposeLater());
 			}
 			if (this.poolResources != null) {
-				result = result.onErrorResume(ex -> Mono.empty()).then(this.poolResources.disposeLater());
+				result = result.onErrorComplete().then(this.poolResources.disposeLater());
 			}
-			result = result.onErrorResume(ex -> Mono.empty()).then(stopScheduler());
+			result = result.onErrorComplete().then(stopScheduler());
 		}
 		else {
 			result = stopScheduler();
@@ -308,7 +305,7 @@ public class ReactorNettyTcpClient<P> implements TcpOperations<P> {
 				}
 			});
 			Sinks.Empty<Void> completionSink = Sinks.empty();
-			TcpConnection<P> connection = new ReactorNettyTcpConnection<>(inbound, outbound,  codec, completionSink);
+			TcpConnection<P> connection = new ReactorNettyTcpConnection<>(inbound, outbound, codec, completionSink);
 			scheduler.schedule(() -> this.connectionHandler.afterConnected(connection));
 
 			inbound.withConnection(conn -> conn.addHandlerFirst(new StompMessageDecoder<>(codec)));

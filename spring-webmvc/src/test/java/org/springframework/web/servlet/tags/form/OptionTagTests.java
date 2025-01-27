@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,12 +24,12 @@ import java.util.List;
 
 import jakarta.servlet.jsp.tagext.BodyTag;
 import jakarta.servlet.jsp.tagext.Tag;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.propertyeditors.StringArrayPropertyEditor;
 import org.springframework.beans.testfixture.beans.Colour;
 import org.springframework.beans.testfixture.beans.TestBean;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.web.servlet.support.BindStatus;
@@ -57,7 +57,6 @@ class OptionTagTests extends AbstractHtmlElementTagTests {
 	private SelectTag parentTag;
 
 	@Override
-	@SuppressWarnings("serial")
 	protected void onSetUp() {
 		this.tag = new OptionTag() {
 			@Override
@@ -195,7 +194,7 @@ class OptionTagTests extends AbstractHtmlElementTagTests {
 	}
 
 	@Test
-	void withoutContext() throws Exception {
+	void withoutContext() {
 		this.tag.setParent(null);
 		this.tag.setValue("foo");
 		this.tag.setLabel("Foo");
@@ -463,7 +462,7 @@ class OptionTagTests extends AbstractHtmlElementTagTests {
 	}
 
 	@Test
-	void optionTagNotNestedWithinSelectTag() throws Exception {
+	void optionTagNotNestedWithinSelectTag() {
 		tag.setParent(null);
 		tag.setValue("foo");
 		assertThatIllegalStateException().as("when not nested within a <select/> tag").isThrownBy(
@@ -570,7 +569,7 @@ class OptionTagTests extends AbstractHtmlElementTagTests {
 	}
 
 
-	public class RulesVariantEditor extends PropertyEditorSupport {
+	public static class RulesVariantEditor extends PropertyEditorSupport {
 
 		@Override
 		public void setAsText(String text) throws IllegalArgumentException {

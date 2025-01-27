@@ -47,7 +47,7 @@ public abstract class AbstractTemplateView extends AbstractUrlBasedView {
 
 	/**
 	 * Variable name of the RequestContext instance in the template model,
-	 * available to Spring's macros: e.g. for creating BindStatus objects.
+	 * available to Spring's macros: for example, for creating BindStatus objects.
 	 */
 	public static final String SPRING_MACRO_REQUEST_CONTEXT_ATTRIBUTE = "springMacroRequestContext";
 
@@ -67,7 +67,7 @@ public abstract class AbstractTemplateView extends AbstractUrlBasedView {
 	 * Set whether all request attributes should be added to the
 	 * model prior to merging with the template. Default is "false".
 	 * <p>Note that some templates may make request attributes visible
-	 * on their own, e.g. FreeMarker, without exposure in the MVC model.
+	 * on their own, for example, FreeMarker, without exposure in the MVC model.
 	 */
 	public void setExposeRequestAttributes(boolean exposeRequestAttributes) {
 		this.exposeRequestAttributes = exposeRequestAttributes;
@@ -190,7 +190,7 @@ public abstract class AbstractTemplateView extends AbstractUrlBasedView {
 	 * @param response current HTTP response
 	 * @see #setContentType
 	 */
-	protected void applyContentType(HttpServletResponse response)	{
+	protected void applyContentType(HttpServletResponse response) {
 		if (response.getContentType() == null) {
 			response.setContentType(getContentType());
 		}

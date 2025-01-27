@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,9 @@ package org.springframework.web.method.support;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.MethodParameter;
-import org.springframework.lang.Nullable;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
 
@@ -33,8 +34,7 @@ public class StubArgumentResolver implements HandlerMethodArgumentResolver {
 
 	private final Class<?> valueType;
 
-	@Nullable
-	private final Object value;
+	private final @Nullable Object value;
 
 	private List<MethodParameter> resolvedParameters = new ArrayList<>();
 
@@ -47,7 +47,7 @@ public class StubArgumentResolver implements HandlerMethodArgumentResolver {
 		this(valueType, null);
 	}
 
-	public StubArgumentResolver(Class<?> valueType, Object value) {
+	public StubArgumentResolver(Class<?> valueType, @Nullable Object value) {
 		this.valueType = valueType;
 		this.value = value;
 	}

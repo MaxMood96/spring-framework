@@ -26,7 +26,7 @@ You can use the `@EnableWebFlux` annotation in your Java config, as the followin
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	@EnableWebFlux
@@ -36,13 +36,18 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	@EnableWebFlux
 	class WebConfig
 ----
 ======
+
+NOTE: When using Spring Boot, you may want to use `@Configuration` classes of type `WebFluxConfigurer` but without
+`@EnableWebFlux` to keep Spring Boot WebFlux customizations. See more details in
+xref:#webflux-config-customize[the WebFlux config API section] and in
+{spring-boot-docs-ref}/web/reactive.html#web.reactive.webflux.auto-configuration[the dedicated Spring Boot documentation].
 
 The preceding example registers a number of Spring WebFlux
 xref:web/webflux/dispatcher-handler.adoc#webflux-special-bean-types[infrastructure beans] and adapts to dependencies
@@ -61,10 +66,9 @@ as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	public class WebConfig implements WebFluxConfigurer {
 
 		// Implement configuration methods...
@@ -73,10 +77,9 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 @Configuration
-@EnableWebFlux
 class WebConfig : WebFluxConfigurer {
 
 	// Implement configuration methods...
@@ -91,7 +94,8 @@ class WebConfig : WebFluxConfigurer {
 [.small]#xref:web/webmvc/mvc-config/conversion.adoc[See equivalent in the Servlet stack]#
 
 By default, formatters for various number and date types are installed, along with support
-for customization via `@NumberFormat` and `@DateTimeFormat` on fields.
+for customization via `@NumberFormat`, `@DurationFormat`, and `@DateTimeFormat` on fields
+and parameters.
 
 To register custom formatters and converters in Java config, use the following:
 
@@ -99,10 +103,9 @@ To register custom formatters and converters in Java config, use the following:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	public class WebConfig implements WebFluxConfigurer {
 
 		@Override
@@ -115,10 +118,9 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	class WebConfig : WebFluxConfigurer {
 
 		override fun addFormatters(registry: FormatterRegistry) {
@@ -137,10 +139,9 @@ in the HTML spec. For such cases date and time formatting can be customized as f
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	public class WebConfig implements WebFluxConfigurer {
 
 		@Override
@@ -154,10 +155,9 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	class WebConfig : WebFluxConfigurer {
 
 		override fun addFormatters(registry: FormatterRegistry) {
@@ -191,10 +191,9 @@ as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	public class WebConfig implements WebFluxConfigurer {
 
 		@Override
@@ -207,10 +206,9 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	class WebConfig : WebFluxConfigurer {
 
 		override fun getValidator(): Validator {
@@ -228,7 +226,7 @@ as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Controller
 	public class MyController {
@@ -243,7 +241,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Controller
 	class MyController {
@@ -276,10 +274,9 @@ The following example shows how to customize the requested content type resoluti
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	public class WebConfig implements WebFluxConfigurer {
 
 		@Override
@@ -291,10 +288,9 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	class WebConfig : WebFluxConfigurer {
 
 		override fun configureContentTypeResolver(builder: RequestedContentTypeResolverBuilder) {
@@ -316,10 +312,9 @@ The following example shows how to customize how the request and response body a
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	public class WebConfig implements WebFluxConfigurer {
 
 		@Override
@@ -331,14 +326,13 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	class WebConfig : WebFluxConfigurer {
 
 		override fun configureHttpMessageCodecs(configurer: ServerCodecConfigurer) {
-			// ...
+			configurer.defaultCodecs().maxInMemorySize(512 * 1024)
 		}
 	}
 ----
@@ -348,18 +342,17 @@ Kotlin::
 more readers and writers, customize the default ones, or replace the default ones completely.
 
 For Jackson JSON and XML, consider using
-{api-spring-framework}/http/converter/json/Jackson2ObjectMapperBuilder.html[`Jackson2ObjectMapperBuilder`],
+{spring-framework-api}/http/converter/json/Jackson2ObjectMapperBuilder.html[`Jackson2ObjectMapperBuilder`],
 which customizes Jackson's default properties with the following ones:
 
-* https://fasterxml.github.io/jackson-databind/javadoc/2.6/com/fasterxml/jackson/databind/DeserializationFeature.html#FAIL_ON_UNKNOWN_PROPERTIES[`DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES`] is disabled.
-* https://fasterxml.github.io/jackson-databind/javadoc/2.6/com/fasterxml/jackson/databind/MapperFeature.html#DEFAULT_VIEW_INCLUSION[`MapperFeature.DEFAULT_VIEW_INCLUSION`] is disabled.
+* {jackson-docs}/jackson-databind/javadoc/2.6/com/fasterxml/jackson/databind/DeserializationFeature.html#FAIL_ON_UNKNOWN_PROPERTIES[`DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES`] is disabled.
+* {jackson-docs}/jackson-databind/javadoc/2.6/com/fasterxml/jackson/databind/MapperFeature.html#DEFAULT_VIEW_INCLUSION[`MapperFeature.DEFAULT_VIEW_INCLUSION`] is disabled.
 
 It also automatically registers the following well-known modules if they are detected on the classpath:
 
-* https://github.com/FasterXML/jackson-datatype-joda[`jackson-datatype-joda`]: Support for Joda-Time types.
-* https://github.com/FasterXML/jackson-datatype-jsr310[`jackson-datatype-jsr310`]: Support for Java 8 Date and Time API types.
-* https://github.com/FasterXML/jackson-datatype-jdk8[`jackson-datatype-jdk8`]: Support for other Java 8 types, such as `Optional`.
-* https://github.com/FasterXML/jackson-module-kotlin[`jackson-module-kotlin`]: Support for Kotlin classes and data classes.
+* {jackson-github-org}/jackson-datatype-jsr310[`jackson-datatype-jsr310`]: Support for Java 8 Date and Time API types.
+* {jackson-github-org}/jackson-datatype-jdk8[`jackson-datatype-jdk8`]: Support for other Java 8 types, such as `Optional`.
+* {jackson-github-org}/jackson-module-kotlin[`jackson-module-kotlin`]: Support for Kotlin classes and data classes.
 
 
 
@@ -373,10 +366,9 @@ The following example shows how to configure view resolution:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	public class WebConfig implements WebFluxConfigurer {
 
 		@Override
@@ -388,10 +380,9 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	class WebConfig : WebFluxConfigurer {
 
 		override fun configureViewResolvers(registry: ViewResolverRegistry) {
@@ -409,10 +400,9 @@ underlying FreeMarker view technology):
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	public class WebConfig implements WebFluxConfigurer {
 
 
@@ -434,10 +424,9 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	class WebConfig : WebFluxConfigurer {
 
 		override fun configureViewResolvers(registry: ViewResolverRegistry) {
@@ -460,10 +449,9 @@ You can also plug in any `ViewResolver` implementation, as the following example
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	public class WebConfig implements WebFluxConfigurer {
 
 
@@ -477,10 +465,9 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	class WebConfig : WebFluxConfigurer {
 
 		override fun configureViewResolvers(registry: ViewResolverRegistry) {
@@ -500,10 +487,9 @@ xref:web/webflux/reactive-spring.adoc#webflux-codecs[Codecs] from `spring-web`. 
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	public class WebConfig implements WebFluxConfigurer {
 
 
@@ -521,10 +507,9 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	class WebConfig : WebFluxConfigurer {
 
 
@@ -549,7 +534,7 @@ See xref:web/webflux-view.adoc[View Technologies] for more on the view technolog
 [.small]#xref:web/webmvc/mvc-config/static-resources.adoc[See equivalent in the Servlet stack]#
 
 This option provides a convenient way to serve static resources from a list of
-{api-spring-framework}/core/io/Resource.html[`Resource`]-based locations.
+{spring-framework-api}/core/io/Resource.html[`Resource`]-based locations.
 
 In the next example, given a request that starts with `/resources`, the relative path is
 used to find and serve static resources relative to `/static` on the classpath. Resources
@@ -562,10 +547,9 @@ the example:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	public class WebConfig implements WebFluxConfigurer {
 
 		@Override
@@ -580,10 +564,9 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim"]
 ----
 	@Configuration
-	@EnableWebFlux
 	class WebConfig : WebFluxConfigurer {
 
 		override fun addResourceHandlers(registry: ResourceHandlerRegistry) {
@@ -598,8 +581,8 @@ Kotlin::
 See also xref:web/webflux/caching.adoc#webflux-caching-static-resources[HTTP caching support for static resources].
 
 The resource handler also supports a chain of
-{api-spring-framework}/web/reactive/resource/ResourceResolver.html[`ResourceResolver`] implementations and
-{api-spring-framework}/web/reactive/resource/ResourceTransformer.html[`ResourceTransformer`] implementations,
+{spring-framework-api}/web/reactive/resource/ResourceResolver.html[`ResourceResolver`] implementations and
+{spring-framework-api}/web/reactive/resource/ResourceTransformer.html[`ResourceTransformer`] implementations,
 which can be used to create a toolchain for working with optimized resources.
 
 You can use the `VersionResourceResolver` for versioned resource URLs based on an MD5 hash
@@ -613,10 +596,9 @@ The following example shows how to use `VersionResourceResolver` in your Java co
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim",role="primary"]
+[source,java,indent=0,subs="verbatim"]
 ----
 	@Configuration
-	@EnableWebFlux
 	public class WebConfig implements WebFluxConfigurer {
 
 		@Override
@@ -632,10 +614,9 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim"]
 ----
 	@Configuration
-	@EnableWebFlux
 	class WebConfig : WebFluxConfigurer {
 
 		override fun addResourceHandlers(registry: ResourceHandlerRegistry) {
@@ -666,17 +647,16 @@ For https://www.webjars.org/documentation[WebJars], versioned URLs like
 `/webjars/jquery/1.2.0/jquery.min.js` are the recommended and most efficient way to use them.
 The related resource location is configured out of the box with Spring Boot (or can be configured
 manually via `ResourceHandlerRegistry`) and does not require to add the
-`org.webjars:webjars-locator-core` dependency.
+`org.webjars:webjars-locator-lite` dependency.
 
 Version-less URLs like `/webjars/jquery/jquery.min.js` are supported through the
 `WebJarsResourceResolver` which is automatically registered when the
-`org.webjars:webjars-locator-core` library is present on the classpath, at the cost of a
-classpath scanning that could slow down application startup. The resolver can re-write URLs to
-include the version of the jar and can also match against incoming URLs without versions
+`org.webjars:webjars-locator-lite` library is present on the classpath. The resolver can re-write
+URLs to include the version of the jar and can also match against incoming URLs without versions
 -- for example, from `/webjars/jquery/jquery.min.js` to `/webjars/jquery/1.2.0/jquery.min.js`.
 
 TIP: The Java configuration based on `ResourceHandlerRegistry` provides further options
-for fine-grained control, e.g. last-modified behavior and optimized resource resolution.
+for fine-grained control, for example, last-modified behavior and optimized resource resolution.
 
 
 
@@ -685,45 +665,10 @@ for fine-grained control, e.g. last-modified behavior and optimized resource res
 [.small]#xref:web/webmvc/mvc-config/path-matching.adoc[See equivalent in the Servlet stack]#
 
 You can customize options related to path matching. For details on the individual options, see the
-{api-spring-framework}/web/reactive/config/PathMatchConfigurer.html[`PathMatchConfigurer`] javadoc.
+{spring-framework-api}/web/reactive/config/PathMatchConfigurer.html[`PathMatchConfigurer`] javadoc.
 The following example shows how to use `PathMatchConfigurer`:
 
-[tabs]
-======
-Java::
-+
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
-----
-	@Configuration
-	@EnableWebFlux
-	public class WebConfig implements WebFluxConfigurer {
-
-		@Override
-		public void configurePathMatch(PathMatchConfigurer configurer) {
-			configurer
-				.setUseCaseSensitiveMatch(true)
-				.addPathPrefix("/api", HandlerTypePredicate.forAnnotation(RestController.class));
-		}
-	}
-----
-
-Kotlin::
-+
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
-----
-	@Configuration
-	@EnableWebFlux
-	class WebConfig : WebFluxConfigurer {
-
-		@Override
-		fun configurePathMatch(configurer: PathMatchConfigurer) {
-			configurer
-				.setUseCaseSensitiveMatch(true)
-				.addPathPrefix("/api", HandlerTypePredicate.forAnnotation(RestController::class.java))
-		}
-	}
-----
-======
+include-code::./WebConfig[]
 
 [TIP]
 ====
@@ -737,6 +682,57 @@ Spring WebFlux also does not support suffix pattern matching, unlike in Spring M
 are also xref:web/webmvc/mvc-controller/ann-requestmapping.adoc#mvc-ann-requestmapping-suffix-pattern-match[recommend] moving away from
 reliance on it.
 ====
+
+
+
+
+[[webflux-config-blocking-execution]]
+== Blocking Execution
+
+The WebFlux Java config allows you to customize blocking execution in WebFlux.
+
+You can have blocking controller methods called on a separate thread by providing
+an `AsyncTaskExecutor` such as the
+{spring-framework-api}/core/task/VirtualThreadTaskExecutor.html[`VirtualThreadTaskExecutor`]
+as follows:
+
+[tabs]
+======
+Java::
++
+[source,java,indent=0,subs="verbatim,quotes"]
+----
+	@Configuration
+	public class WebConfig implements WebFluxConfigurer {
+
+		@Override
+		public void configureBlockingExecution(BlockingExecutionConfigurer configurer) {
+			AsyncTaskExecutor executor = ...
+			configurer.setExecutor(executor);
+		}
+	}
+----
+
+Kotlin::
++
+[source,kotlin,indent=0,subs="verbatim,quotes"]
+----
+	@Configuration
+	class WebConfig : WebFluxConfigurer {
+
+		@Override
+		fun configureBlockingExecution(configurer: BlockingExecutionConfigurer) {
+			val executor = ...
+			configurer.setExecutor(executor)
+		}
+	}
+----
+======
+
+By default, controller methods whose return type is not recognized by the configured
+`ReactiveAdapterRegistry` are considered blocking, but you can set a custom controller
+method predicate via `BlockingExecutionConfigurer`.
+
 
 
 
@@ -756,10 +752,9 @@ For example:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	public class WebConfig implements WebFluxConfigurer {
 
 		@Override
@@ -773,10 +768,9 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
-	@EnableWebFlux
 	class WebConfig : WebFluxConfigurer {
 
 		@Override
@@ -811,7 +805,7 @@ as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	public class WebConfig extends DelegatingWebFluxConfiguration {
@@ -822,7 +816,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	class WebConfig : DelegatingWebFluxConfiguration {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,20 @@ package org.springframework.web.method.support;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Map;
 
-import org.reactivestreams.Publisher;
+import kotlin.Unit;
+import kotlin.jvm.JvmClassMappingKt;
+import kotlin.reflect.KClass;
+import kotlin.reflect.KFunction;
+import kotlin.reflect.KParameter;
+import kotlin.reflect.KType;
+import kotlin.reflect.full.KClasses;
+import kotlin.reflect.jvm.KCallablesJvm;
+import kotlin.reflect.jvm.ReflectJvmMapping;
+import org.jspecify.annotations.Nullable;
+import reactor.core.publisher.Mono;
+import reactor.core.publisher.SynchronousSink;
 
 import org.springframework.context.MessageSource;
 import org.springframework.core.CoroutinesUtils;
@@ -28,8 +40,9 @@ import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.core.KotlinDetector;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ParameterNameDiscoverer;
-import org.springframework.lang.Nullable;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
+import org.springframework.validation.method.MethodValidator;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.support.SessionStatus;
 import org.springframework.web.bind.support.WebDataBinderFactory;
@@ -50,13 +63,18 @@ public class InvocableHandlerMethod extends HandlerMethod {
 
 	private static final Object[] EMPTY_ARGS = new Object[0];
 
+	private static final Class<?>[] EMPTY_GROUPS = new Class<?>[0];
+
 
 	private HandlerMethodArgumentResolverComposite resolvers = new HandlerMethodArgumentResolverComposite();
 
 	private ParameterNameDiscoverer parameterNameDiscoverer = new DefaultParameterNameDiscoverer();
 
-	@Nullable
-	private WebDataBinderFactory dataBinderFactory;
+	private @Nullable WebDataBinderFactory dataBinderFactory;
+
+	private @Nullable MethodValidator methodValidator;
+
+	private Class<?>[] validationGroups = EMPTY_GROUPS;
 
 
 	/**
@@ -106,7 +124,7 @@ public class InvocableHandlerMethod extends HandlerMethod {
 
 	/**
 	 * Set the ParameterNameDiscoverer for resolving parameter names when needed
-	 * (e.g. default request attribute name).
+	 * (for example, default request attribute name).
 	 * <p>Default is a {@link org.springframework.core.DefaultParameterNameDiscoverer}.
 	 */
 	public void setParameterNameDiscoverer(ParameterNameDiscoverer parameterNameDiscoverer) {
@@ -119,6 +137,18 @@ public class InvocableHandlerMethod extends HandlerMethod {
 	 */
 	public void setDataBinderFactory(WebDataBinderFactory dataBinderFactory) {
 		this.dataBinderFactory = dataBinderFactory;
+	}
+
+	/**
+	 * Set the {@link MethodValidator} to perform method validation with if the
+	 * controller method {@link #shouldValidateArguments()} or
+	 * {@link #shouldValidateReturnValue()}.
+	 * @since 6.1
+	 */
+	public void setMethodValidator(@Nullable MethodValidator methodValidator) {
+		this.methodValidator = methodValidator;
+		this.validationGroups = (methodValidator != null ?
+				methodValidator.determineValidationGroups(getBean(), getBridgedMethod()) : EMPTY_GROUPS);
 	}
 
 
@@ -141,15 +171,27 @@ public class InvocableHandlerMethod extends HandlerMethod {
 	 * @see #getMethodArgumentValues
 	 * @see #doInvoke
 	 */
-	@Nullable
-	public Object invokeForRequest(NativeWebRequest request, @Nullable ModelAndViewContainer mavContainer,
-			Object... providedArgs) throws Exception {
+	public @Nullable Object invokeForRequest(NativeWebRequest request, @Nullable ModelAndViewContainer mavContainer,
+			@Nullable Object... providedArgs) throws Exception {
 
-		Object[] args = getMethodArgumentValues(request, mavContainer, providedArgs);
+		@Nullable Object[] args = getMethodArgumentValues(request, mavContainer, providedArgs);
 		if (logger.isTraceEnabled()) {
 			logger.trace("Arguments: " + Arrays.toString(args));
 		}
-		return doInvoke(args);
+
+		if (shouldValidateArguments() && this.methodValidator != null) {
+			this.methodValidator.applyArgumentValidation(
+					getBean(), getBridgedMethod(), getMethodParameters(), args, this.validationGroups);
+		}
+
+		Object returnValue = doInvoke(args);
+
+		if (shouldValidateReturnValue() && this.methodValidator != null) {
+			this.methodValidator.applyReturnValueValidation(
+					getBean(), getBridgedMethod(), getReturnType(), returnValue, this.validationGroups);
+		}
+
+		return returnValue;
 	}
 
 	/**
@@ -158,15 +200,15 @@ public class InvocableHandlerMethod extends HandlerMethod {
 	 * <p>The resulting array will be passed into {@link #doInvoke}.
 	 * @since 5.1.2
 	 */
-	protected Object[] getMethodArgumentValues(NativeWebRequest request, @Nullable ModelAndViewContainer mavContainer,
-			Object... providedArgs) throws Exception {
+	protected @Nullable Object[] getMethodArgumentValues(NativeWebRequest request, @Nullable ModelAndViewContainer mavContainer,
+			@Nullable Object... providedArgs) throws Exception {
 
 		MethodParameter[] parameters = getMethodParameters();
 		if (ObjectUtils.isEmpty(parameters)) {
 			return EMPTY_ARGS;
 		}
 
-		Object[] args = new Object[parameters.length];
+		@Nullable Object[] args = new Object[parameters.length];
 		for (int i = 0; i < parameters.length; i++) {
 			MethodParameter parameter = parameters[i];
 			parameter.initParameterNameDiscovery(this.parameterNameDiscoverer);
@@ -197,12 +239,14 @@ public class InvocableHandlerMethod extends HandlerMethod {
 	/**
 	 * Invoke the handler method with the given argument values.
 	 */
-	@Nullable
-	protected Object doInvoke(Object... args) throws Exception {
+	protected @Nullable Object doInvoke(@Nullable Object... args) throws Exception {
 		Method method = getBridgedMethod();
 		try {
-			if (KotlinDetector.isSuspendingFunction(method)) {
-				return invokeSuspendingFunction(method, getBean(), args);
+			if (KotlinDetector.isKotlinType(method.getDeclaringClass())) {
+				if (KotlinDetector.isSuspendingFunction(method)) {
+					return invokeSuspendingFunction(method, getBean(), args);
+				}
+				return KotlinDelegate.invokeFunction(method, getBean(), args);
 			}
 			return method.invoke(getBean(), args);
 		}
@@ -232,7 +276,6 @@ public class InvocableHandlerMethod extends HandlerMethod {
 
 	/**
 	 * Invoke the given Kotlin coroutine suspended function.
-	 *
 	 * <p>The default implementation invokes
 	 * {@link CoroutinesUtils#invokeSuspendingFunction(Method, Object, Object...)},
 	 * but subclasses can override this method to use
@@ -240,8 +283,81 @@ public class InvocableHandlerMethod extends HandlerMethod {
 	 * instead.
 	 * @since 6.0
 	 */
-	protected Publisher<?> invokeSuspendingFunction(Method method, Object target, Object[] args) {
-		return CoroutinesUtils.invokeSuspendingFunction(method, target, args);
+	protected Object invokeSuspendingFunction(Method method, Object target, @Nullable Object[] args) {
+		Object result = CoroutinesUtils.invokeSuspendingFunction(method, target, args);
+		return (result instanceof Mono<?> mono ? mono.handle(KotlinDelegate::handleResult) : result);
+	}
+
+
+	/**
+	 * Inner class to avoid a hard dependency on Kotlin at runtime.
+	 */
+	private static class KotlinDelegate {
+
+		@SuppressWarnings("DataFlowIssue")
+		public static @Nullable Object invokeFunction(Method method, Object target, @Nullable Object[] args) throws
+				InvocationTargetException, IllegalAccessException, NoSuchMethodException {
+
+			KFunction<?> function = ReflectJvmMapping.getKotlinFunction(method);
+			// For property accessors
+			if (function == null) {
+				return method.invoke(target, args);
+			}
+			if (!KCallablesJvm.isAccessible(function)) {
+				KCallablesJvm.setAccessible(function, true);
+			}
+			Map<KParameter, Object> argMap = CollectionUtils.newHashMap(args.length + 1);
+			int index = 0;
+			for (KParameter parameter : function.getParameters()) {
+				switch (parameter.getKind()) {
+					case INSTANCE -> argMap.put(parameter, target);
+					case VALUE, EXTENSION_RECEIVER -> {
+						Object arg = args[index];
+						if (!(parameter.isOptional() && arg == null)) {
+							KType type = parameter.getType();
+							if (!(type.isMarkedNullable() && arg == null) && type.getClassifier() instanceof KClass<?> kClass
+									&& KotlinDetector.isInlineClass(JvmClassMappingKt.getJavaClass(kClass))) {
+								KFunction<?> constructor = KClasses.getPrimaryConstructor(kClass);
+								if (!KCallablesJvm.isAccessible(constructor)) {
+									KCallablesJvm.setAccessible(constructor, true);
+								}
+								arg = constructor.call(arg);
+							}
+							argMap.put(parameter, arg);
+						}
+						index++;
+					}
+				}
+			}
+			Object result = function.callBy(argMap);
+			if (result != null && KotlinDetector.isInlineClass(result.getClass())) {
+				result = unbox(result);
+			}
+			return (result == Unit.INSTANCE ? null : result);
+		}
+
+		private static void handleResult(Object result, SynchronousSink<Object> sink) {
+			if (KotlinDetector.isInlineClass(result.getClass())) {
+				try {
+					Object unboxed = unbox(result);
+					if (unboxed != Unit.INSTANCE) {
+						sink.next(unboxed);
+					}
+					sink.complete();
+				}
+				catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException ex) {
+					sink.error(ex);
+				}
+			}
+			else {
+				sink.next(result);
+				sink.complete();
+			}
+		}
+
+		private static Object unbox(Object result) throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
+			return result.getClass().getDeclaredMethod("unbox-impl").invoke(result);
+		}
 	}
 
 }

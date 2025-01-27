@@ -23,8 +23,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.FactoryBean;
-import org.springframework.lang.Nullable;
 import org.springframework.scheduling.support.DelegatingErrorHandlingRunnable;
 import org.springframework.scheduling.support.TaskUtils;
 import org.springframework.util.Assert;
@@ -76,8 +77,7 @@ public class ScheduledExecutorFactoryBean extends ExecutorConfigurationSupport
 
 	private int poolSize = 1;
 
-	@Nullable
-	private ScheduledExecutorTask[] scheduledExecutorTasks;
+	private ScheduledExecutorTask @Nullable [] scheduledExecutorTasks;
 
 	private boolean removeOnCancelPolicy = false;
 
@@ -85,8 +85,7 @@ public class ScheduledExecutorFactoryBean extends ExecutorConfigurationSupport
 
 	private boolean exposeUnconfigurableExecutor = false;
 
-	@Nullable
-	private ScheduledExecutorService exposedExecutor;
+	private @Nullable ScheduledExecutorService exposedExecutor;
 
 
 	/**
@@ -187,7 +186,16 @@ public class ScheduledExecutorFactoryBean extends ExecutorConfigurationSupport
 	protected ScheduledExecutorService createExecutor(
 			int poolSize, ThreadFactory threadFactory, RejectedExecutionHandler rejectedExecutionHandler) {
 
-		return new ScheduledThreadPoolExecutor(poolSize, threadFactory, rejectedExecutionHandler);
+		return new ScheduledThreadPoolExecutor(poolSize, threadFactory, rejectedExecutionHandler) {
+			@Override
+			protected void beforeExecute(Thread thread, Runnable task) {
+				ScheduledExecutorFactoryBean.this.beforeExecute(thread, task);
+			}
+			@Override
+			protected void afterExecute(Runnable task, Throwable ex) {
+				ScheduledExecutorFactoryBean.this.afterExecute(task, ex);
+			}
+		};
 	}
 
 	/**
@@ -232,8 +240,7 @@ public class ScheduledExecutorFactoryBean extends ExecutorConfigurationSupport
 
 
 	@Override
-	@Nullable
-	public ScheduledExecutorService getObject() {
+	public @Nullable ScheduledExecutorService getObject() {
 		return this.exposedExecutor;
 	}
 

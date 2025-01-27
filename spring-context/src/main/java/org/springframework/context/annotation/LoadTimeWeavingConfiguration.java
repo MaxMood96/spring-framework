@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package org.springframework.context.annotation;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -26,7 +28,6 @@ import org.springframework.context.weaving.DefaultContextLoadTimeWeaver;
 import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.instrument.classloading.LoadTimeWeaver;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -45,14 +46,11 @@ import org.springframework.util.Assert;
 @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 public class LoadTimeWeavingConfiguration implements ImportAware, BeanClassLoaderAware {
 
-	@Nullable
-	private AnnotationAttributes enableLTW;
+	private @Nullable AnnotationAttributes enableLTW;
 
-	@Nullable
-	private LoadTimeWeavingConfigurer ltwConfigurer;
+	private @Nullable LoadTimeWeavingConfigurer ltwConfigurer;
 
-	@Nullable
-	private ClassLoader beanClassLoader;
+	private @Nullable ClassLoader beanClassLoader;
 
 
 	@Override
@@ -94,20 +92,20 @@ public class LoadTimeWeavingConfiguration implements ImportAware, BeanClassLoade
 		if (this.enableLTW != null) {
 			AspectJWeaving aspectJWeaving = this.enableLTW.getEnum("aspectjWeaving");
 			switch (aspectJWeaving) {
-				case DISABLED:
+				case DISABLED -> {
 					// AJ weaving is disabled -> do nothing
-					break;
-				case AUTODETECT:
+				}
+				case AUTODETECT -> {
 					if (this.beanClassLoader.getResource(AspectJWeavingEnabler.ASPECTJ_AOP_XML_RESOURCE) == null) {
 						// No aop.xml present on the classpath -> treat as 'disabled'
 						break;
 					}
 					// aop.xml is present on the classpath -> enable
 					AspectJWeavingEnabler.enableAspectJWeaving(loadTimeWeaver, this.beanClassLoader);
-					break;
-				case ENABLED:
+				}
+				case ENABLED -> {
 					AspectJWeavingEnabler.enableAspectJWeaving(loadTimeWeaver, this.beanClassLoader);
-					break;
+				}
 			}
 		}
 

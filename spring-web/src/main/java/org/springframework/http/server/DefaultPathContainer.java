@@ -25,7 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
@@ -74,8 +75,8 @@ final class DefaultPathContainer implements PathContainer {
 
 
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return (this == obj) || (obj instanceof PathContainer that && value().equals(that.value()));
+	public boolean equals(@Nullable Object other) {
+		return (this == other) || (other instanceof PathContainer that && value().equals(that.value()));
 	}
 
 	@Override
@@ -281,8 +282,8 @@ final class DefaultPathContainer implements PathContainer {
 		}
 
 		@Override
-		public boolean equals(@Nullable Object obj) {
-			return (this == obj) || (obj instanceof PathSegment that && value().equals(that.value()));
+		public boolean equals(@Nullable Object other) {
+			return (this == other || (other instanceof PathSegment that && this.value.equals(that.value())));
 		}
 
 		@Override

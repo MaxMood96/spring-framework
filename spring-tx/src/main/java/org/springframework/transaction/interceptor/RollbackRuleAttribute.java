@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,8 @@ package org.springframework.transaction.interceptor;
 
 import java.io.Serializable;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 
 /**
@@ -65,6 +66,14 @@ public class RollbackRuleAttribute implements Serializable{
 	public static final RollbackRuleAttribute ROLLBACK_ON_RUNTIME_EXCEPTIONS =
 			new RollbackRuleAttribute(RuntimeException.class);
 
+	/**
+	 * The {@linkplain RollbackRuleAttribute rollback rule} for all
+	 * {@link Exception Exceptions}, including checked exceptions.
+	 * @since 6.2
+	 */
+	public static final RollbackRuleAttribute ROLLBACK_ON_ALL_EXCEPTIONS =
+			new RollbackRuleAttribute(Exception.class);
+
 
 	/**
 	 * Exception pattern: used when searching for matches in a thrown exception's
@@ -79,8 +88,7 @@ public class RollbackRuleAttribute implements Serializable{
 	 * a thrown exception's class hierarchy.
 	 * @since 6.0
 	 */
-	@Nullable
-	private final Class<? extends Throwable> exceptionType;
+	private final @Nullable Class<? extends Throwable> exceptionType;
 
 
 	/**
@@ -180,13 +188,8 @@ public class RollbackRuleAttribute implements Serializable{
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof RollbackRuleAttribute rhs)) {
-			return false;
-		}
-		return this.exceptionPattern.equals(rhs.exceptionPattern);
+		return (this == other || (other instanceof RollbackRuleAttribute that &&
+				this.exceptionPattern.equals(that.exceptionPattern)));
 	}
 
 	@Override

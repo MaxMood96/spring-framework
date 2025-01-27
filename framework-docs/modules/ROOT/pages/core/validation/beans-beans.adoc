@@ -1,12 +1,62 @@
+[[beans-binding]]
+= Data Binding
+
+Data binding is useful for binding user input to a target object where user input is a map
+with property paths as keys, following xref:beans-beans-conventions[JavaBeans conventions].
+`DataBinder` is the main class that supports this, and it provides two ways to bind user
+input:
+
+- xref:beans-constructor-binding[Constructor binding] - bind user input to a public data
+constructor, looking up constructor argument values in the user input.
+- xref:beans-beans[Property binding] - bind user input to setters, matching keys from the
+user input to properties of the target object structure.
+
+You can apply both constructor and property binding or only one.
+
+
+[[beans-constructor-binding]]
+== Constructor Binding
+
+To use constructor binding:
+
+1. Create a `DataBinder` with `null` as the target object.
+2. Set `targetType` to the target class.
+3. Call `construct`.
+
+The target class should have a single public constructor or a single non-public constructor
+with arguments. If there are multiple constructors, then a default constructor if present
+is used.
+
+By default, argument values are looked up via constructor parameter names. Spring MVC and
+WebFlux support a custom name mapping through the `@BindParam` annotation on constructor
+parameters or fields if present. If necessary, you can also configure a `NameResolver` on
+`DataBinder` to customize the argument name to use.
+
+xref:beans-beans-conventions[Type conversion] is applied as needed to convert user input.
+If the constructor parameter is an object, it is constructed recursively in the same
+manner, but through a nested property path. That means constructor binding creates both
+the target object and any objects it contains.
+
+Constructor binding supports `List`, `Map`, and array arguments either converted from
+a single string, for example, comma-separated list, or based on indexed keys such as
+`accounts[2].name` or `account[KEY].name`.
+
+Binding and conversion errors are reflected in the `BindingResult` of the `DataBinder`.
+If the target is created successfully, then `target` is set to the created instance
+after the call to `construct`.
+
+
+
+
 [[beans-beans]]
-= Bean Manipulation and the `BeanWrapper`
+== Property Binding with `BeanWrapper`
 
 The `org.springframework.beans` package adheres to the JavaBeans standard.
 A JavaBean is a class with a default no-argument constructor and that follows
 a naming convention where (for example) a property named `bingoMadness` would
 have a setter method `setBingoMadness(..)` and a getter method `getBingoMadness()`. For
 more information about JavaBeans and the specification, see
-https://docs.oracle.com/javase/8/docs/api/java/beans/package-summary.html[javabeans].
+{java-api}/java.desktop/java/beans/package-summary.html[javabeans].
 
 One quite important class in the beans package is the `BeanWrapper` interface and its
 corresponding implementation (`BeanWrapperImpl`). As quoted from the javadoc, the
@@ -26,7 +76,7 @@ perform actions on that bean, such as setting and retrieving properties.
 
 
 [[beans-beans-conventions]]
-== Setting and Getting Basic and Nested Properties
+=== Setting and Getting Basic and Nested Properties
 
 Setting and getting properties is done through the `setPropertyValue` and
 `getPropertyValue` overloaded method variants of `BeanWrapper`. See their Javadoc for
@@ -45,13 +95,12 @@ details. The below table shows some examples of these conventions:
 | Indicates the nested property `name` of the property `account` that corresponds to
   (for example) the `getAccount().setName()` or `getAccount().getName()` methods.
 
-| `account[2]`
+| `accounts[2]`
 | Indicates the _third_ element of the indexed property `account`. Indexed properties
   can be of type `array`, `list`, or other naturally ordered collection.
 
-| `account[COMPANYNAME]`
-| Indicates the value of the map entry indexed by the `COMPANYNAME` key of the `account` `Map`
-  property.
+| `accounts[KEY]`
+| Indicates the value of the map entry indexed by the `KEY` value.
 |===
 
 (This next section is not vitally important to you if you do not plan to work with
@@ -66,7 +115,7 @@ properties:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	public class Company {
 
@@ -93,7 +142,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	class Company {
 		var name: String? = null
@@ -106,7 +155,7 @@ Kotlin::
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	public class Employee {
 
@@ -134,7 +183,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	class Employee {
 		var name: String? = null
@@ -150,7 +199,7 @@ the properties of instantiated ``Company``s and ``Employee``s:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	BeanWrapper company = new BeanWrapperImpl(new Company());
 	// setting the company name..
@@ -170,7 +219,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	val company = BeanWrapperImpl(Company())
 	// setting the company name..
@@ -192,7 +241,7 @@ Kotlin::
 
 
 [[beans-beans-conversion]]
-== Built-in `PropertyEditor` Implementations
+== ``PropertyEditor``'s
 
 Spring uses the concept of a `PropertyEditor` to effect the conversion between an
 `Object` and a `String`. It can be handy
@@ -204,7 +253,7 @@ behavior can be achieved by registering custom editors of type
 `java.beans.PropertyEditor`. Registering custom editors on a `BeanWrapper` or,
 alternatively, in a specific IoC container (as mentioned in the previous chapter), gives it
 the knowledge of how to convert properties to the desired type. For more about
-`PropertyEditor`, see https://docs.oracle.com/javase/8/docs/api/java/beans/package-summary.html[the javadoc of the `java.beans` package from Oracle].
+`PropertyEditor`, see {java-api}/java.desktop/java/beans/package-summary.html[the javadoc of the `java.beans` package from Oracle].
 
 A couple of examples where property editing is used in Spring:
 
@@ -310,7 +359,7 @@ com
 
 Note that you can also use the standard `BeanInfo` JavaBeans mechanism here as well
 (described to some extent
-https://docs.oracle.com/javase/tutorial/javabeans/advanced/customization.html[here]). The
+{java-tutorial}/javabeans/advanced/customization.html[here]). The
 following example uses the `BeanInfo` mechanism to explicitly register one or more
 `PropertyEditor` instances with the properties of an associated class:
 
@@ -330,7 +379,7 @@ associates a `CustomNumberEditor` with the `age` property of the `Something` cla
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	public class SomethingBeanInfo extends SimpleBeanInfo {
 
@@ -354,7 +403,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	class SomethingBeanInfo : SimpleBeanInfo() {
 
@@ -378,7 +427,7 @@ Kotlin::
 
 
 [[beans-beans-conversion-customeditor-registration]]
-=== Registering Additional Custom `PropertyEditor` Implementations
+=== Custom ``PropertyEditor``'s
 
 When setting bean properties as string values, a Spring IoC container ultimately uses
 standard JavaBeans `PropertyEditor` implementations to convert these strings to the complex type of the
@@ -418,7 +467,7 @@ another class called `DependsOnExoticType`, which needs `ExoticType` set as a pr
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary",chomp="-packages"]
+[source,java,indent=0,subs="verbatim,quotes",chomp="-packages"]
 ----
 	package example;
 
@@ -443,7 +492,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary",chomp="-packages"]
+[source,kotlin,indent=0,subs="verbatim,quotes",chomp="-packages"]
 ----
 	package example
 
@@ -473,7 +522,7 @@ The `PropertyEditor` implementation could look similar to the following:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary",chomp="-packages"]
+[source,java,indent=0,subs="verbatim,quotes",chomp="-packages"]
 ----
 	package example;
 
@@ -490,7 +539,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary",chomp="-packages"]
+[source,kotlin,indent=0,subs="verbatim,quotes",chomp="-packages"]
 ----
 	package example
 
@@ -521,7 +570,7 @@ Finally, the following example shows how to use `CustomEditorConfigurer` to regi
 ----
 
 [[beans-beans-conversion-customeditor-registration-per]]
-==== Using `PropertyEditorRegistrar`
+=== `PropertyEditorRegistrar`
 
 Another mechanism for registering property editors with the Spring container is to
 create and use a `PropertyEditorRegistrar`. This interface is particularly useful when
@@ -544,7 +593,7 @@ The following example shows how to create your own `PropertyEditorRegistrar` imp
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary",chomp="-packages"]
+[source,java,indent=0,subs="verbatim,quotes",chomp="-packages"]
 ----
 	package com.foo.editors.spring;
 
@@ -562,7 +611,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary",chomp="-packages"]
+[source,kotlin,indent=0,subs="verbatim,quotes",chomp="-packages"]
 ----
 	package com.foo.editors.spring
 
@@ -612,7 +661,7 @@ example uses a `PropertyEditorRegistrar` in the implementation of an `@InitBinde
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Controller
 	public class RegisterUserController {
@@ -634,7 +683,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Controller
 	class RegisterUserController(

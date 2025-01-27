@@ -17,9 +17,11 @@
 package org.springframework.http.client.reactive;
 
 import java.net.URI;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
+import io.netty5.util.AttributeKey;
 import reactor.core.publisher.Mono;
 import reactor.netty5.NettyOutbound;
 import reactor.netty5.http.client.HttpClient;
@@ -41,7 +43,14 @@ import org.springframework.util.Assert;
  */
 public class ReactorNetty2ClientHttpConnector implements ClientHttpConnector {
 
-	private final static Function<HttpClient, HttpClient> defaultInitializer = client -> client.compress(true);
+	/**
+	 * Channel attribute key under which {@code WebClient} request attributes are stored as a Map.
+	 * @since 6.2
+	 */
+	public static final AttributeKey<Map<String, Object>> ATTRIBUTES_KEY =
+			AttributeKey.valueOf(ReactorNetty2ClientHttpRequest.class.getName() + ".ATTRIBUTES");
+
+	private static final Function<HttpClient, HttpClient> defaultInitializer = client -> client.compress(true);
 
 
 	private final HttpClient httpClient;

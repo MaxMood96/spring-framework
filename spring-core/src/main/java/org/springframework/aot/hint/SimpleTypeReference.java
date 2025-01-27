@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,8 @@ import java.util.List;
 
 import javax.lang.model.SourceVersion;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 
 /**
@@ -34,8 +35,7 @@ final class SimpleTypeReference extends AbstractTypeReference {
 	private static final List<String> PRIMITIVE_NAMES = List.of("boolean", "byte",
 			"short", "int", "long", "char", "float", "double", "void");
 
-	@Nullable
-	private String canonicalName;
+	private @Nullable String canonicalName;
 
 	SimpleTypeReference(String packageName, String simpleName, @Nullable TypeReference enclosingType) {
 		super(packageName, simpleName, enclosingType);
@@ -73,7 +73,7 @@ final class SimpleTypeReference extends AbstractTypeReference {
 			return new SimpleTypeReference(className.substring(0, i), className.substring(i + 1), null);
 		}
 		else {
-			String packageName = isPrimitive(className) ? "java.lang" : "";
+			String packageName = (isPrimitive(className) ? "java.lang" : "");
 			return new SimpleTypeReference(packageName, className, null);
 		}
 	}
@@ -101,7 +101,7 @@ final class SimpleTypeReference extends AbstractTypeReference {
 		if (type == null) {
 			return;
 		}
-		String typeName = (type.getEnclosingType() != null) ? "." + type.getSimpleName() : type.getSimpleName();
+		String typeName = (type.getEnclosingType() != null ? "." + type.getSimpleName() : type.getSimpleName());
 		sb.insert(0, typeName);
 		buildName(type.getEnclosingType(), sb);
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@ package org.springframework.web.socket.sockjs.frame;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -109,8 +110,7 @@ public class SockJsFrame {
 	 * for SockJS "open" and "close" frames, which do not contain data, return
 	 * {@code null}.
 	 */
-	@Nullable
-	public String getFrameData() {
+	public @Nullable String getFrameData() {
 		if (getType() == SockJsFrameType.OPEN || getType() == SockJsFrameType.HEARTBEAT) {
 			return null;
 		}
@@ -122,13 +122,8 @@ public class SockJsFrame {
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof SockJsFrame otherFrame)) {
-			return false;
-		}
-		return (this.type.equals(otherFrame.type) && this.content.equals(otherFrame.content));
+		return (this == other || (other instanceof SockJsFrame that &&
+				this.type.equals(that.type) && this.content.equals(that.content)));
 	}
 
 	@Override

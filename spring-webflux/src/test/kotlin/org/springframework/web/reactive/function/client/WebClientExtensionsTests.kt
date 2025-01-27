@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,9 @@ package org.springframework.web.reactive.function.client
 
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
@@ -32,6 +34,8 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.CompletableFuture
 import java.util.function.Function
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Mock object based tests for [WebClient] Kotlin extensions
@@ -67,6 +71,13 @@ class WebClientExtensionsTests {
 	}
 
 	@Test
+	fun `RequestBodySpec#bodyValueWithType with reified type parameters`() {
+		val body = mockk<List<Foo>>()
+		requestBodySpec.bodyValueWithType<List<Foo>>(body)
+		verify { requestBodySpec.bodyValue(body, object : ParameterizedTypeReference<List<Foo>>() {}) }
+	}
+
+	@Test
 	fun `ResponseSpec#bodyToMono with reified type parameters`() {
 		responseSpec.bodyToMono<List<Foo>>()
 		verify { responseSpec.bodyToMono(object : ParameterizedTypeReference<List<Foo>>() {}) }
@@ -85,16 +96,6 @@ class WebClientExtensionsTests {
 	}
 
 	@Test
-	@Suppress("DEPRECATION")
-	fun awaitExchange() {
-		val response = mockk<ClientResponse>()
-		every { requestBodySpec.exchange() } returns Mono.just(response)
-		runBlocking {
-			assertThat(requestBodySpec.awaitExchange()).isEqualTo(response)
-		}
-	}
-
-	@Test
 	fun `awaitExchange with function parameter`() {
 		val foo = mockk<Foo>()
 		every { requestBodySpec.exchangeToMono(any<Function<ClientResponse, Mono<Foo>>>()) } returns Mono.just(foo)
@@ -104,9 +105,21 @@ class WebClientExtensionsTests {
 	}
 
 	@Test
+	fun `awaitExchange with coroutines context`() {
+		val foo = mockk<Foo>()
+		val slot = slot<Function<ClientResponse, Mono<Foo>>>()
+		every { requestBodySpec.exchangeToMono(capture(slot)) } answers {
+			slot.captured.apply(mockk<ClientResponse>())
+		}
+		runBlocking(FooContextElement(foo)) {
+			assertThat(requestBodySpec.awaitExchange { currentCoroutineContext()[FooContextElement]!!.foo }).isEqualTo(foo)
+		}
+	}
+
+	@Test
 	fun `awaitExchangeOrNull returning null`() {
 		val foo = mockk<Foo>()
-		every { requestBodySpec.exchangeToMono(any<Function<ClientResponse, Mono<Foo?>>>()) } returns Mono.empty()
+		every { requestBodySpec.exchangeToMono(any<Function<ClientResponse, Mono<Foo>>>()) } returns Mono.empty()
 		runBlocking {
 			assertThat(requestBodySpec.awaitExchangeOrNull { foo }).isEqualTo(null)
 		}
@@ -118,6 +131,18 @@ class WebClientExtensionsTests {
 		every { requestBodySpec.exchangeToMono(any<Function<ClientResponse, Mono<Foo>>>()) } returns Mono.just(foo)
 		runBlocking {
 			assertThat(requestBodySpec.awaitExchangeOrNull { foo }).isEqualTo(foo)
+		}
+	}
+
+	@Test
+	fun `awaitExchangeOrNull with coroutines context`() {
+		val foo = mockk<Foo>()
+		val slot = slot<Function<ClientResponse, Mono<Foo>>>()
+		every { requestBodySpec.exchangeToMono(capture(slot)) } answers {
+			slot.captured.apply(mockk<ClientResponse>())
+		}
+		runBlocking(FooContextElement(foo)) {
+			assertThat(requestBodySpec.awaitExchangeOrNull { currentCoroutineContext()[FooContextElement]!!.foo }).isEqualTo(foo)
 		}
 	}
 
@@ -202,4 +227,8 @@ class WebClientExtensionsTests {
 	}
 
 	class Foo
+
+	private data class FooContextElement(val foo: Foo) : AbstractCoroutineContextElement(FooContextElement) {
+		companion object Key : CoroutineContext.Key<FooContextElement>
+	}
 }

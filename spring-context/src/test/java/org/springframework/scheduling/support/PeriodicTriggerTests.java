@@ -20,9 +20,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
-import org.springframework.lang.Nullable;
 import org.springframework.scheduling.TriggerContext;
 import org.springframework.util.NumberUtils;
 
@@ -185,25 +185,25 @@ class PeriodicTriggerTests {
 		PeriodicTrigger trigger1 = new PeriodicTrigger(Duration.ofMillis(3000));
 		PeriodicTrigger trigger2 = new PeriodicTrigger(Duration.ofMillis(3000));
 		assertThat(trigger1.equals(new String("not a trigger"))).isFalse();
-		assertThat(trigger1.equals(null)).isFalse();
+		assertThat(trigger1).isNotEqualTo(null);
 		assertThat(trigger1).isEqualTo(trigger1);
 		assertThat(trigger2).isEqualTo(trigger2);
 		assertThat(trigger2).isEqualTo(trigger1);
 		trigger2.setInitialDelay(1234);
-		assertThat(trigger1.equals(trigger2)).isFalse();
-		assertThat(trigger2.equals(trigger1)).isFalse();
+		assertThat(trigger1).isNotEqualTo(trigger2);
+		assertThat(trigger2).isNotEqualTo(trigger1);
 		trigger1.setInitialDelay(1234);
 		assertThat(trigger2).isEqualTo(trigger1);
 		trigger2.setFixedRate(true);
-		assertThat(trigger1.equals(trigger2)).isFalse();
-		assertThat(trigger2.equals(trigger1)).isFalse();
+		assertThat(trigger1).isNotEqualTo(trigger2);
+		assertThat(trigger2).isNotEqualTo(trigger1);
 		trigger1.setFixedRate(true);
 		assertThat(trigger2).isEqualTo(trigger1);
 		PeriodicTrigger trigger3 = new PeriodicTrigger(Duration.ofSeconds(3));
 		trigger3.setInitialDelay(Duration.ofSeconds(7));
 		trigger3.setFixedRate(true);
-		assertThat(trigger1.equals(trigger3)).isFalse();
-		assertThat(trigger3.equals(trigger1)).isFalse();
+		assertThat(trigger1).isNotEqualTo(trigger3);
+		assertThat(trigger3).isNotEqualTo(trigger1);
 		trigger1.setInitialDelay(Duration.ofMillis(7000));
 		assertThat(trigger3).isEqualTo(trigger1);
 	}
@@ -227,8 +227,7 @@ class PeriodicTriggerTests {
 		return new TestTriggerContext(toInstant(scheduled), toInstant(actual), toInstant(completion));
 	}
 
-	@Nullable
-	private static Instant toInstant(@Nullable Object o) {
+	private static @Nullable Instant toInstant(@Nullable Object o) {
 		if (o == null) {
 			return null;
 		}
@@ -249,14 +248,11 @@ class PeriodicTriggerTests {
 
 	private static class TestTriggerContext implements TriggerContext {
 
-		@Nullable
-		private final Instant scheduled;
+		private final @Nullable Instant scheduled;
 
-		@Nullable
-		private final Instant actual;
+		private final @Nullable Instant actual;
 
-		@Nullable
-		private final Instant completion;
+		private final @Nullable Instant completion;
 
 		TestTriggerContext(@Nullable Instant scheduled,
 				@Nullable Instant actual, @Nullable Instant completion) {

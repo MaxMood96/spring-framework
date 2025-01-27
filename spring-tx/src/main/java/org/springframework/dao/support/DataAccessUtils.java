@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,19 +17,25 @@
 package org.springframework.dao.support;
 
 import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.dao.TypeMismatchDataAccessException;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.NumberUtils;
 
 /**
  * Miscellaneous utility methods for DAO implementations.
- * Useful with any data access technology.
+ *
+ * <p>Useful with any data access technology.
  *
  * @author Juergen Hoeller
  * @since 1.0.2
@@ -45,8 +51,7 @@ public abstract class DataAccessUtils {
 	 * @throws IncorrectResultSizeDataAccessException if more than one
 	 * element has been found in the given Collection
 	 */
-	@Nullable
-	public static <T> T singleResult(@Nullable Collection<T> results) throws IncorrectResultSizeDataAccessException {
+	public static <T> @Nullable T singleResult(@Nullable Collection<T> results) throws IncorrectResultSizeDataAccessException {
 		if (CollectionUtils.isEmpty(results)) {
 			return null;
 		}
@@ -54,6 +59,92 @@ public abstract class DataAccessUtils {
 			throw new IncorrectResultSizeDataAccessException(1, results.size());
 		}
 		return results.iterator().next();
+	}
+
+	/**
+	 * Return a single result object from the given Stream.
+	 * <p>Returns {@code null} if 0 result objects found;
+	 * throws an exception if more than 1 element found.
+	 * @param results the result Stream (can be {@code null})
+	 * @return the single result object, or {@code null} if none
+	 * @throws IncorrectResultSizeDataAccessException if more than one
+	 * element has been found in the given Stream
+	 * @since 6.1
+	 */
+	public static <T> @Nullable T singleResult(@Nullable Stream<T> results) throws IncorrectResultSizeDataAccessException {
+		if (results == null) {
+			return null;
+		}
+		try (results) {
+			List<T> resultList = results.limit(2).toList();
+			if (resultList.size() > 1) {
+				throw new IncorrectResultSizeDataAccessException(1);
+			}
+			return (!resultList.isEmpty() ? resultList.get(0) : null);
+		}
+	}
+
+	/**
+	 * Return a single result object from the given Iterator.
+	 * <p>Returns {@code null} if 0 result objects found;
+	 * throws an exception if more than 1 element found.
+	 * @param results the result Iterator (can be {@code null})
+	 * @return the single result object, or {@code null} if none
+	 * @throws IncorrectResultSizeDataAccessException if more than one
+	 * element has been found in the given Iterator
+	 * @since 6.1
+	 */
+	public static <T> @Nullable T singleResult(@Nullable Iterator<T> results) throws IncorrectResultSizeDataAccessException {
+		if (results == null) {
+			return null;
+		}
+		T result = (results.hasNext() ? results.next() : null);
+		if (results.hasNext()) {
+			throw new IncorrectResultSizeDataAccessException(1);
+		}
+		return result;
+	}
+
+	/**
+	 * Return a single result object from the given Collection.
+	 * <p>Returns {@code Optional.empty()} if 0 result objects found;
+	 * throws an exception if more than 1 element found.
+	 * @param results the result Collection (can be {@code null})
+	 * @return the single optional result object, or {@code Optional.empty()} if none
+	 * @throws IncorrectResultSizeDataAccessException if more than one
+	 * element has been found in the given Collection
+	 * @since 6.1
+	 */
+	public static <T> Optional<T> optionalResult(@Nullable Collection<T> results) throws IncorrectResultSizeDataAccessException {
+		return Optional.ofNullable(singleResult(results));
+	}
+
+	/**
+	 * Return a single result object from the given Stream.
+	 * <p>Returns {@code Optional.empty()} if 0 result objects found;
+	 * throws an exception if more than 1 element found.
+	 * @param results the result Stream (can be {@code null})
+	 * @return the single optional result object, or {@code Optional.empty()} if none
+	 * @throws IncorrectResultSizeDataAccessException if more than one
+	 * element has been found in the given Stream
+	 * @since 6.1
+	 */
+	public static <T> Optional<T> optionalResult(@Nullable Stream<T> results) throws IncorrectResultSizeDataAccessException {
+		return Optional.ofNullable(singleResult(results));
+	}
+
+	/**
+	 * Return a single result object from the given Iterator.
+	 * <p>Returns {@code Optional.empty()} if 0 result objects found;
+	 * throws an exception if more than 1 element found.
+	 * @param results the result Iterator (can be {@code null})
+	 * @return the single optional result object, or {@code Optional.empty()} if none
+	 * @throws IncorrectResultSizeDataAccessException if more than one
+	 * element has been found in the given Iterator
+	 * @since 6.1
+	 */
+	public static <T> Optional<T> optionalResult(@Nullable Iterator<T> results) throws IncorrectResultSizeDataAccessException {
+		return Optional.ofNullable(singleResult(results));
 	}
 
 	/**
@@ -74,7 +165,11 @@ public abstract class DataAccessUtils {
 		if (results.size() > 1) {
 			throw new IncorrectResultSizeDataAccessException(1, results.size());
 		}
-		return results.iterator().next();
+		T result = results.iterator().next();
+		if (result == null) {
+			throw new TypeMismatchDataAccessException("Result value is null but no null value expected");
+		}
+		return result;
 	}
 
 	/**
@@ -89,8 +184,7 @@ public abstract class DataAccessUtils {
 	 * has been found in the given Collection
 	 * @since 5.0.2
 	 */
-	@Nullable
-	public static <T> T nullableSingleResult(@Nullable Collection<T> results) throws IncorrectResultSizeDataAccessException {
+	public static <T> @Nullable T nullableSingleResult(@Nullable Collection<T> results) throws IncorrectResultSizeDataAccessException {
 		// This is identical to the requiredSingleResult implementation but differs in the
 		// semantics of the incoming Collection (which we currently can't formally express)
 		if (CollectionUtils.isEmpty(results)) {
@@ -112,8 +206,7 @@ public abstract class DataAccessUtils {
 	 * result object has been found in the given Collection
 	 * @see org.springframework.util.CollectionUtils#hasUniqueObject
 	 */
-	@Nullable
-	public static <T> T uniqueResult(@Nullable Collection<T> results) throws IncorrectResultSizeDataAccessException {
+	public static <T> @Nullable T uniqueResult(@Nullable Collection<T> results) throws IncorrectResultSizeDataAccessException {
 		if (CollectionUtils.isEmpty(results)) {
 			return null;
 		}
@@ -142,7 +235,11 @@ public abstract class DataAccessUtils {
 		if (!CollectionUtils.hasUniqueObject(results)) {
 			throw new IncorrectResultSizeDataAccessException(1, results.size());
 		}
-		return results.iterator().next();
+		T result = results.iterator().next();
+		if (result == null) {
+			throw new TypeMismatchDataAccessException("Result value is null but no null value expected");
+		}
+		return result;
 	}
 
 	/**

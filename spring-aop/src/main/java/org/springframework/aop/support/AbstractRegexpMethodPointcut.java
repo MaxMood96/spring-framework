@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,8 @@ import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ObjectUtils;
@@ -29,7 +30,7 @@ import org.springframework.util.ObjectUtils;
  * Abstract base regular expression pointcut bean. JavaBean properties are:
  * <ul>
  * <li>pattern: regular expression for the fully-qualified method names to match.
- * The exact regexp syntax will depend on the subclass (e.g. Perl5 regular expressions)
+ * The exact regexp syntax will depend on the subclass (for example, Perl5 regular expressions)
  * <li>patterns: alternative property taking a String array of patterns.
  * The result will be the union of these patterns.
  * </ul>
@@ -196,14 +197,9 @@ public abstract class AbstractRegexpMethodPointcut extends StaticMethodMatcherPo
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof AbstractRegexpMethodPointcut otherPointcut)) {
-			return false;
-		}
-		return (Arrays.equals(this.patterns, otherPointcut.patterns) &&
-				Arrays.equals(this.excludedPatterns, otherPointcut.excludedPatterns));
+		return (this == other || (other instanceof AbstractRegexpMethodPointcut otherPointcut &&
+				Arrays.equals(this.patterns, otherPointcut.patterns) &&
+				Arrays.equals(this.excludedPatterns, otherPointcut.excludedPatterns)));
 	}
 
 	@Override

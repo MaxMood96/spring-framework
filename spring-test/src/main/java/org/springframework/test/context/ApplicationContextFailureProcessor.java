@@ -16,6 +16,8 @@
 
 package org.springframework.test.context;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.context.ApplicationContext;
 
 /**
@@ -41,6 +43,6 @@ public interface ApplicationContextFailureProcessor {
 	 * @param context the application context that did not load successfully
 	 * @param exception the exception thrown while loading the application context
 	 */
-	void processLoadFailure(ApplicationContext context, Throwable exception);
+	void processLoadFailure(ApplicationContext context, @Nullable Throwable exception);
 
 }

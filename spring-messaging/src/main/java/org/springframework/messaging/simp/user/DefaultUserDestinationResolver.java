@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,28 +22,29 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.simp.SimpLogging;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.util.Assert;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 /**
  * A default implementation of {@code UserDestinationResolver} that relies
  * on a {@link SimpUserRegistry} to find active sessions for a user.
  *
- * <p>When a user attempts to subscribe, e.g. to "/user/queue/position-updates",
+ * <p>When a user attempts to subscribe, for example, to "/user/queue/position-updates",
  * the "/user" prefix is removed and a unique suffix added based on the session
- * id, e.g. "/queue/position-updates-useri9oqdfzo" to ensure different users can
+ * id, for example, "/queue/position-updates-useri9oqdfzo" to ensure different users can
  * subscribe to the same logical destination without colliding.
  *
- * <p>When sending to a user, e.g. "/user/{username}/queue/position-updates", the
+ * <p>When sending to a user, for example, "/user/{username}/queue/position-updates", the
  * "/user/{username}" prefix is removed and a suffix based on active session id's
- * is added, e.g. "/queue/position-updates-useri9oqdfzo".
+ * is added, for example, "/queue/position-updates-useri9oqdfzo".
  *
  * @author Rossen Stoyanchev
  * @author Brian Clozel
@@ -123,29 +124,27 @@ public class DefaultUserDestinationResolver implements UserDestinationResolver {
 
 
 	@Override
-	@Nullable
-	public UserDestinationResult resolveDestination(Message<?> message) {
+	public @Nullable UserDestinationResult resolveDestination(Message<?> message) {
 		ParseResult parseResult = parse(message);
 		if (parseResult == null) {
 			return null;
 		}
 		String user = parseResult.getUser();
-		String sourceDestination = parseResult.getSourceDestination();
+		String sourceDest = parseResult.getSourceDestination();
+		Set<String> sessionIds = parseResult.getSessionIds();
 		Set<String> targetSet = new HashSet<>();
-		for (String sessionId : parseResult.getSessionIds()) {
-			String actualDestination = parseResult.getActualDestination();
-			String targetDestination = getTargetDestination(
-					sourceDestination, actualDestination, sessionId, user);
-			if (targetDestination != null) {
-				targetSet.add(targetDestination);
+		for (String sessionId : sessionIds) {
+			String actualDest = parseResult.getActualDestination();
+			String targetDest = getTargetDestination(sourceDest, actualDest, sessionId, user);
+			if (targetDest != null) {
+				targetSet.add(targetDest);
 			}
 		}
-		String subscribeDestination = parseResult.getSubscribeDestination();
-		return new UserDestinationResult(sourceDestination, targetSet, subscribeDestination, user);
+		String subscribeDest = parseResult.getSubscribeDestination();
+		return new UserDestinationResult(sourceDest, targetSet, subscribeDest, user, sessionIds);
 	}
 
-	@Nullable
-	private ParseResult parse(Message<?> message) {
+	private @Nullable ParseResult parse(Message<?> message) {
 		MessageHeaders headers = message.getHeaders();
 		String sourceDestination = SimpMessageHeaderAccessor.getDestination(headers);
 		if (sourceDestination == null || !checkDestination(sourceDestination, this.prefix)) {
@@ -153,19 +152,16 @@ public class DefaultUserDestinationResolver implements UserDestinationResolver {
 		}
 		SimpMessageType messageType = SimpMessageHeaderAccessor.getMessageType(headers);
 		if (messageType != null) {
-			switch (messageType) {
-				case SUBSCRIBE:
-				case UNSUBSCRIBE:
-					return parseSubscriptionMessage(message, sourceDestination);
-				case MESSAGE:
-					return parseMessage(headers, sourceDestination);
-			}
+			return switch (messageType) {
+				case SUBSCRIBE, UNSUBSCRIBE -> parseSubscriptionMessage(message, sourceDestination);
+				case MESSAGE -> parseMessage(headers, sourceDestination);
+				default -> null;
+			};
 		}
 		return null;
 	}
 
-	@Nullable
-	private ParseResult parseSubscriptionMessage(Message<?> message, String sourceDestination) {
+	private @Nullable ParseResult parseSubscriptionMessage(Message<?> message, String sourceDestination) {
 		MessageHeaders headers = message.getHeaders();
 		String sessionId = SimpMessageHeaderAccessor.getSessionId(headers);
 		if (sessionId == null) {
@@ -218,7 +214,7 @@ public class DefaultUserDestinationResolver implements UserDestinationResolver {
 			}
 			else {
 				Set<SimpSession> sessions = user.getSessions();
-				sessionIds = new HashSet<>(sessions.size());
+				sessionIds = CollectionUtils.newHashSet(sessions.size());
 				for (SimpSession session : sessions) {
 					sessionIds.add(session.getId());
 				}
@@ -240,12 +236,11 @@ public class DefaultUserDestinationResolver implements UserDestinationResolver {
 	 * @param sourceDestination the source destination from the input message.
 	 * @param actualDestination a subset of the destination without any user prefix.
 	 * @param sessionId the id of an active user session, never {@code null}.
-	 * @param user the target user, possibly {@code null}, e.g if not authenticated.
+	 * @param user the target user, possibly {@code null},, for example, if not authenticated.
 	 * @return a target destination, or {@code null} if none
 	 */
 	@SuppressWarnings("unused")
-	@Nullable
-	protected String getTargetDestination(String sourceDestination, String actualDestination,
+	protected @Nullable String getTargetDestination(String sourceDestination, String actualDestination,
 			String sessionId, @Nullable String user) {
 
 		return actualDestination + "-user" + sessionId;
@@ -270,8 +265,7 @@ public class DefaultUserDestinationResolver implements UserDestinationResolver {
 
 		private final Set<String> sessionIds;
 
-		@Nullable
-		private final String user;
+		private final @Nullable String user;
 
 		public ParseResult(String sourceDest, String actualDest, String subscribeDest,
 				Set<String> sessionIds, @Nullable String user) {
@@ -283,24 +277,38 @@ public class DefaultUserDestinationResolver implements UserDestinationResolver {
 			this.user = user;
 		}
 
+		/**
+		 * The destination from the source message, for example, "/user/{user}/queue/position-updates".
+		 */
 		public String getSourceDestination() {
 			return this.sourceDestination;
 		}
 
+		/**
+		 * The actual destination, without any user prefix, for example, "/queue/position-updates".
+		 */
 		public String getActualDestination() {
 			return this.actualDestination;
 		}
 
+		/**
+		 * The user destination as it would be on a subscription, "/user/queue/position-updates".
+		 */
 		public String getSubscribeDestination() {
 			return this.subscribeDestination;
 		}
 
+		/**
+		 * The session id or id's for the user.
+		 */
 		public Set<String> getSessionIds() {
 			return this.sessionIds;
 		}
 
-		@Nullable
-		public String getUser() {
+		/**
+		 * The name of the user associated with the session.
+		 */
+		public @Nullable String getUser() {
 			return this.user;
 		}
 	}

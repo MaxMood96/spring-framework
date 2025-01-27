@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,9 @@ import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aot.hint.RuntimeHints;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 
 /**
@@ -39,7 +40,10 @@ import org.springframework.util.StringUtils;
  * @author Brian Clozel
  * @since 6.0
  * @see InvocationsRecorderClassTransformer
+ * @deprecated as of 7.0 in favor of the {@code -XX:MissingRegistrationReportingMode=Warn} and
+ * {@code -XX:MissingRegistrationReportingMode=Exit} JVM flags with GraalVM.
  */
+@Deprecated(forRemoval = true)
 public final class RuntimeHintsAgent {
 
 	private static boolean loaded = false;
@@ -64,7 +68,7 @@ public final class RuntimeHintsAgent {
 		return loaded;
 	}
 
-	private final static class ParsedArguments {
+	private static final class ParsedArguments {
 
 		List<String> instrumentedPackages;
 

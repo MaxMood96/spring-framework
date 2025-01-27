@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import java.util.concurrent.Future;
 
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.BeanFactory;
@@ -31,8 +32,6 @@ import org.springframework.core.BridgeMethodResolver;
 import org.springframework.core.Ordered;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
-import org.springframework.lang.Nullable;
-import org.springframework.util.ClassUtils;
 
 /**
  * AOP Alliance {@code MethodInterceptor} that processes method invocations
@@ -98,13 +97,11 @@ public class AsyncExecutionInterceptor extends AsyncExecutionAspectSupport imple
 	 * otherwise.
 	 */
 	@Override
-	@Nullable
-	public Object invoke(final MethodInvocation invocation) throws Throwable {
+	public @Nullable Object invoke(final MethodInvocation invocation) throws Throwable {
 		Class<?> targetClass = (invocation.getThis() != null ? AopUtils.getTargetClass(invocation.getThis()) : null);
-		Method specificMethod = ClassUtils.getMostSpecificMethod(invocation.getMethod(), targetClass);
-		final Method userDeclaredMethod = BridgeMethodResolver.findBridgedMethod(specificMethod);
+		final Method userMethod = BridgeMethodResolver.getMostSpecificMethod(invocation.getMethod(), targetClass);
 
-		AsyncTaskExecutor executor = determineAsyncExecutor(userDeclaredMethod);
+		AsyncTaskExecutor executor = determineAsyncExecutor(userMethod);
 		if (executor == null) {
 			throw new IllegalStateException(
 					"No executor specified and no default executor set on AsyncExecutionInterceptor either");
@@ -118,10 +115,11 @@ public class AsyncExecutionInterceptor extends AsyncExecutionAspectSupport imple
 				}
 			}
 			catch (ExecutionException ex) {
-				handleError(ex.getCause(), userDeclaredMethod, invocation.getArguments());
+				Throwable cause = ex.getCause();
+				handleError(cause == null ? ex : cause, userMethod, invocation.getArguments());
 			}
 			catch (Throwable ex) {
-				handleError(ex, userDeclaredMethod, invocation.getArguments());
+				handleError(ex, userMethod, invocation.getArguments());
 			}
 			return null;
 		};
@@ -141,22 +139,20 @@ public class AsyncExecutionInterceptor extends AsyncExecutionAspectSupport imple
 	 * @see #determineAsyncExecutor(Method)
 	 */
 	@Override
-	@Nullable
-	protected String getExecutorQualifier(Method method) {
+	protected @Nullable String getExecutorQualifier(Method method) {
 		return null;
 	}
 
 	/**
 	 * This implementation searches for a unique {@link org.springframework.core.task.TaskExecutor}
 	 * bean in the context, or for an {@link Executor} bean named "taskExecutor" otherwise.
-	 * If neither of the two is resolvable (e.g. if no {@code BeanFactory} was configured at all),
+	 * If neither of the two is resolvable (for example, if no {@code BeanFactory} was configured at all),
 	 * this implementation falls back to a newly created {@link SimpleAsyncTaskExecutor} instance
 	 * for local use if no default could be found.
 	 * @see #DEFAULT_TASK_EXECUTOR_BEAN_NAME
 	 */
 	@Override
-	@Nullable
-	protected Executor getDefaultExecutor(@Nullable BeanFactory beanFactory) {
+	protected @Nullable Executor getDefaultExecutor(@Nullable BeanFactory beanFactory) {
 		Executor defaultExecutor = super.getDefaultExecutor(beanFactory);
 		return (defaultExecutor != null ? defaultExecutor : new SimpleAsyncTaskExecutor());
 	}

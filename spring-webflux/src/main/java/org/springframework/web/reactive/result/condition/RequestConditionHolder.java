@@ -19,12 +19,13 @@ package org.springframework.web.reactive.result.condition;
 import java.util.Collection;
 import java.util.Collections;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.web.server.ServerWebExchange;
 
 /**
  * A holder for a {@link RequestCondition} useful when the type of the request
- * condition is not known ahead of time, e.g. custom condition. Since this
+ * condition is not known ahead of time, for example, custom condition. Since this
  * class is also an implementation of {@code RequestCondition}, effectively it
  * decorates the held request condition and allows it to be combined and compared
  * with other request conditions in a type and null safe way.
@@ -38,8 +39,7 @@ import org.springframework.web.server.ServerWebExchange;
  */
 public final class RequestConditionHolder extends AbstractRequestCondition<RequestConditionHolder> {
 
-	@Nullable
-	private final RequestCondition<Object> condition;
+	private final @Nullable RequestCondition<Object> condition;
 
 
 	/**
@@ -55,8 +55,7 @@ public final class RequestConditionHolder extends AbstractRequestCondition<Reque
 	/**
 	 * Return the held request condition, or {@code null} if not holding one.
 	 */
-	@Nullable
-	public RequestCondition<?> getCondition() {
+	public @Nullable RequestCondition<?> getCondition() {
 		return this.condition;
 	}
 
@@ -99,8 +98,7 @@ public final class RequestConditionHolder extends AbstractRequestCondition<Reque
 	 * holder, return the same holder instance.
 	 */
 	@Override
-	@Nullable
-	public RequestConditionHolder getMatchingCondition(ServerWebExchange exchange) {
+	public @Nullable RequestConditionHolder getMatchingCondition(ServerWebExchange exchange) {
 		if (this.condition == null) {
 			return this;
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,12 @@
 package org.springframework.web.reactive.function.client;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 import io.micrometer.common.KeyValue;
 import io.micrometer.common.KeyValues;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -41,7 +43,7 @@ public class DefaultClientRequestObservationConvention implements ClientRequestO
 
 	private static final String ROOT_PATH = "/";
 
-	private static final Pattern PATTERN_BEFORE_PATH = Pattern.compile("^https?://[^/]+/");
+	private static final Pattern PATTERN_BEFORE_PATH = Pattern.compile("^https?://[^/]+");
 
 	private static final KeyValue URI_NONE = KeyValue.of(LowCardinalityKeyNames.URI, KeyValue.NONE_VALUE);
 
@@ -88,8 +90,9 @@ public class DefaultClientRequestObservationConvention implements ClientRequestO
 	}
 
 	@Override
-	public String getContextualName(ClientRequestObservationContext context) {
-		return "http " + context.getRequest().method().name().toLowerCase();
+	public @Nullable String getContextualName(ClientRequestObservationContext context) {
+		ClientRequest request = context.getRequest();
+		return (request != null ? "http " + request.method().name().toLowerCase(Locale.ROOT) : null);
 	}
 
 	@Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,8 @@ import jakarta.servlet.AsyncEvent;
 import jakarta.servlet.AsyncListener;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -43,8 +43,7 @@ public class ServletServerHttpAsyncRequestControl implements ServerHttpAsyncRequ
 
 	private final ServletServerHttpResponse response;
 
-	@Nullable
-	private AsyncContext asyncContext;
+	private @Nullable AsyncContext asyncContext;
 
 	private final AtomicBoolean asyncCompleted = new AtomicBoolean();
 
@@ -115,13 +114,11 @@ public class ServletServerHttpAsyncRequestControl implements ServerHttpAsyncRequ
 	// ---------------------------------------------------------------------
 
 	@Override
-	public void onComplete(AsyncEvent event) throws IOException {
-		this.asyncContext = null;
-		this.asyncCompleted.set(true);
+	public void onStartAsync(AsyncEvent event) throws IOException {
 	}
 
 	@Override
-	public void onStartAsync(AsyncEvent event) throws IOException {
+	public void onTimeout(AsyncEvent event) throws IOException {
 	}
 
 	@Override
@@ -129,7 +126,9 @@ public class ServletServerHttpAsyncRequestControl implements ServerHttpAsyncRequ
 	}
 
 	@Override
-	public void onTimeout(AsyncEvent event) throws IOException {
+	public void onComplete(AsyncEvent event) throws IOException {
+		this.asyncContext = null;
+		this.asyncCompleted.set(true);
 	}
 
 }

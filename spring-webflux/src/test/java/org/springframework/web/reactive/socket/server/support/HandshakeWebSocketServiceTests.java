@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,10 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 
-import org.springframework.lang.Nullable;
 import org.springframework.web.reactive.socket.HandshakeInfo;
 import org.springframework.web.reactive.socket.WebSocketHandler;
 import org.springframework.web.reactive.socket.server.RequestUpgradeStrategy;
@@ -36,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /**
- * Unit tests for {@link HandshakeWebSocketService}.
+ * Tests for {@link HandshakeWebSocketService}.
  *
  * @author Rossen Stoyanchev
  */
@@ -87,7 +87,7 @@ class HandshakeWebSocketServiceTests {
 
 		@Override
 		public Mono<Void> upgrade(ServerWebExchange exchange, WebSocketHandler webSocketHandler,
-				@Nullable  String subProtocol, Supplier<HandshakeInfo> handshakeInfoFactory) {
+				@Nullable String subProtocol, Supplier<HandshakeInfo> handshakeInfoFactory) {
 
 			this.handshakeInfo = handshakeInfoFactory.get();
 			return Mono.empty();

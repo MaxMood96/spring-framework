@@ -26,7 +26,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageDeliveryException;
@@ -137,28 +138,24 @@ public class StompBrokerRelayMessageHandler extends AbstractBrokerMessageHandler
 
 	private final Map<String, MessageHandler> systemSubscriptions = new HashMap<>(4);
 
-	@Nullable
-	private String virtualHost;
+	private @Nullable String virtualHost;
 
-	@Nullable
-	private TcpOperations<byte[]> tcpClient;
+	private @Nullable TcpOperations<byte[]> tcpClient;
 
-	@Nullable
-	private MessageHeaderInitializer headerInitializer;
+	private @Nullable MessageHeaderInitializer headerInitializer;
 
 	private final DefaultStats stats = new DefaultStats();
 
 	private final Map<String, RelayConnectionHandler> connectionHandlers = new ConcurrentHashMap<>();
 
-	@Nullable
-	private TaskScheduler taskScheduler;
+	private @Nullable TaskScheduler taskScheduler;
 
 
 	/**
 	 * Create a StompBrokerRelayMessageHandler instance with the given message channels
 	 * and destination prefixes.
-	 * @param inboundChannel the channel for receiving messages from clients (e.g. WebSocket clients)
-	 * @param outboundChannel the channel for sending messages to clients (e.g. WebSocket clients)
+	 * @param inboundChannel the channel for receiving messages from clients (for example, WebSocket clients)
+	 * @param outboundChannel the channel for sending messages to clients (for example, WebSocket clients)
 	 * @param brokerChannel the channel for the application to send messages to the broker
 	 * @param destinationPrefixes the broker supported destination prefixes; destinations
 	 * that do not match the given prefix are ignored.
@@ -241,7 +238,7 @@ public class StompBrokerRelayMessageHandler extends AbstractBrokerMessageHandler
 	/**
 	 * Set the login for the shared "system" connection used to send messages to
 	 * the STOMP broker from within the application, i.e. messages not associated
-	 * with a specific client session (e.g. REST/HTTP request handling method).
+	 * with a specific client session (for example, REST/HTTP request handling method).
 	 * <p>By default this is set to "guest".
 	 */
 	public void setSystemLogin(String systemLogin) {
@@ -259,7 +256,7 @@ public class StompBrokerRelayMessageHandler extends AbstractBrokerMessageHandler
 	/**
 	 * Set the passcode for the shared "system" connection used to send messages to
 	 * the STOMP broker from within the application, i.e. messages not associated
-	 * with a specific client session (e.g. REST/HTTP request handling method).
+	 * with a specific client session (for example, REST/HTTP request handling method).
 	 * <p>By default this is set to "guest".
 	 */
 	public void setSystemPasscode(String systemPasscode) {
@@ -317,7 +314,7 @@ public class StompBrokerRelayMessageHandler extends AbstractBrokerMessageHandler
 	 * Configure one more destinations to subscribe to on the shared "system"
 	 * connection along with MessageHandler's to handle received messages.
 	 * <p>This is for internal use in a multi-application server scenario where
-	 * servers forward messages to each other (e.g. unresolved user destinations).
+	 * servers forward messages to each other (for example, unresolved user destinations).
 	 * @param subscriptions the destinations to subscribe to.
 	 */
 	public void setSystemSubscriptions(@Nullable Map<String, MessageHandler> subscriptions) {
@@ -349,8 +346,7 @@ public class StompBrokerRelayMessageHandler extends AbstractBrokerMessageHandler
 	/**
 	 * Return the configured virtual host value.
 	 */
-	@Nullable
-	public String getVirtualHost() {
+	public @Nullable String getVirtualHost() {
 		return this.virtualHost;
 	}
 
@@ -371,8 +367,7 @@ public class StompBrokerRelayMessageHandler extends AbstractBrokerMessageHandler
 	 * invoked and this method is invoked before the handler is started and
 	 * hence a default implementation initialized).
 	 */
-	@Nullable
-	public TcpOperations<byte[]> getTcpClient() {
+	public @Nullable TcpOperations<byte[]> getTcpClient() {
 		return this.tcpClient;
 	}
 
@@ -389,8 +384,7 @@ public class StompBrokerRelayMessageHandler extends AbstractBrokerMessageHandler
 	/**
 	 * Return the configured header initializer.
 	 */
-	@Nullable
-	public MessageHeaderInitializer getHeaderInitializer() {
+	public @Nullable MessageHeaderInitializer getHeaderInitializer() {
 		return this.headerInitializer;
 	}
 
@@ -429,8 +423,7 @@ public class StompBrokerRelayMessageHandler extends AbstractBrokerMessageHandler
 		this.taskScheduler = taskScheduler;
 	}
 
-	@Nullable
-	public TaskScheduler getTaskScheduler() {
+	public @Nullable TaskScheduler getTaskScheduler() {
 		return this.taskScheduler;
 	}
 
@@ -644,15 +637,13 @@ public class StompBrokerRelayMessageHandler extends AbstractBrokerMessageHandler
 
 		private final MessageChannel outboundChannel;
 
-		@Nullable
-		private volatile TcpConnection<byte[]> tcpConnection;
+		private volatile @Nullable TcpConnection<byte[]> tcpConnection;
 
 		private volatile boolean isStompConnected;
 
 		private long clientSendInterval;
 
-		@Nullable
-		private final AtomicInteger clientSendMessageCount;
+		private final @Nullable AtomicInteger clientSendMessageCount;
 
 		private long clientSendMessageTimestamp;
 
@@ -691,8 +682,7 @@ public class StompBrokerRelayMessageHandler extends AbstractBrokerMessageHandler
 			return this.connectHeaders;
 		}
 
-		@Nullable
-		protected TcpConnection<byte[]> getTcpConnection() {
+		protected @Nullable TcpConnection<byte[]> getTcpConnection() {
 			return this.tcpConnection;
 		}
 

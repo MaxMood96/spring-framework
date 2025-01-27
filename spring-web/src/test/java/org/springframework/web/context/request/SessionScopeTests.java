@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,26 +43,26 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author Sam Brannen
  * @see RequestScopeTests
  */
-public class SessionScopeTests {
+class SessionScopeTests {
 
 	private final DefaultListableBeanFactory beanFactory = new DefaultListableBeanFactory();
 
 
 	@BeforeEach
-	public void setup() throws Exception {
+	void setup() {
 		this.beanFactory.registerScope("session", new SessionScope());
 		XmlBeanDefinitionReader reader = new XmlBeanDefinitionReader(this.beanFactory);
 		reader.loadBeanDefinitions(new ClassPathResource("sessionScopeTests.xml", getClass()));
 	}
 
 	@AfterEach
-	public void resetRequestAttributes() {
+	void resetRequestAttributes() {
 		RequestContextHolder.setRequestAttributes(null);
 	}
 
 
 	@Test
-	public void getFromScope() throws Exception {
+	void getFromScope() {
 		AtomicInteger count = new AtomicInteger();
 		MockHttpSession session = new MockHttpSession() {
 			@Override
@@ -79,19 +79,19 @@ public class SessionScopeTests {
 		String name = "sessionScopedObject";
 		assertThat(session.getAttribute(name)).isNull();
 		TestBean bean = (TestBean) this.beanFactory.getBean(name);
-		assertThat(count.intValue()).isEqualTo(1);
+		assertThat(count.get()).isEqualTo(1);
 		assertThat(bean).isEqualTo(session.getAttribute(name));
 		assertThat(this.beanFactory.getBean(name)).isSameAs(bean);
-		assertThat(count.intValue()).isEqualTo(1);
+		assertThat(count.get()).isEqualTo(1);
 
 		// should re-propagate updated attribute
 		requestAttributes.requestCompleted();
 		assertThat(bean).isEqualTo(session.getAttribute(name));
-		assertThat(count.intValue()).isEqualTo(2);
+		assertThat(count.get()).isEqualTo(2);
 	}
 
 	@Test
-	public void getFromScopeWithSingleAccess() throws Exception {
+	void getFromScopeWithSingleAccess() {
 		AtomicInteger count = new AtomicInteger();
 		MockHttpSession session = new MockHttpSession() {
 			@Override
@@ -108,16 +108,16 @@ public class SessionScopeTests {
 		String name = "sessionScopedObject";
 		assertThat(session.getAttribute(name)).isNull();
 		TestBean bean = (TestBean) this.beanFactory.getBean(name);
-		assertThat(count.intValue()).isEqualTo(1);
+		assertThat(count.get()).isEqualTo(1);
 
 		// should re-propagate updated attribute
 		requestAttributes.requestCompleted();
 		assertThat(bean).isEqualTo(session.getAttribute(name));
-		assertThat(count.intValue()).isEqualTo(2);
+		assertThat(count.get()).isEqualTo(2);
 	}
 
 	@Test
-	public void destructionAtSessionTermination() throws Exception {
+	void destructionAtSessionTermination() {
 		MockHttpSession session = new MockHttpSession();
 		MockHttpServletRequest request = new MockHttpServletRequest();
 		request.setSession(session);
@@ -136,18 +136,18 @@ public class SessionScopeTests {
 	}
 
 	@Test
-	public void destructionWithSessionSerialization() throws Exception {
+	void destructionWithSessionSerialization() throws Exception {
 		doTestDestructionWithSessionSerialization(false);
 	}
 
 	@Test
-	public void destructionWithSessionSerializationAndBeanPostProcessor() throws Exception {
+	void destructionWithSessionSerializationAndBeanPostProcessor() throws Exception {
 		this.beanFactory.addBeanPostProcessor(new CustomDestructionAwareBeanPostProcessor());
 		doTestDestructionWithSessionSerialization(false);
 	}
 
 	@Test
-	public void destructionWithSessionSerializationAndSerializableBeanPostProcessor() throws Exception {
+	void destructionWithSessionSerializationAndSerializableBeanPostProcessor() throws Exception {
 		this.beanFactory.addBeanPostProcessor(new CustomSerializableDestructionAwareBeanPostProcessor());
 		doTestDestructionWithSessionSerialization(true);
 	}

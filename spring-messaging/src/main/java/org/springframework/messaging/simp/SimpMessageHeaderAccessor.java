@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.IdTimestampMessageHeaderInitializer;
 import org.springframework.messaging.support.MessageHeaderAccessor;
@@ -32,7 +33,7 @@ import org.springframework.util.CollectionUtils;
 /**
  * A base class for working with message headers in simple messaging protocols that
  * support basic messaging patterns. Provides uniform access to specific values common
- * across protocols such as a destination, message type (e.g. publish, subscribe, etc),
+ * across protocols such as a destination, message type (for example, publish, subscribe, etc),
  * session ID, and others.
  *
  * <p>Use one of the static factory methods in this class, then call getters and setters,
@@ -85,8 +86,7 @@ public class SimpMessageHeaderAccessor extends NativeMessageHeaderAccessor {
 	public static final String IGNORE_ERROR = "simpIgnoreError";
 
 
-	@Nullable
-	private Consumer<Principal> userCallback;
+	private @Nullable Consumer<Principal> userCallback;
 
 
 	/**
@@ -125,8 +125,7 @@ public class SimpMessageHeaderAccessor extends NativeMessageHeaderAccessor {
 		}
 	}
 
-	@Nullable
-	public SimpMessageType getMessageType() {
+	public @Nullable SimpMessageType getMessageType() {
 		return (SimpMessageType) getHeader(MESSAGE_TYPE_HEADER);
 	}
 
@@ -134,8 +133,7 @@ public class SimpMessageHeaderAccessor extends NativeMessageHeaderAccessor {
 		setHeader(DESTINATION_HEADER, destination);
 	}
 
-	@Nullable
-	public String getDestination() {
+	public @Nullable String getDestination() {
 		return (String) getHeader(DESTINATION_HEADER);
 	}
 
@@ -143,8 +141,7 @@ public class SimpMessageHeaderAccessor extends NativeMessageHeaderAccessor {
 		setHeader(SUBSCRIPTION_ID_HEADER, subscriptionId);
 	}
 
-	@Nullable
-	public String getSubscriptionId() {
+	public @Nullable String getSubscriptionId() {
 		return (String) getHeader(SUBSCRIPTION_ID_HEADER);
 	}
 
@@ -155,8 +152,7 @@ public class SimpMessageHeaderAccessor extends NativeMessageHeaderAccessor {
 	/**
 	 * Return the id of the current session.
 	 */
-	@Nullable
-	public String getSessionId() {
+	public @Nullable String getSessionId() {
 		return (String) getHeader(SESSION_ID_HEADER);
 	}
 
@@ -171,8 +167,7 @@ public class SimpMessageHeaderAccessor extends NativeMessageHeaderAccessor {
 	 * Return the attributes associated with the current session.
 	 */
 	@SuppressWarnings("unchecked")
-	@Nullable
-	public Map<String, Object> getSessionAttributes() {
+	public @Nullable Map<String, Object> getSessionAttributes() {
 		return (Map<String, Object>) getHeader(SESSION_ATTRIBUTES);
 	}
 
@@ -186,8 +181,7 @@ public class SimpMessageHeaderAccessor extends NativeMessageHeaderAccessor {
 	/**
 	 * Return the user associated with the current session.
 	 */
-	@Nullable
-	public Principal getUser() {
+	public @Nullable Principal getUser() {
 		return (Principal) getHeader(USER_HEADER);
 	}
 
@@ -273,45 +267,38 @@ public class SimpMessageHeaderAccessor extends NativeMessageHeaderAccessor {
 	}
 
 	/**
-	 * Create an instance from the payload and headers of the given Message.
+	 * Create an instance by copying the headers of a Message.
 	 */
 	public static SimpMessageHeaderAccessor wrap(Message<?> message) {
 		return new SimpMessageHeaderAccessor(message);
 	}
 
-	@Nullable
-	public static SimpMessageType getMessageType(Map<String, Object> headers) {
+	public static @Nullable SimpMessageType getMessageType(Map<String, Object> headers) {
 		return (SimpMessageType) headers.get(MESSAGE_TYPE_HEADER);
 	}
 
-	@Nullable
-	public static String getDestination(Map<String, Object> headers) {
+	public static @Nullable String getDestination(Map<String, Object> headers) {
 		return (String) headers.get(DESTINATION_HEADER);
 	}
 
-	@Nullable
-	public static String getSubscriptionId(Map<String, Object> headers) {
+	public static @Nullable String getSubscriptionId(Map<String, Object> headers) {
 		return (String) headers.get(SUBSCRIPTION_ID_HEADER);
 	}
 
-	@Nullable
-	public static String getSessionId(Map<String, Object> headers) {
+	public static @Nullable String getSessionId(Map<String, Object> headers) {
 		return (String) headers.get(SESSION_ID_HEADER);
 	}
 
 	@SuppressWarnings("unchecked")
-	@Nullable
-	public static Map<String, Object> getSessionAttributes(Map<String, Object> headers) {
+	public static @Nullable Map<String, Object> getSessionAttributes(Map<String, Object> headers) {
 		return (Map<String, Object>) headers.get(SESSION_ATTRIBUTES);
 	}
 
-	@Nullable
-	public static Principal getUser(Map<String, Object> headers) {
+	public static @Nullable Principal getUser(Map<String, Object> headers) {
 		return (Principal) headers.get(USER_HEADER);
 	}
 
-	@Nullable
-	public static long[] getHeartbeat(Map<String, Object> headers) {
+	public static long @Nullable [] getHeartbeat(Map<String, Object> headers) {
 		return (long[]) headers.get(HEART_BEAT_HEADER);
 	}
 

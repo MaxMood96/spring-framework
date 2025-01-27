@@ -19,10 +19,11 @@ package org.springframework.http.converter;
 import java.io.IOException;
 import java.lang.reflect.Type;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpOutputMessage;
 import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
 
 /**
  * A specialization of {@link HttpMessageConverter} that can convert an HTTP request
@@ -35,6 +36,7 @@ import org.springframework.lang.Nullable;
  * @since 3.2
  * @param <T> the converted object type
  * @see org.springframework.core.ParameterizedTypeReference
+ * @see SmartHttpMessageConverter
  */
 public interface GenericHttpMessageConverter<T> extends HttpMessageConverter<T> {
 
@@ -53,7 +55,7 @@ public interface GenericHttpMessageConverter<T> extends HttpMessageConverter<T> 
 	boolean canRead(Type type, @Nullable Class<?> contextClass, @Nullable MediaType mediaType);
 
 	/**
-	 * Read an object of the given type form the given input message, and returns it.
+	 * Read an object of the given type from the given input message, and returns it.
 	 * @param type the (potentially generic) type of object to return. This type must have
 	 * previously been passed to the {@link #canRead canRead} method of this interface,
 	 * which must have returned {@code true}.

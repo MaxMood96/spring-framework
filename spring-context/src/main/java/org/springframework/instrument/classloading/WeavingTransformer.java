@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,8 @@ import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -40,8 +41,7 @@ import org.springframework.util.StringUtils;
  */
 public class WeavingTransformer {
 
-	@Nullable
-	private final ClassLoader classLoader;
+	private final @Nullable ClassLoader classLoader;
 
 	private final List<ClassFileTransformer> transformers = new ArrayList<>();
 
@@ -85,7 +85,7 @@ public class WeavingTransformer {
 	 * @param className the full qualified name of the class in dot format (i.e. some.package.SomeClass)
 	 * @param internalName class name internal name in / format (i.e. some/package/SomeClass)
 	 * @param bytes class byte definition
-	 * @param pd protection domain to be used (can be null)
+	 * @param pd protection domain to be used (can be {@code null})
 	 * @return (possibly transformed) class byte definition
 	 */
 	public byte[] transformIfNecessary(String className, String internalName, byte[] bytes, @Nullable ProtectionDomain pd) {

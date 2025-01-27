@@ -18,23 +18,23 @@ package org.springframework.context.support;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ApplicationContextException;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
  * Convenient superclass for application objects that want to be aware of
- * the application context, e.g. for custom lookup of collaborating beans
+ * the application context, for example, for custom lookup of collaborating beans
  * or for context-specific resource access. It saves the application
  * context reference and provides an initialization callback method.
  * Furthermore, it offers numerous convenience methods for message lookup.
  *
  * <p>There is no requirement to subclass this class: It just makes things
- * a little easier if you need access to the context, e.g. for access to
+ * a little easier if you need access to the context, for example, for access to
  * file resources or to the message source. Note that many application
  * objects do not need to be aware of the application context at all,
  * as they can receive collaborating beans via bean references.
@@ -52,12 +52,10 @@ public abstract class ApplicationObjectSupport implements ApplicationContextAwar
 	protected final Log logger = LogFactory.getLog(getClass());
 
 	/** ApplicationContext this object runs in. */
-	@Nullable
-	private ApplicationContext applicationContext;
+	private @Nullable ApplicationContext applicationContext;
 
 	/** MessageSourceAccessor for easy message access. */
-	@Nullable
-	private MessageSourceAccessor messageSourceAccessor;
+	private @Nullable MessageSourceAccessor messageSourceAccessor;
 
 
 	@Override
@@ -140,8 +138,7 @@ public abstract class ApplicationObjectSupport implements ApplicationContextAwar
 	 * Return the ApplicationContext that this object is associated with.
 	 * @throws IllegalStateException if not running in an ApplicationContext
 	 */
-	@Nullable
-	public final ApplicationContext getApplicationContext() throws IllegalStateException {
+	public final @Nullable ApplicationContext getApplicationContext() throws IllegalStateException {
 		if (this.applicationContext == null && isContextRequired()) {
 			throw new IllegalStateException(
 					"ApplicationObjectSupport instance [" + this + "] does not run in an ApplicationContext");
@@ -166,8 +163,7 @@ public abstract class ApplicationObjectSupport implements ApplicationContextAwar
 	 * used by this object, for easy message access.
 	 * @throws IllegalStateException if not running in an ApplicationContext
 	 */
-	@Nullable
-	protected final MessageSourceAccessor getMessageSourceAccessor() throws IllegalStateException {
+	protected final @Nullable MessageSourceAccessor getMessageSourceAccessor() throws IllegalStateException {
 		if (this.messageSourceAccessor == null && isContextRequired()) {
 			throw new IllegalStateException(
 					"ApplicationObjectSupport instance [" + this + "] does not run in an ApplicationContext");

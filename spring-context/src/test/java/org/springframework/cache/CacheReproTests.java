@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,16 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import org.springframework.beans.testfixture.beans.TestBean;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -39,7 +44,6 @@ import org.springframework.cache.support.SimpleCacheManager;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.lang.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
@@ -118,6 +122,7 @@ class CacheReproTests {
 		assertThat(cacheResolver.getCache("foo").get("foo")).isNull();
 		Object result = bean.getSimple("foo");  // cache name = id
 		assertThat(cacheResolver.getCache("foo").get("foo").get()).isEqualTo(result);
+
 		context.close();
 	}
 
@@ -127,7 +132,7 @@ class CacheReproTests {
 		Spr13081Service bean = context.getBean(Spr13081Service.class);
 
 		assertThatIllegalStateException().isThrownBy(() -> bean.getSimple(null))
-			.withMessageContaining(MyCacheResolver.class.getName());
+				.withMessageContaining(MyCacheResolver.class.getName());
 		context.close();
 	}
 
@@ -146,6 +151,7 @@ class CacheReproTests {
 		TestBean tb2 = bean.findById("tb1").get();
 		assertThat(tb2).isNotSameAs(tb);
 		assertThat(cache.get("tb1").get()).isSameAs(tb2);
+
 		context.close();
 	}
 
@@ -164,6 +170,196 @@ class CacheReproTests {
 		TestBean tb2 = bean.findById("tb1").get();
 		assertThat(tb2).isNotSameAs(tb);
 		assertThat(cache.get("tb1").get()).isSameAs(tb2);
+
+		context.close();
+	}
+
+	@Test
+	void spr14235AdaptsToCompletableFuture() {
+		AnnotationConfigApplicationContext context =
+				new AnnotationConfigApplicationContext(Spr14235Config.class, Spr14235FutureService.class);
+		Spr14235FutureService bean = context.getBean(Spr14235FutureService.class);
+		Cache cache = context.getBean(CacheManager.class).getCache("itemCache");
+
+		TestBean tb = bean.findById("tb1").join();
+		assertThat(tb).isNotNull();
+		assertThat(bean.findById("tb1").join()).isSameAs(tb);
+		assertThat(cache.get("tb1").get()).isSameAs(tb);
+
+		bean.clear().join();
+		TestBean tb2 = bean.findById("tb1").join();
+		assertThat(tb2).isNotNull();
+		assertThat(tb2).isNotSameAs(tb);
+		assertThat(cache.get("tb1").get()).isSameAs(tb2);
+
+		bean.clear().join();
+		bean.insertItem(tb).join();
+		assertThat(bean.findById("tb1").join()).isSameAs(tb);
+		assertThat(cache.get("tb1").get()).isSameAs(tb);
+
+		tb = bean.findById("tb2").join();
+		assertThat(tb).isNotNull();
+		assertThat(bean.findById("tb2").join()).isNotSameAs(tb);
+		assertThat(cache.get("tb2")).isNull();
+
+		assertThat(bean.findByIdEmpty("").join()).isNull();
+		assertThat(cache.get("").get()).isNull();
+		assertThat(bean.findByIdEmpty("").join()).isNull();
+
+		context.close();
+	}
+
+	@Test
+	void spr14235AdaptsToCompletableFutureWithSync() throws Exception {
+		AnnotationConfigApplicationContext context =
+				new AnnotationConfigApplicationContext(Spr14235Config.class, Spr14235FutureServiceSync.class);
+		Spr14235FutureServiceSync bean = context.getBean(Spr14235FutureServiceSync.class);
+		Cache cache = context.getBean(CacheManager.class).getCache("itemCache");
+
+		TestBean tb = bean.findById("tb1").get();
+		assertThat(bean.findById("tb1").get()).isSameAs(tb);
+		assertThat(cache.get("tb1").get()).isSameAs(tb);
+
+		cache.clear();
+		TestBean tb2 = bean.findById("tb1").get();
+		assertThat(tb2).isNotSameAs(tb);
+		assertThat(cache.get("tb1").get()).isSameAs(tb2);
+
+		cache.clear();
+		bean.insertItem(tb);
+		assertThat(bean.findById("tb1").get()).isSameAs(tb);
+		assertThat(cache.get("tb1").get()).isSameAs(tb);
+
+		assertThat(bean.findById("").join()).isNull();
+		assertThat(cache.get("").get()).isNull();
+		assertThat(bean.findById("").join()).isNull();
+
+		context.close();
+	}
+
+	@Test
+	void spr14235AdaptsToReactorMono() {
+		AnnotationConfigApplicationContext context =
+				new AnnotationConfigApplicationContext(Spr14235Config.class, Spr14235MonoService.class);
+		Spr14235MonoService bean = context.getBean(Spr14235MonoService.class);
+		Cache cache = context.getBean(CacheManager.class).getCache("itemCache");
+
+		TestBean tb = bean.findById("tb1").block();
+		assertThat(tb).isNotNull();
+		assertThat(bean.findById("tb1").block()).isSameAs(tb);
+		assertThat(cache.get("tb1").get()).isSameAs(tb);
+
+		bean.clear().block();
+		TestBean tb2 = bean.findById("tb1").block();
+		assertThat(tb2).isNotNull();
+		assertThat(tb2).isNotSameAs(tb);
+		assertThat(cache.get("tb1").get()).isSameAs(tb2);
+
+		bean.clear().block();
+		bean.insertItem(tb).block();
+		assertThat(bean.findById("tb1").block()).isSameAs(tb);
+		assertThat(cache.get("tb1").get()).isSameAs(tb);
+
+		tb = bean.findById("tb2").block();
+		assertThat(tb).isNotNull();
+		assertThat(bean.findById("tb2").block()).isNotSameAs(tb);
+		assertThat(cache.get("tb2")).isNull();
+
+		assertThat(bean.findByIdEmpty("").block()).isNull();
+		assertThat(cache.get("").get()).isNull();
+		assertThat(bean.findByIdEmpty("").block()).isNull();
+
+		context.close();
+	}
+
+	@Test
+	void spr14235AdaptsToReactorMonoWithSync() {
+		AnnotationConfigApplicationContext context =
+				new AnnotationConfigApplicationContext(Spr14235Config.class, Spr14235MonoServiceSync.class);
+		Spr14235MonoServiceSync bean = context.getBean(Spr14235MonoServiceSync.class);
+		Cache cache = context.getBean(CacheManager.class).getCache("itemCache");
+
+		TestBean tb = bean.findById("tb1").block();
+		assertThat(bean.findById("tb1").block()).isSameAs(tb);
+		assertThat(cache.get("tb1").get()).isSameAs(tb);
+
+		cache.clear();
+		TestBean tb2 = bean.findById("tb1").block();
+		assertThat(tb2).isNotSameAs(tb);
+		assertThat(cache.get("tb1").get()).isSameAs(tb2);
+
+		cache.clear();
+		bean.insertItem(tb);
+		assertThat(bean.findById("tb1").block()).isSameAs(tb);
+		assertThat(cache.get("tb1").get()).isSameAs(tb);
+
+		assertThat(bean.findById("").block()).isNull();
+		assertThat(cache.get("").get()).isNull();
+		assertThat(bean.findById("").block()).isNull();
+
+		context.close();
+	}
+
+	@Test
+	void spr14235AdaptsToReactorFlux() {
+		AnnotationConfigApplicationContext context =
+				new AnnotationConfigApplicationContext(Spr14235Config.class, Spr14235FluxService.class);
+		Spr14235FluxService bean = context.getBean(Spr14235FluxService.class);
+		Cache cache = context.getBean(CacheManager.class).getCache("itemCache");
+
+		List<TestBean> tb = bean.findById("tb1").collectList().block();
+		assertThat(tb).isNotEmpty();
+		assertThat(bean.findById("tb1").collectList().block()).isEqualTo(tb);
+		assertThat(cache.get("tb1").get()).isEqualTo(tb);
+
+		bean.clear().blockLast();
+		List<TestBean> tb2 = bean.findById("tb1").collectList().block();
+		assertThat(tb2).isNotEmpty();
+		assertThat(tb2).isNotEqualTo(tb);
+		assertThat(cache.get("tb1").get()).isEqualTo(tb2);
+
+		bean.clear().blockLast();
+		bean.insertItem("tb1", tb).blockLast();
+		assertThat(bean.findById("tb1").collectList().block()).isEqualTo(tb);
+		assertThat(cache.get("tb1").get()).isEqualTo(tb);
+
+		tb = bean.findById("tb2").collectList().block();
+		assertThat(tb).isNotEmpty();
+		assertThat(bean.findById("tb2").collectList().block()).isNotEqualTo(tb);
+		assertThat(cache.get("tb2")).isNull();
+
+		assertThat(bean.findByIdEmpty("").collectList().block()).isEmpty();
+		assertThat(cache.get("").get()).isEqualTo(Collections.emptyList());
+		assertThat(bean.findByIdEmpty("").collectList().block()).isEmpty();
+
+		context.close();
+	}
+
+	@Test
+	void spr14235AdaptsToReactorFluxWithSync() {
+		AnnotationConfigApplicationContext context =
+				new AnnotationConfigApplicationContext(Spr14235Config.class, Spr14235FluxServiceSync.class);
+		Spr14235FluxServiceSync bean = context.getBean(Spr14235FluxServiceSync.class);
+		Cache cache = context.getBean(CacheManager.class).getCache("itemCache");
+
+		List<TestBean> tb = bean.findById("tb1").collectList().block();
+		assertThat(bean.findById("tb1").collectList().block()).isEqualTo(tb);
+		assertThat(cache.get("tb1").get()).isEqualTo(tb);
+
+		cache.clear();
+		List<TestBean> tb2 = bean.findById("tb1").collectList().block();
+		assertThat(tb2).isNotEqualTo(tb);
+		assertThat(cache.get("tb1").get()).isEqualTo(tb2);
+
+		cache.clear();
+		bean.insertItem("tb1", tb);
+		assertThat(bean.findById("tb1").collectList().block()).isEqualTo(tb);
+		assertThat(cache.get("tb1").get()).isEqualTo(tb);
+
+		assertThat(bean.findById("").collectList().block()).isEmpty();
+		assertThat(cache.get("").get()).isEqualTo(Collections.emptyList());
+		assertThat(bean.findById("").collectList().block()).isEmpty();
+
 		context.close();
 	}
 
@@ -177,6 +373,7 @@ class CacheReproTests {
 		bean.insertItem(tb);
 		assertThat(bean.findById("tb1").get()).isSameAs(tb);
 		assertThat(cache.get("tb1").get()).isSameAs(tb);
+
 		context.close();
 	}
 
@@ -190,6 +387,7 @@ class CacheReproTests {
 		bean.insertItem(tb);
 		assertThat(bean.findById("tb1").get()).isSameAs(tb);
 		assertThat(cache.get("tb1").get()).isSameAs(tb);
+
 		context.close();
 	}
 
@@ -333,8 +531,7 @@ class CacheReproTests {
 		}
 
 		@Override
-		@Nullable
-		protected Collection<String> getCacheNames(CacheOperationInvocationContext<?> context) {
+		protected @Nullable Collection<String> getCacheNames(CacheOperationInvocationContext<?> context) {
 			String cacheName = (String) context.getArgs()[0];
 			if (cacheName != null) {
 				return Collections.singleton(cacheName);
@@ -383,6 +580,168 @@ class CacheReproTests {
 		@Bean
 		public Spr14230Service service() {
 			return new Spr14230Service();
+		}
+	}
+
+
+	public static class Spr14235FutureService {
+
+		private boolean emptyCalled;
+
+		@Cacheable(value = "itemCache", unless = "#result.name == 'tb2'")
+		public CompletableFuture<TestBean> findById(String id) {
+			return CompletableFuture.completedFuture(new TestBean(id));
+		}
+
+		@Cacheable(value = "itemCache")
+		public CompletableFuture<TestBean> findByIdEmpty(String id) {
+			assertThat(emptyCalled).isFalse();
+			emptyCalled = true;
+			return CompletableFuture.completedFuture(null);
+		}
+
+		@CachePut(cacheNames = "itemCache", key = "#item.name")
+		public CompletableFuture<TestBean> insertItem(TestBean item) {
+			return CompletableFuture.completedFuture(item);
+		}
+
+		@CacheEvict(cacheNames = "itemCache", allEntries = true, condition = "#result > 0")
+		public CompletableFuture<Integer> clear() {
+			return CompletableFuture.completedFuture(1);
+		}
+	}
+
+
+	public static class Spr14235FutureServiceSync {
+
+		private boolean emptyCalled;
+
+		@Cacheable(value = "itemCache", sync = true)
+		public CompletableFuture<TestBean> findById(String id) {
+			if (id.isEmpty()) {
+				assertThat(emptyCalled).isFalse();
+				emptyCalled = true;
+				return CompletableFuture.completedFuture(null);
+			}
+			return CompletableFuture.completedFuture(new TestBean(id));
+		}
+
+		@CachePut(cacheNames = "itemCache", key = "#item.name")
+		public TestBean insertItem(TestBean item) {
+			return item;
+		}
+	}
+
+
+	public static class Spr14235MonoService {
+
+		private boolean emptyCalled;
+
+		@Cacheable(value = "itemCache", unless = "#result.name == 'tb2'")
+		public Mono<TestBean> findById(String id) {
+			return Mono.just(new TestBean(id));
+		}
+
+		@Cacheable(value = "itemCache")
+		public Mono<TestBean> findByIdEmpty(String id) {
+			assertThat(emptyCalled).isFalse();
+			emptyCalled = true;
+			return Mono.empty();
+		}
+
+		@CachePut(cacheNames = "itemCache", key = "#item.name")
+		public Mono<TestBean> insertItem(TestBean item) {
+			return Mono.just(item);
+		}
+
+		@CacheEvict(cacheNames = "itemCache", allEntries = true, condition = "#result > 0")
+		public Mono<Integer> clear() {
+			return Mono.just(1);
+		}
+	}
+
+
+	public static class Spr14235MonoServiceSync {
+
+		private boolean emptyCalled;
+
+		@Cacheable(value = "itemCache", sync = true)
+		public Mono<TestBean> findById(String id) {
+			if (id.isEmpty()) {
+				assertThat(emptyCalled).isFalse();
+				emptyCalled = true;
+				return Mono.empty();
+			}
+			return Mono.just(new TestBean(id));
+		}
+
+		@CachePut(cacheNames = "itemCache", key = "#item.name")
+		public TestBean insertItem(TestBean item) {
+			return item;
+		}
+	}
+
+
+	public static class Spr14235FluxService {
+
+		private int counter = 0;
+
+		private boolean emptyCalled;
+
+		@Cacheable(value = "itemCache", unless = "#result[0].name == 'tb2'")
+		public Flux<TestBean> findById(String id) {
+			return Flux.just(new TestBean(id), new TestBean(id + (counter++)));
+		}
+
+		@Cacheable(value = "itemCache")
+		public Flux<TestBean> findByIdEmpty(String id) {
+			assertThat(emptyCalled).isFalse();
+			emptyCalled = true;
+			return Flux.empty();
+		}
+
+		@CachePut(cacheNames = "itemCache", key = "#id")
+		public Flux<TestBean> insertItem(String id, List<TestBean> item) {
+			return Flux.fromIterable(item);
+		}
+
+		@CacheEvict(cacheNames = "itemCache", allEntries = true, condition = "#result > 0")
+		public Flux<Integer> clear() {
+			return Flux.just(1);
+		}
+	}
+
+
+	public static class Spr14235FluxServiceSync {
+
+		private int counter = 0;
+
+		private boolean emptyCalled;
+
+		@Cacheable(value = "itemCache", sync = true)
+		public Flux<TestBean> findById(String id) {
+			if (id.isEmpty()) {
+				assertThat(emptyCalled).isFalse();
+				emptyCalled = true;
+				return Flux.empty();
+			}
+			return Flux.just(new TestBean(id), new TestBean(id + (counter++)));
+		}
+
+		@CachePut(cacheNames = "itemCache", key = "#id")
+		public List<TestBean> insertItem(String id, List<TestBean> item) {
+			return item;
+		}
+	}
+
+
+	@Configuration
+	@EnableCaching
+	public static class Spr14235Config {
+
+		@Bean
+		public CacheManager cacheManager() {
+			return new ConcurrentMapCacheManager();
 		}
 	}
 

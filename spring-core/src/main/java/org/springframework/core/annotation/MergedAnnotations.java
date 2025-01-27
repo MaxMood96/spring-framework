@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,8 @@ import java.util.Collection;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 
 /**
@@ -507,7 +508,7 @@ public interface MergedAnnotations extends Iterable<MergedAnnotation<Annotation>
 	 *
 	 * @since 6.0
 	 */
-	static final class Search {
+	final class Search {
 
 		static final Predicate<Class<?>> always = clazz -> true;
 

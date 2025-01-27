@@ -24,11 +24,11 @@ import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.BeanNameAware;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.web.servlet.ModelAndView;
@@ -48,7 +48,7 @@ import org.springframework.web.servlet.ModelAndView;
  *
  * <p><b>Example:</b> a DispatcherServlet XML context, forwarding "*.do" to the Struts
  * ActionServlet wrapped by a ServletWrappingController. All such requests will go
- * through the configured HandlerInterceptor chain (e.g. an OpenSessionInViewInterceptor).
+ * through the configured HandlerInterceptor chain (for example, an OpenSessionInViewInterceptor).
  * From the Struts point of view, everything will work as usual.
  *
  * <pre class="code">
@@ -86,19 +86,15 @@ import org.springframework.web.servlet.ModelAndView;
 public class ServletWrappingController extends AbstractController
 		implements BeanNameAware, InitializingBean, DisposableBean {
 
-	@Nullable
-	private Class<? extends Servlet> servletClass;
+	private @Nullable Class<? extends Servlet> servletClass;
 
-	@Nullable
-	private String servletName;
+	private @Nullable String servletName;
 
 	private Properties initParameters = new Properties();
 
-	@Nullable
-	private String beanName;
+	private @Nullable String beanName;
 
-	@Nullable
-	private Servlet servletInstance;
+	private @Nullable Servlet servletInstance;
 
 
 	public ServletWrappingController() {
@@ -159,7 +155,7 @@ public class ServletWrappingController extends AbstractController
 	 * @see jakarta.servlet.Servlet#service(jakarta.servlet.ServletRequest, jakarta.servlet.ServletResponse)
 	 */
 	@Override
-	protected ModelAndView handleRequestInternal(HttpServletRequest request, HttpServletResponse response)
+	protected @Nullable ModelAndView handleRequestInternal(HttpServletRequest request, HttpServletResponse response)
 			throws Exception {
 
 		Assert.state(this.servletInstance != null, "No Servlet instance");
@@ -188,14 +184,12 @@ public class ServletWrappingController extends AbstractController
 	private class DelegatingServletConfig implements ServletConfig {
 
 		@Override
-		@Nullable
-		public String getServletName() {
+		public @Nullable String getServletName() {
 			return servletName;
 		}
 
 		@Override
-		@Nullable
-		public ServletContext getServletContext() {
+		public @Nullable ServletContext getServletContext() {
 			return ServletWrappingController.this.getServletContext();
 		}
 

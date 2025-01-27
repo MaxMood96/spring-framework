@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,23 @@
 
 package org.springframework.web.bind.support;
 
+import jakarta.servlet.ServletRequest;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.Part;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.MutablePropertyValues;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.BindException;
+import org.springframework.web.bind.ServletRequestDataBinder;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartRequest;
 import org.springframework.web.multipart.support.StandardServletPartUtils;
 
@@ -50,7 +55,7 @@ import org.springframework.web.multipart.support.StandardServletPartUtils;
  *
  * <p>Can also used for manual data binding in custom web controllers or interceptors
  * that build on Spring's {@link org.springframework.web.context.request.WebRequest}
- * abstraction: e.g. in a {@link org.springframework.web.context.request.WebRequestInterceptor}
+ * abstraction: for example, in a {@link org.springframework.web.context.request.WebRequestInterceptor}
  * implementation. Simply instantiate a WebRequestDataBinder for each binding
  * process, and invoke {@code bind} with the current WebRequest as argument:
  *
@@ -99,6 +104,31 @@ public class WebRequestDataBinder extends WebDataBinder {
 
 
 	/**
+	 * Use a default or single data constructor to create the target by
+	 * binding request parameters, multipart files, or parts to constructor args.
+	 * <p>After the call, use {@link #getBindingResult()} to check for bind errors.
+	 * If there are none, the target is set, and {@link #bind(WebRequest)}
+	 * can be called for further initialization via setters.
+	 * @param request the request to bind
+	 * @since 6.1
+	 */
+	public void construct(WebRequest request) {
+		if (request instanceof NativeWebRequest nativeRequest) {
+			ServletRequest servletRequest = nativeRequest.getNativeRequest(ServletRequest.class);
+			if (servletRequest != null) {
+				construct(ServletRequestDataBinder.valueResolver(servletRequest, this));
+			}
+		}
+	}
+
+	@Override
+	protected boolean shouldConstructArgument(MethodParameter param) {
+		Class<?> type = param.nestedIfOptional().getNestedParameterType();
+		return (super.shouldConstructArgument(param) &&
+				!MultipartFile.class.isAssignableFrom(type) && !Part.class.isAssignableFrom(type));
+	}
+
+	/**
 	 * Bind the parameters of the given request to this binder's target,
 	 * also binding multipart files in case of a multipart request.
 	 * <p>This call can create field errors, representing basic binding
@@ -117,6 +147,9 @@ public class WebRequestDataBinder extends WebDataBinder {
 	 * @see #bind(org.springframework.beans.PropertyValues)
 	 */
 	public void bind(WebRequest request) {
+		if (shouldNotBindPropertyValues()) {
+			return;
+		}
 		MutablePropertyValues mpvs = new MutablePropertyValues(request.getParameterMap());
 		if (request instanceof NativeWebRequest nativeRequest) {
 			MultipartRequest multipartRequest = nativeRequest.getNativeRequest(MultipartRequest.class);

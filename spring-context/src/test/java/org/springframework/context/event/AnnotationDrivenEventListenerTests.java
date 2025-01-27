@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,6 @@ import java.util.concurrent.TimeUnit;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -87,7 +86,7 @@ class AnnotationDrivenEventListenerTests {
 
 
 	@AfterEach
-	public void closeContext() {
+	void closeContext() {
 		if (this.context != null) {
 			this.context.close();
 		}
@@ -165,11 +164,27 @@ class AnnotationDrivenEventListenerTests {
 		assertThat(events).as("Wrong number of initial context events").hasSize(1);
 		assertThat(events.get(0).getClass()).isEqualTo(ContextRefreshedEvent.class);
 
+		this.context.start();
+		List<Object> eventsAfterStart = this.eventCollector.getEvents(listener);
+		assertThat(eventsAfterStart).as("Wrong number of context events on start").hasSize(2);
+		assertThat(eventsAfterStart.get(1).getClass()).isEqualTo(ContextStartedEvent.class);
+		this.eventCollector.assertTotalEventsCount(2);
+
 		this.context.stop();
 		List<Object> eventsAfterStop = this.eventCollector.getEvents(listener);
-		assertThat(eventsAfterStop).as("Wrong number of context events on shutdown").hasSize(2);
-		assertThat(eventsAfterStop.get(1).getClass()).isEqualTo(ContextStoppedEvent.class);
-		this.eventCollector.assertTotalEventsCount(2);
+		assertThat(eventsAfterStop).as("Wrong number of context events on stop").hasSize(3);
+		assertThat(eventsAfterStop.get(2).getClass()).isEqualTo(ContextStoppedEvent.class);
+		this.eventCollector.assertTotalEventsCount(3);
+
+		this.context.close();
+		List<Object> eventsAfterClose = this.eventCollector.getEvents(listener);
+		assertThat(eventsAfterClose).as("Wrong number of context events on close").hasSize(4);
+		assertThat(eventsAfterClose.get(3).getClass()).isEqualTo(ContextClosedEvent.class);
+		this.eventCollector.assertTotalEventsCount(4);
+
+		// Further events are supposed to be ignored after context close
+		this.context.publishEvent(new ContextClosedEvent(this.context));
+		this.eventCollector.assertTotalEventsCount(4);
 	}
 
 	@Test
@@ -180,8 +195,7 @@ class AnnotationDrivenEventListenerTests {
 		failingContext.register(BasicConfiguration.class,
 				InvalidMethodSignatureEventListener.class);
 
-		assertThatExceptionOfType(BeanInitializationException.class).isThrownBy(() ->
-				failingContext.refresh())
+		assertThatExceptionOfType(BeanInitializationException.class).isThrownBy(failingContext::refresh)
 			.withMessageContaining(InvalidMethodSignatureEventListener.class.getName())
 			.withMessageContaining("cannotBeCalled");
 	}
@@ -262,25 +276,6 @@ class AnnotationDrivenEventListenerTests {
 		this.context.publishEvent(event);
 		this.eventCollector.assertEvent(replyEventListener, event);
 		this.eventCollector.assertEvent(listener, "test");
-		this.eventCollector.assertTotalEventsCount(2);
-	}
-
-	@Test
-	@SuppressWarnings("deprecation")
-	void listenableFutureReply() {
-		load(TestEventListener.class, ReplyEventListener.class);
-		org.springframework.util.concurrent.SettableListenableFuture<String> future =
-				new org.springframework.util.concurrent.SettableListenableFuture<>();
-		future.set("dummy");
-		AnotherTestEvent event = new AnotherTestEvent(this, future);
-		ReplyEventListener replyEventListener = this.context.getBean(ReplyEventListener.class);
-		TestEventListener listener = this.context.getBean(TestEventListener.class);
-
-		this.eventCollector.assertNoEventReceived(listener);
-		this.eventCollector.assertNoEventReceived(replyEventListener);
-		this.context.publishEvent(event);
-		this.eventCollector.assertEvent(replyEventListener, event);
-		this.eventCollector.assertEvent(listener, "dummy"); // reply
 		this.eventCollector.assertTotalEventsCount(2);
 	}
 
@@ -517,7 +512,6 @@ class AnnotationDrivenEventListenerTests {
 		ReplyEventListener replyEventListener = this.context.getBean(ReplyEventListener.class);
 		TestEventListener listener = this.context.getBean(TestEventListener.class);
 
-
 		this.eventCollector.assertNoEventReceived(listener);
 		this.eventCollector.assertNoEventReceived(replyEventListener);
 		this.context.publishEvent(event);
@@ -629,24 +623,27 @@ class AnnotationDrivenEventListenerTests {
 		load(OrderedTestListener.class);
 		OrderedTestListener listener = this.context.getBean(OrderedTestListener.class);
 
-		assertThat(listener.order.isEmpty()).isTrue();
+		assertThat(listener.order).isEmpty();
 		this.context.publishEvent("whatever");
 		assertThat(listener.order).contains("first", "second", "third");
 	}
 
-	@Test @Disabled  // SPR-15122
-	void listenersReceiveEarlyEvents() {
-		load(EventOnPostConstruct.class, OrderedTestListener.class);
-		OrderedTestListener listener = this.context.getBean(OrderedTestListener.class);
+	@Test
+	void publicSubclassWithInheritedEventListener() {
+		load(PublicSubclassWithInheritedEventListener.class);
+		TestEventListener listener = this.context.getBean(PublicSubclassWithInheritedEventListener.class);
 
-		assertThat(listener.order).contains("first", "second", "third");
+		this.eventCollector.assertNoEventReceived(listener);
+		this.context.publishEvent("test");
+		this.eventCollector.assertEvent(listener, "test");
+		this.eventCollector.assertTotalEventsCount(1);
 	}
 
 	@Test
 	void missingListenerBeanIgnored() {
 		load(MissingEventListener.class);
 		context.getBean(UseMissingEventListener.class);
-		context.getBean(ApplicationEventMulticaster.class).multicastEvent(new TestEvent(this));
+		context.publishEvent(new TestEvent(this));
 	}
 
 
@@ -654,14 +651,14 @@ class AnnotationDrivenEventListenerTests {
 		List<Class<?>> allClasses = new ArrayList<>();
 		allClasses.add(BasicConfiguration.class);
 		allClasses.addAll(Arrays.asList(classes));
-		doLoad(allClasses.toArray(new Class<?>[allClasses.size()]));
+		doLoad(allClasses.toArray(new Class<?>[0]));
 	}
 
 	private void loadAsync(Class<?>... classes) {
 		List<Class<?>> allClasses = new ArrayList<>();
 		allClasses.add(AsyncConfiguration.class);
 		allClasses.addAll(Arrays.asList(classes));
-		doLoad(allClasses.toArray(new Class<?>[allClasses.size()]));
+		doLoad(allClasses.toArray(new Class<?>[0]));
 	}
 
 	private void doLoad(Class<?>... classes) {
@@ -703,7 +700,7 @@ class AnnotationDrivenEventListenerTests {
 	}
 
 
-	static abstract class AbstractTestEventListener extends AbstractIdentifiable {
+	abstract static class AbstractTestEventListener extends AbstractIdentifiable {
 
 		@Autowired
 		private EventCollector eventCollector;
@@ -753,7 +750,6 @@ class AnnotationDrivenEventListenerTests {
 		public void handleContextEvent(ApplicationContextEvent event) {
 			collectEvent(event);
 		}
-
 	}
 
 
@@ -979,7 +975,6 @@ class AnnotationDrivenEventListenerTests {
 	}
 
 
-
 	@EventListener
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ConditionalEvent {
@@ -1031,7 +1026,7 @@ class AnnotationDrivenEventListenerTests {
 	}
 
 
-	@Configuration
+	@Component
 	static class OrderedTestListener extends TestEventListener {
 
 		public final List<String> order = new ArrayList<>();
@@ -1052,6 +1047,11 @@ class AnnotationDrivenEventListenerTests {
 		public void handleSecond(String payload) {
 			this.order.add("second");
 		}
+	}
+
+
+	@Component
+	public static class PublicSubclassWithInheritedEventListener extends TestEventListener {
 	}
 
 

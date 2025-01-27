@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package org.springframework.transaction.reactive;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.transaction.ReactiveTransaction;
 import org.springframework.util.Assert;
 
@@ -40,19 +41,21 @@ import org.springframework.util.Assert;
  */
 public class GenericReactiveTransaction implements ReactiveTransaction {
 
-	@Nullable
-	private final Object transaction;
+	private final @Nullable String transactionName;
+
+	private final @Nullable Object transaction;
 
 	private final boolean newTransaction;
 
 	private final boolean newSynchronization;
 
+	private final boolean nested;
+
 	private final boolean readOnly;
 
 	private final boolean debug;
 
-	@Nullable
-	private final Object suspendedResources;
+	private final @Nullable Object suspendedResources;
 
 	private boolean rollbackOnly = false;
 
@@ -61,6 +64,7 @@ public class GenericReactiveTransaction implements ReactiveTransaction {
 
 	/**
 	 * Create a new {@code DefaultReactiveTransactionStatus} instance.
+	 * @param transactionName the defined name of the transaction
 	 * @param transaction underlying transaction object that can hold state
 	 * for the internal transaction implementation
 	 * @param newTransaction if the transaction is new, otherwise participating
@@ -73,19 +77,28 @@ public class GenericReactiveTransaction implements ReactiveTransaction {
 	 * debug logging should be enabled.
 	 * @param suspendedResources a holder for resources that have been suspended
 	 * for this transaction, if any
+	 * @since 6.1
 	 */
 	public GenericReactiveTransaction(
-			@Nullable Object transaction, boolean newTransaction, boolean newSynchronization,
-			boolean readOnly, boolean debug, @Nullable Object suspendedResources) {
+			@Nullable String transactionName, @Nullable Object transaction, boolean newTransaction,
+			boolean newSynchronization, boolean nested, boolean readOnly, boolean debug,
+			@Nullable Object suspendedResources) {
 
+		this.transactionName = transactionName;
 		this.transaction = transaction;
 		this.newTransaction = newTransaction;
 		this.newSynchronization = newSynchronization;
+		this.nested = nested;
 		this.readOnly = readOnly;
 		this.debug = debug;
 		this.suspendedResources = suspendedResources;
 	}
 
+
+	@Override
+	public String getTransactionName() {
+		return (this.transactionName != null ? this.transactionName : "");
+	}
 
 	/**
 	 * Return the underlying transaction object.
@@ -96,9 +109,7 @@ public class GenericReactiveTransaction implements ReactiveTransaction {
 		return this.transaction;
 	}
 
-	/**
-	 * Return whether there is an actual transaction active.
-	 */
+	@Override
 	public boolean hasTransaction() {
 		return (this.transaction != null);
 	}
@@ -109,16 +120,18 @@ public class GenericReactiveTransaction implements ReactiveTransaction {
 	}
 
 	/**
-	 * Return if a new transaction synchronization has been opened
-	 * for this transaction.
+	 * Return if a new transaction synchronization has been opened for this transaction.
 	 */
 	public boolean isNewSynchronization() {
 		return this.newSynchronization;
 	}
 
-	/**
-	 * Return if this transaction is defined as read-only transaction.
-	 */
+	@Override
+	public boolean isNested() {
+		return this.nested;
+	}
+
+	@Override
 	public boolean isReadOnly() {
 		return this.readOnly;
 	}
@@ -136,13 +149,15 @@ public class GenericReactiveTransaction implements ReactiveTransaction {
 	 * Return the holder for resources that have been suspended for this transaction,
 	 * if any.
 	 */
-	@Nullable
-	public Object getSuspendedResources() {
+	public @Nullable Object getSuspendedResources() {
 		return this.suspendedResources;
 	}
 
 	@Override
 	public void setRollbackOnly() {
+		if (this.completed) {
+			throw new IllegalStateException("Transaction completed");
+		}
 		this.rollbackOnly = true;
 	}
 

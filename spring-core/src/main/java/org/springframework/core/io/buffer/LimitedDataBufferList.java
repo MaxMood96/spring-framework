@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import reactor.core.publisher.Flux;
 /**
  * Custom {@link List} to collect data buffers with and enforce a
  * limit on the total number of bytes buffered. For use with "collect" or
- * other buffering operators in declarative APIs, e.g. {@link Flux}.
+ * other buffering operators in declarative APIs, for example, {@link Flux}.
  *
  * <p>Adding elements increases the byte count and if the limit is exceeded,
  * {@link DataBufferLimitException} is raised.  {@link #clear()} resets the
@@ -95,7 +95,7 @@ public class LimitedDataBufferList extends ArrayList<DataBuffer> {
 	}
 
 	private void raiseLimitException() {
-		// Do not release here, it's likely down via doOnDiscard..
+		// Do not release here, it's likely done via doOnDiscard
 		throw new DataBufferLimitException(
 				"Exceeded limit on max bytes to buffer : " + this.maxByteCount);
 	}

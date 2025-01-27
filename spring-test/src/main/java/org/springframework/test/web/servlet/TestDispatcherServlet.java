@@ -24,8 +24,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.mock.web.MockAsyncContext;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.util.Assert;
@@ -98,7 +98,7 @@ final class TestDispatcherServlet extends DispatcherServlet {
 		WebAsyncUtils.getAsyncManager(request).registerCallableInterceptor(KEY,
 				new CallableProcessingInterceptor() {
 					@Override
-					public <T> void postProcess(NativeWebRequest r, Callable<T> task, Object value) {
+					public <T> void postProcess(NativeWebRequest r, Callable<T> task, @Nullable Object value) {
 						// We got the result, must also wait for the dispatch
 						getMvcResult(request).setAsyncResult(value);
 					}
@@ -107,7 +107,7 @@ final class TestDispatcherServlet extends DispatcherServlet {
 		WebAsyncUtils.getAsyncManager(request).registerDeferredResultInterceptor(KEY,
 				new DeferredResultProcessingInterceptor() {
 					@Override
-					public <T> void postProcess(NativeWebRequest r, DeferredResult<T> result, Object value) {
+					public <T> void postProcess(NativeWebRequest r, DeferredResult<T> result, @Nullable Object value) {
 						getMvcResult(request).setAsyncResult(value);
 					}
 				});
@@ -118,7 +118,7 @@ final class TestDispatcherServlet extends DispatcherServlet {
 	}
 
 	@Override
-	protected HandlerExecutionChain getHandler(HttpServletRequest request) throws Exception {
+	protected @Nullable HandlerExecutionChain getHandler(HttpServletRequest request) throws Exception {
 		HandlerExecutionChain chain = super.getHandler(request);
 		if (chain != null) {
 			DefaultMvcResult mvcResult = getMvcResult(request);
@@ -138,7 +138,7 @@ final class TestDispatcherServlet extends DispatcherServlet {
 	}
 
 	@Override
-	protected ModelAndView processHandlerException(HttpServletRequest request, HttpServletResponse response,
+	protected @Nullable ModelAndView processHandlerException(HttpServletRequest request, HttpServletResponse response,
 			@Nullable Object handler, Exception ex) throws Exception {
 
 		ModelAndView mav = super.processHandlerException(request, response, handler, ex);

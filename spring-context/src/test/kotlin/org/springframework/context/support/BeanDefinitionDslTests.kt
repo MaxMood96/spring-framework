@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,14 @@ package org.springframework.context.support
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
-import org.junit.jupiter.api.fail
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.fail
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
+import org.springframework.beans.factory.aot.BeanRegistrationAotProcessor
 import org.springframework.beans.factory.getBean
+import org.springframework.beans.factory.getBeanProvider
 import org.springframework.context.support.BeanDefinitionDsl.*
-import org.springframework.core.env.SimpleCommandLinePropertySource
+import org.springframework.core.Ordered
 import org.springframework.core.env.get
 import org.springframework.core.testfixture.env.MockPropertySource
 import java.util.stream.Collectors
@@ -90,7 +92,7 @@ class BeanDefinitionDslTests {
 		}
 
 		val context = GenericApplicationContext().apply {
-			environment.propertySources.addFirst(SimpleCommandLinePropertySource("--name=foofoo"))
+			environment.propertySources.addFirst(org.springframework.core.env.SimpleCommandLinePropertySource("--name=foofoo"))
 			beans.initialize(this)
 			refresh()
 		}
@@ -197,6 +199,44 @@ class BeanDefinitionDslTests {
 		} catch (ignored: Exception) {
 		}
 	}
+
+	@Test
+	fun `Declare beans with ordering`() {
+		val beans = beans {
+			bean<FooFoo>(order = Ordered.LOWEST_PRECEDENCE) {
+				FooFoo("lowest")
+			}
+			bean<FooFoo>(order = Ordered.HIGHEST_PRECEDENCE) {
+				FooFoo("highest")
+			}
+		}
+
+		val context = GenericApplicationContext().apply {
+			beans.initialize(this)
+			refresh()
+		}
+
+		assertThat(context.getBeanProvider<FooFoo>().orderedStream().map { it.name }).containsExactly("highest", "lowest")
+	}
+
+	@Test
+	fun `Declare beans flag them as to be ignored by AOT if needed`() {
+		val beans = beans {
+			bean("one") { foo() }
+			bean<Bar>("two")
+		}
+
+		val context = GenericApplicationContext().apply {
+			beans.initialize(this)
+		}
+
+		assertThat(context.beanDefinitionNames).contains("one", "two")
+		assertThat(context.getBeanDefinition("one").getAttribute(
+			BeanRegistrationAotProcessor.IGNORE_REGISTRATION_ATTRIBUTE)).isEqualTo(true)
+		assertThat(context.getBeanDefinition("two").getAttribute(
+			BeanRegistrationAotProcessor.IGNORE_REGISTRATION_ATTRIBUTE)).isNull()
+	}
+
 }
 
 class Foo

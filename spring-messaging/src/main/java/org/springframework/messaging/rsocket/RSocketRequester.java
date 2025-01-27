@@ -29,6 +29,7 @@ import io.rsocket.loadbalance.LoadbalanceTarget;
 import io.rsocket.transport.ClientTransport;
 import io.rsocket.transport.netty.client.TcpClientTransport;
 import io.rsocket.transport.netty.client.WebsocketClientTransport;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
@@ -37,7 +38,6 @@ import reactor.core.publisher.Mono;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.ReactiveAdapterRegistry;
 import org.springframework.core.codec.Decoder;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.rsocket.annotation.support.RSocketMessageHandler;
 import org.springframework.util.MimeType;
 
@@ -64,8 +64,7 @@ public interface RSocketRequester extends Disposable {
 	 * or via one of the (deprecated) connect methods on the
 	 * {@code RSocketRequester} builder, or otherwise return {@code null}.
 	 */
-	@Nullable
-	RSocket rsocket();
+	@Nullable RSocket rsocket();
 
 	/**
 	 * Return the data {@code MimeType} selected for the underlying RSocket
@@ -90,7 +89,7 @@ public interface RSocketRequester extends Disposable {
 
 	/**
 	 * Begin to specify a new request with the given route to a remote handler.
-	 * <p>The route can be a template with placeholders, e.g.
+	 * <p>The route can be a template with placeholders, for example,
 	 * {@code "flight.{code}"} in which case the supplied route variables are
 	 * formatted via {@code toString()} and expanded into the template.
 	 * If a formatted variable contains a "." it is replaced with the escape

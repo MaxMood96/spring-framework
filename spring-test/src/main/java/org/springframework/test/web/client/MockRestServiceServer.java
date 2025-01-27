@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.util.Assert;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.support.RestGatewaySupport;
 
@@ -139,21 +140,30 @@ public final class MockRestServiceServer {
 
 	/**
 	 * Return a builder for a {@code MockRestServiceServer} that should be used
-	 * to reply to the given {@code RestTemplate}.
-	 * @since 4.3
+	 * to reply to the {@code RestClient} for the given {@code RestClient.Builder}.
+	 * @since 6.1
 	 */
-	public static MockRestServiceServerBuilder bindTo(RestTemplate restTemplate) {
-		return new DefaultBuilder(restTemplate);
+	public static MockRestServiceServerBuilder bindTo(RestClient.Builder restClientBuilder) {
+		return new RestClientMockRestServiceServerBuilder(restClientBuilder);
 	}
 
 	/**
 	 * Return a builder for a {@code MockRestServiceServer} that should be used
-	 * to reply to the given {@code RestGatewaySupport}.
+	 * to reply to the given {@code RestTemplate}.
+	 * @since 4.3
+	 */
+	public static MockRestServiceServerBuilder bindTo(RestTemplate restTemplate) {
+		return new RestTemplateMockRestServiceServerBuilder(restTemplate);
+	}
+
+	/**
+	 * Return a builder for a {@code MockRestServiceServer} that should be used
+	 * to reply to the {@code RestTemplate} for the given {@code RestGatewaySupport}.
 	 * @since 4.3
 	 */
 	public static MockRestServiceServerBuilder bindTo(RestGatewaySupport restGatewaySupport) {
 		Assert.notNull(restGatewaySupport, "'restGatewaySupport' must not be null");
-		return new DefaultBuilder(restGatewaySupport.getRestTemplate());
+		return new RestTemplateMockRestServiceServerBuilder(restGatewaySupport.getRestTemplate());
 	}
 
 
@@ -169,7 +179,7 @@ public final class MockRestServiceServer {
 	/**
 	 * A shortcut for {@code bindTo(restGateway).build()}.
 	 * @param restGateway the REST gateway to set up for mock testing
-	 * @return the created mock server
+	 * @return the mock server
 	 */
 	public static MockRestServiceServer createServer(RestGatewaySupport restGateway) {
 		return bindTo(restGateway).build();
@@ -214,19 +224,13 @@ public final class MockRestServiceServer {
 	}
 
 
-	private static class DefaultBuilder implements MockRestServiceServerBuilder {
 
-		private final RestTemplate restTemplate;
+	private abstract static class AbstractMockRestServiceServerBuilder implements MockRestServiceServerBuilder {
 
 		private boolean ignoreExpectOrder;
 
 		private boolean bufferContent;
 
-
-		public DefaultBuilder(RestTemplate restTemplate) {
-			Assert.notNull(restTemplate, "RestTemplate must not be null");
-			this.restTemplate = restTemplate;
-		}
 
 		@Override
 		public MockRestServiceServerBuilder ignoreExpectOrder(boolean ignoreExpectOrder) {
@@ -238,6 +242,10 @@ public final class MockRestServiceServer {
 		public MockRestServiceServerBuilder bufferContent() {
 			this.bufferContent = true;
 			return this;
+		}
+
+		protected boolean shouldBufferContent() {
+			return this.bufferContent;
 		}
 
 		@Override
@@ -253,14 +261,50 @@ public final class MockRestServiceServer {
 		@Override
 		public MockRestServiceServer build(RequestExpectationManager manager) {
 			MockRestServiceServer server = new MockRestServiceServer(manager);
-			MockClientHttpRequestFactory factory = server.new MockClientHttpRequestFactory();
-			if (this.bufferContent) {
-				this.restTemplate.setRequestFactory(new BufferingClientHttpRequestFactory(factory));
-			}
-			else {
-				this.restTemplate.setRequestFactory(factory);
-			}
+			ClientHttpRequestFactory factory = server.new MockClientHttpRequestFactory();
+			injectRequestFactory(factory);
 			return server;
+		}
+
+		protected abstract void injectRequestFactory(ClientHttpRequestFactory requestFactory);
+
+	}
+
+
+	private static class RestClientMockRestServiceServerBuilder extends AbstractMockRestServiceServerBuilder {
+
+		private final RestClient.Builder restClientBuilder;
+
+		RestClientMockRestServiceServerBuilder(RestClient.Builder restClientBuilder) {
+			Assert.notNull(restClientBuilder, "RestClient.Builder must not be null");
+			this.restClientBuilder = restClientBuilder;
+		}
+
+		@Override
+		protected void injectRequestFactory(ClientHttpRequestFactory requestFactory) {
+			if (shouldBufferContent()) {
+				this.restClientBuilder.bufferContent((uri, httpMethod) -> true);
+			}
+			this.restClientBuilder.requestFactory(requestFactory);
+		}
+	}
+
+
+	private static class RestTemplateMockRestServiceServerBuilder extends AbstractMockRestServiceServerBuilder {
+
+		private final RestTemplate restTemplate;
+
+		RestTemplateMockRestServiceServerBuilder(RestTemplate restTemplate) {
+			Assert.notNull(restTemplate, "RestTemplate must not be null");
+			this.restTemplate = restTemplate;
+		}
+
+		@Override
+		protected void injectRequestFactory(ClientHttpRequestFactory requestFactory) {
+			if (shouldBufferContent()) {
+				this.restTemplate.setBufferingPredicate((uri, httpMethod) -> true);
+			}
+			this.restTemplate.setRequestFactory(requestFactory);
 		}
 	}
 

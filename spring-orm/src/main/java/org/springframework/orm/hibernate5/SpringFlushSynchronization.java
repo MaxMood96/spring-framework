@@ -17,8 +17,8 @@
 package org.springframework.orm.hibernate5;
 
 import org.hibernate.Session;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.transaction.support.TransactionSynchronization;
 
 /**
@@ -43,10 +43,9 @@ public class SpringFlushSynchronization implements TransactionSynchronization {
 		SessionFactoryUtils.flush(this.session, false);
 	}
 
-
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return (this == obj || (obj instanceof SpringFlushSynchronization that && this.session == that.session));
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof SpringFlushSynchronization that && this.session == that.session));
 	}
 
 	@Override

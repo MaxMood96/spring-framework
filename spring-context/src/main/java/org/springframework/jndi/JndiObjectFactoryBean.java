@@ -24,6 +24,7 @@ import javax.naming.NamingException;
 
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.beans.SimpleTypeConverter;
@@ -34,18 +35,17 @@ import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 
 /**
  * {@link org.springframework.beans.factory.FactoryBean} that looks up a
  * JNDI object. Exposes the object found in JNDI for bean references,
- * e.g. for data access object's "dataSource" property in case of a
+ * for example, for data access object's "dataSource" property in case of a
  * {@link javax.sql.DataSource}.
  *
  * <p>The typical usage will be to register this as singleton factory
- * (e.g. for a certain JNDI-bound DataSource) in an application context,
+ * (for example, for a certain JNDI-bound DataSource) in an application context,
  * and give bean references to application services that need it.
  *
  * <p>The default behavior is to look up the JNDI object on startup and cache it.
@@ -54,12 +54,12 @@ import org.springframework.util.ClassUtils;
  * a "proxyInterface" in such a scenario, since the actual JNDI object type is not
  * known in advance.
  *
- * <p>Of course, bean classes in a Spring environment may look up e.g. a DataSource
+ * <p>Of course, bean classes in a Spring environment may look up, for example, a DataSource
  * from JNDI themselves. This class simply enables central configuration of the
  * JNDI name, and easy switching to non-JNDI alternatives. The latter is
  * particularly convenient for test setups, reuse in standalone clients, etc.
  *
- * <p>Note that switching to e.g. DriverManagerDataSource is just a matter of
+ * <p>Note that switching to, for example, DriverManagerDataSource is just a matter of
  * configuration: Simply replace the definition of this FactoryBean with a
  * {@link org.springframework.jdbc.datasource.DriverManagerDataSource} definition!
  *
@@ -73,8 +73,7 @@ import org.springframework.util.ClassUtils;
 public class JndiObjectFactoryBean extends JndiObjectLocator
 		implements FactoryBean<Object>, BeanFactoryAware, BeanClassLoaderAware {
 
-	@Nullable
-	private Class<?>[] proxyInterfaces;
+	private Class<?> @Nullable [] proxyInterfaces;
 
 	private boolean lookupOnStartup = true;
 
@@ -82,17 +81,13 @@ public class JndiObjectFactoryBean extends JndiObjectLocator
 
 	private boolean exposeAccessContext = false;
 
-	@Nullable
-	private Object defaultObject;
+	private @Nullable Object defaultObject;
 
-	@Nullable
-	private ConfigurableBeanFactory beanFactory;
+	private @Nullable ConfigurableBeanFactory beanFactory;
 
-	@Nullable
-	private ClassLoader beanClassLoader = ClassUtils.getDefaultClassLoader();
+	private @Nullable ClassLoader beanClassLoader = ClassUtils.getDefaultClassLoader();
 
-	@Nullable
-	private Object jndiObject;
+	private @Nullable Object jndiObject;
 
 
 	/**
@@ -152,7 +147,7 @@ public class JndiObjectFactoryBean extends JndiObjectLocator
 	 * <p>Default is "false", i.e. to only expose the JNDI context for object lookup.
 	 * Switch this flag to "true" in order to expose the JNDI environment (including
 	 * the authorization context) for each method invocation, as needed by WebLogic
-	 * for JNDI-obtained factories (e.g. JDBC DataSource, JMS ConnectionFactory)
+	 * for JNDI-obtained factories (for example, JDBC DataSource, JMS ConnectionFactory)
 	 * with authorization requirements.
 	 */
 	public void setExposeAccessContext(boolean exposeAccessContext) {
@@ -267,13 +262,12 @@ public class JndiObjectFactoryBean extends JndiObjectLocator
 	 * Return the singleton JNDI object.
 	 */
 	@Override
-	@Nullable
-	public Object getObject() {
+	public @Nullable Object getObject() {
 		return this.jndiObject;
 	}
 
 	@Override
-	public Class<?> getObjectType() {
+	public @Nullable Class<?> getObjectType() {
 		if (this.proxyInterfaces != null) {
 			if (this.proxyInterfaces.length == 1) {
 				return this.proxyInterfaces[0];
@@ -368,8 +362,7 @@ public class JndiObjectFactoryBean extends JndiObjectLocator
 		}
 
 		@Override
-		@Nullable
-		public Object invoke(MethodInvocation invocation) throws Throwable {
+		public @Nullable Object invoke(MethodInvocation invocation) throws Throwable {
 			Context ctx = (isEligible(invocation.getMethod()) ? this.jndiTemplate.getContext() : null);
 			try {
 				return invocation.proceed();

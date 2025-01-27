@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package org.springframework.core;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A common delegate for detecting a GraalVM native image environment.
@@ -27,21 +27,22 @@ import org.springframework.lang.Nullable;
 public abstract class NativeDetector {
 
 	// See https://github.com/oracle/graal/blob/master/sdk/src/org.graalvm.nativeimage/src/org/graalvm/nativeimage/ImageInfo.java
-	@Nullable
-	private static final String imageCode = System.getProperty("org.graalvm.nativeimage.imagecode");
+	private static final @Nullable String imageCode = System.getProperty("org.graalvm.nativeimage.imagecode");
 
 	private static final boolean inNativeImage = (imageCode != null);
 
+
 	/**
-	 * Returns {@code true} if running in a native image context (for example {@code buildtime}, {@code runtime} or
-	 * {@code agent}) expressed by setting {@code org.graalvm.nativeimage.imagecode} system property to any value, else {@code false}.
+	 * Returns {@code true} if running in a native image context (for example
+	 * {@code buildtime}, {@code runtime}, or {@code agent}) expressed by setting the
+	 * {@code org.graalvm.nativeimage.imagecode} system property to any value.
 	 */
 	public static boolean inNativeImage() {
 		return inNativeImage;
 	}
 
 	/**
-	 * Returns {@code true} if running in any of the specified native image context(s), else {@code false}.
+	 * Returns {@code true} if running in any of the specified native image context(s).
 	 * @param contexts the native image context(s)
 	 * @since 6.0.10
 	 */
@@ -54,10 +55,10 @@ public abstract class NativeDetector {
 		return false;
 	}
 
+
 	/**
-	 * Native image context as defined in
-	 * <a href="https://github.com/oracle/graal/blob/master/sdk/src/org.graalvm.nativeimage/src/org/graalvm/nativeimage/ImageInfo.java">ImageInfo.java</a>.
-	 *
+	 * Native image context as defined in GraalVM's
+	 * <a href="https://github.com/oracle/graal/blob/master/sdk/src/org.graalvm.nativeimage/src/org/graalvm/nativeimage/ImageInfo.java">ImageInfo</a>.
 	 * @since 6.0.10
 	 */
 	public enum Context {
@@ -65,12 +66,12 @@ public abstract class NativeDetector {
 		/**
 		 * The code is executing in the context of image building.
 		 */
-		BUILD_TIME("buildtime"),
+		BUILD("buildtime"),
 
 		/**
 		 * The code is executing at image runtime.
 		 */
-		RUNTIME("runtime");
+		RUN("runtime");
 
 		private final String key;
 

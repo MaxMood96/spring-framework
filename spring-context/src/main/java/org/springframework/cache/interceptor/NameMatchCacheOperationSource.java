@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,8 @@ import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.PatternMatchUtils;
 
@@ -52,7 +52,7 @@ public class NameMatchCacheOperationSource implements CacheOperationSource, Seri
 
 	/**
 	 * Set a name/attribute map, consisting of method names
-	 * (e.g. "myMethod") and CacheOperation instances
+	 * (for example, "myMethod") and CacheOperation instances
 	 * (or Strings to be converted to CacheOperation instances).
 	 * @see CacheOperation
 	 */
@@ -75,8 +75,7 @@ public class NameMatchCacheOperationSource implements CacheOperationSource, Seri
 	}
 
 	@Override
-	@Nullable
-	public Collection<CacheOperation> getCacheOperations(Method method, @Nullable Class<?> targetClass) {
+	public @Nullable Collection<CacheOperation> getCacheOperations(Method method, @Nullable Class<?> targetClass) {
 		// look for direct name match
 		String methodName = method.getName();
 		Collection<CacheOperation> ops = this.nameMap.get(methodName);
@@ -111,13 +110,8 @@ public class NameMatchCacheOperationSource implements CacheOperationSource, Seri
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof NameMatchCacheOperationSource otherTas)) {
-			return false;
-		}
-		return ObjectUtils.nullSafeEquals(this.nameMap, otherTas.nameMap);
+		return (this == other || (other instanceof NameMatchCacheOperationSource otherCos &&
+				ObjectUtils.nullSafeEquals(this.nameMap, otherCos.nameMap)));
 	}
 
 	@Override
@@ -129,4 +123,5 @@ public class NameMatchCacheOperationSource implements CacheOperationSource, Seri
 	public String toString() {
 		return getClass().getName() + ": " + this.nameMap;
 	}
+
 }

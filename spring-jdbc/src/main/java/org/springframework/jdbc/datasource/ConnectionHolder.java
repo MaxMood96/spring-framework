@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,8 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.transaction.support.ResourceHolderSupport;
 import org.springframework.util.Assert;
 
@@ -47,16 +48,13 @@ public class ConnectionHolder extends ResourceHolderSupport {
 	public static final String SAVEPOINT_NAME_PREFIX = "SAVEPOINT_";
 
 
-	@Nullable
-	private ConnectionHandle connectionHandle;
+	private @Nullable ConnectionHandle connectionHandle;
 
-	@Nullable
-	private Connection currentConnection;
+	private @Nullable Connection currentConnection;
 
 	private boolean transactionActive = false;
 
-	@Nullable
-	private Boolean savepointsSupported;
+	private @Nullable Boolean savepointsSupported;
 
 	private int savepointCounter = 0;
 
@@ -99,8 +97,7 @@ public class ConnectionHolder extends ResourceHolderSupport {
 	/**
 	 * Return the ConnectionHandle held by this ConnectionHolder.
 	 */
-	@Nullable
-	public ConnectionHandle getConnectionHandle() {
+	public @Nullable ConnectionHandle getConnectionHandle() {
 		return this.connectionHandle;
 	}
 
@@ -165,7 +162,7 @@ public class ConnectionHolder extends ResourceHolderSupport {
 	}
 
 	/**
-	 * Return whether JDBC 3.0 Savepoints are supported.
+	 * Return whether JDBC Savepoints are supported.
 	 * Caches the flag for the lifetime of this ConnectionHolder.
 	 * @throws SQLException if thrown by the JDBC driver
 	 */
@@ -177,7 +174,7 @@ public class ConnectionHolder extends ResourceHolderSupport {
 	}
 
 	/**
-	 * Create a new JDBC 3.0 Savepoint for the current Connection,
+	 * Create a new JDBC Savepoint for the current Connection,
 	 * using generated savepoint names that are unique for the Connection.
 	 * @return the new Savepoint
 	 * @throws SQLException if thrown by the JDBC driver

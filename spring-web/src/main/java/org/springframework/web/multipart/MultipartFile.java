@@ -22,9 +22,10 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.io.InputStreamSource;
 import org.springframework.core.io.Resource;
-import org.springframework.lang.Nullable;
 import org.springframework.util.FileCopyUtils;
 
 /**
@@ -64,16 +65,14 @@ public interface MultipartFile extends InputStreamSource {
 	 * @see <a href="https://tools.ietf.org/html/rfc7578#section-4.2">RFC 7578, Section 4.2</a>
 	 * @see <a href="https://owasp.org/www-community/vulnerabilities/Unrestricted_File_Upload">Unrestricted File Upload</a>
 	 */
-	@Nullable
-	String getOriginalFilename();
+	@Nullable String getOriginalFilename();
 
 	/**
 	 * Return the content type of the file.
 	 * @return the content type, or {@code null} if not defined
 	 * (or no file has been chosen in the multipart form)
 	 */
-	@Nullable
-	String getContentType();
+	@Nullable String getContentType();
 
 	/**
 	 * Return whether the uploaded file is empty, that is, either no file has
@@ -124,7 +123,7 @@ public interface MultipartFile extends InputStreamSource {
 	 * in order to work with any storage mechanism.
 	 * <p><b>NOTE:</b> Depending on the underlying provider, temporary storage
 	 * may be container-dependent, including the base directory for relative
-	 * destinations specified here (e.g. with Servlet multipart handling).
+	 * destinations specified here (for example, with Servlet multipart handling).
 	 * For absolute destinations, the target file may get renamed/moved from its
 	 * temporary location or newly copied, even if a temporary copy already exists.
 	 * @param dest the destination file (typically absolute)

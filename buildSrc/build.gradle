@@ -1,7 +1,6 @@
 plugins {
 	id 'java-gradle-plugin'
 	id 'checkstyle'
-	id 'io.spring.javaformat' version "${javaFormatVersion}"
 }
 
 repositories {
@@ -21,22 +20,25 @@ ext {
 dependencies {
 	checkstyle "io.spring.javaformat:spring-javaformat-checkstyle:${javaFormatVersion}"
 	implementation "org.jetbrains.kotlin:kotlin-gradle-plugin:${kotlinVersion}"
-	implementation "org.jetbrains.kotlin:kotlin-compiler-embeddable:${kotlinVersion}"
-	implementation "me.champeau.gradle:japicmp-gradle-plugin:0.3.0"
-	implementation "org.gradle:test-retry-gradle-plugin:1.4.1"
+	implementation "com.tngtech.archunit:archunit:1.3.0"
+	implementation "org.gradle:test-retry-gradle-plugin:1.5.6"
 	implementation "io.spring.javaformat:spring-javaformat-gradle-plugin:${javaFormatVersion}"
 	implementation "io.spring.nohttp:nohttp-gradle:0.0.11"
 }
 
 gradlePlugin {
 	plugins {
-		apiDiffPlugin {
-			id = "org.springframework.build.api-diff"
-			implementationClass = "org.springframework.build.api.ApiDiffPlugin"
+		architecturePlugin {
+			id = "org.springframework.architecture"
+			implementationClass = "org.springframework.build.architecture.ArchitecturePlugin"
 		}
 		conventionsPlugin {
 			id = "org.springframework.build.conventions"
 			implementationClass = "org.springframework.build.ConventionsPlugin"
+		}
+		localDevPlugin {
+			id = "org.springframework.build.localdev"
+			implementationClass = "org.springframework.build.dev.LocalDevelopmentPlugin"
 		}
 		optionalDependenciesPlugin {
 			id = "org.springframework.build.optional-dependencies"

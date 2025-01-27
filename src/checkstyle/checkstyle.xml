@@ -20,33 +20,13 @@
 	<!-- TreeWalker Checks -->
 	<module name="com.puppycrawl.tools.checkstyle.TreeWalker">
 
-		<!-- Package-level null-safety annotations -->
-		<module name="RegexpSinglelineJavaCheck">
-			<property name="id" value="packageLevelNonNullApiAnnotation"/>
-			<property name="format" value="@NonNullApi"/>
-			<property name="minimum" value="1"/>
-			<property name="maximum" value="1"/>
-			<property name="message" value="package-info.java is missing required null-safety annotation @NonNullApi."/>
-			<property name="ignoreComments" value="true"/>
-		</module>
-		<module name="RegexpSinglelineJavaCheck">
-			<property name="id" value="packageLevelNonNullFieldsAnnotation"/>
-			<property name="format" value="@NonNullFields"/>
-			<property name="minimum" value="1"/>
-			<property name="maximum" value="1"/>
-			<property name="message" value="package-info.java is missing required null-safety annotation @NonNullFields."/>
-			<property name="ignoreComments" value="true"/>
-		</module>
-
 		<!-- Annotations -->
 		<module name="com.puppycrawl.tools.checkstyle.checks.annotation.AnnotationUseStyleCheck">
 			<property name="elementStyle" value="compact"/>
 		</module>
 		<module name="com.puppycrawl.tools.checkstyle.checks.annotation.MissingOverrideCheck"/>
 		<module name="com.puppycrawl.tools.checkstyle.checks.annotation.PackageAnnotationCheck"/>
-		<module name="com.puppycrawl.tools.checkstyle.checks.annotation.AnnotationLocationCheck">
-			<property name="allowSamelineSingleParameterlessAnnotation" value="false"/>
-		</module>
+		<module name="com.puppycrawl.tools.checkstyle.checks.annotation.AnnotationLocationCheck"/>
 
 		<!-- Block Checks -->
 		<module name="com.puppycrawl.tools.checkstyle.checks.blocks.EmptyBlockCheck">
@@ -125,7 +105,7 @@
 			<property name="id" value="bannedImports"/>
 			<property name="regexp" value="true"/>
 			<property name="illegalClasses"
-				value="^reactor\.core\.support\.Assert,^org\.slf4j\.LoggerFactory,^(?!org\.springframework).*(NonNull|Nonnull|NonNullApi|NonNullFields|Nullable)$"/>
+				value="^reactor\.core\.support\.Assert,^org\.slf4j\.LoggerFactory,^(?!org\.jspecify|\.annotations).*(NonNull|Nullable)$"/>
 		</module>
 		<module name="com.puppycrawl.tools.checkstyle.checks.imports.IllegalImportCheck">
 			<property name="id" value="bannedJUnit3Imports"/>
@@ -153,11 +133,6 @@
 			<property name="regexp" value="true"/>
 			<property name="illegalClasses" value="^org\.hamcrest\..+"/>
 		</module>
-		<module name="com.puppycrawl.tools.checkstyle.checks.imports.IllegalImportCheck">
-			<property name="id" value="bannedJetbrainsAnnotationsImports"/>
-			<property name="regexp" value="true"/>
-			<property name="illegalClasses" value="^org\.jetbrains\.annotations\..+"/>
-		</module>
 
 		<!-- Javadoc Comments -->
 		<module name="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocTypeCheck">
@@ -179,13 +154,20 @@
 			<property name="offset" value="0"/>
 		</module>
 		<module name="com.puppycrawl.tools.checkstyle.checks.javadoc.AtclauseOrderCheck">
-			<property name="target" value="CLASS_DEF, INTERFACE_DEF, ENUM_DEF"/>
+			<property name="target" value="CLASS_DEF, INTERFACE_DEF, ENUM_DEF, RECORD_DEF"/>
 			<property name="tagOrder" value="@author, @since, @param, @see, @version, @serial, @deprecated"/>
 		</module>
 		<module name="com.puppycrawl.tools.checkstyle.checks.javadoc.AtclauseOrderCheck">
 			<property name="target" value="METHOD_DEF, CTOR_DEF, VARIABLE_DEF"/>
 			<property name="tagOrder" value="@param, @return, @throws, @since, @see, @deprecated"/>
 		</module>
+
+		<!-- Modifiers -->
+		<module name="com.puppycrawl.tools.checkstyle.checks.modifier.ModifierOrderCheck"/>
+
+		<!-- Whitespace -->
+		<module name="com.puppycrawl.tools.checkstyle.checks.whitespace.MethodParamPadCheck"/>
+		<module name="com.puppycrawl.tools.checkstyle.checks.whitespace.SingleSpaceSeparatorCheck"/>
 
 		<!-- Miscellaneous -->
 		<module name="com.puppycrawl.tools.checkstyle.checks.indentation.CommentsIndentationCheck">
@@ -194,6 +176,7 @@
 		<module name="com.puppycrawl.tools.checkstyle.checks.UpperEllCheck"/>
 		<module name="com.puppycrawl.tools.checkstyle.checks.ArrayTypeStyleCheck"/>
 		<module name="com.puppycrawl.tools.checkstyle.checks.OuterTypeFilenameCheck"/>
+		<module name="UnnecessarySemicolonInEnumeration"/>
 
 		<!-- Regexp -->
 		<module name="com.puppycrawl.tools.checkstyle.checks.regexp.RegexpSinglelineJavaCheck">
@@ -206,6 +189,29 @@
 			<property name="format" value="[ \t]+$"/>
 			<property name="illegalPattern" value="true"/>
 			<property name="message" value="Trailing whitespace"/>
+		</module>
+		<module name="com.puppycrawl.tools.checkstyle.checks.regexp.RegexpSinglelineJavaCheck">
+			<property name="id" value="atSinceVersionConvention"/>
+			<property name="format" value="\@since \d+\.\d+\.0"/>
+			<property name="maximum" value="0"/>
+			<property name="message"
+					  value="@since should use Major.Minor version convention instead of Major.Minor.0"/>
+			<property name="ignoreComments" value="false"/>
+		</module>
+		<module name="com.puppycrawl.tools.checkstyle.checks.regexp.RegexpSinglelineJavaCheck">
+			<property name="id" value="primitiveClassLiterals"/>
+			<property name="maximum" value="0"/>
+			<property name="format" value="(Boolean|Character|Byte|Short|Integer|Long|Float|Double|Void)\.TYPE"/>
+			<property name="message" value="Please use class literals for primitives and void -- for example, int.class instead of Integer.TYPE."/>
+			<property name="ignoreComments" value="true"/>
+		</module>
+		<module name="com.puppycrawl.tools.checkstyle.checks.regexp.RegexpSinglelineJavaCheck">
+			<property name="id" value="systemOutErrPrint"/>
+			<property name="format" value="System\.(out|err)\.print"/>
+			<property name="maximum" value="0"/>
+			<property name="message"
+					  value="Printing to System.out and System.err is forbidden in the main codebase"/>
+			<property name="ignoreComments" value="true"/>
 		</module>
 		<module
 			name="com.puppycrawl.tools.checkstyle.checks.regexp.RegexpSinglelineJavaCheck">
@@ -233,14 +239,14 @@
 		<module name="com.puppycrawl.tools.checkstyle.checks.regexp.RegexpSinglelineJavaCheck">
 			<property name="id" value="junit4Assertions"/>
 			<property name="maximum" value="0"/>
-			<property name="format" value="org\.junit\.Assert\.assert"/>
+			<property name="format" value="org\.junit\.Assert"/>
 			<property name="message" value="Please use AssertJ assertions."/>
 			<property name="ignoreComments" value="true"/>
 		</module>
 		<module name="com.puppycrawl.tools.checkstyle.checks.regexp.RegexpSinglelineJavaCheck">
 			<property name="id" value="junitJupiterAssertions"/>
 			<property name="maximum" value="0"/>
-			<property name="format" value="org\.junit\.jupiter\.api\.Assertions\.assert"/>
+			<property name="format" value="org\.junit\.jupiter\.api\.Assertions"/>
 			<property name="message" value="Please use AssertJ assertions."/>
 			<property name="ignoreComments" value="true"/>
 		</module>
@@ -248,7 +254,7 @@
 			<property name="id" value="testNGAssertions"/>
 			<property name="maximum" value="0"/>
 			<!-- should cover org.testng.Assert and org.testng.AssertJUnit -->
-			<property name="format" value="org\.testng\.Assert(JUnit)?\.assert"/>
+			<property name="format" value="org\.testng\.Assert(JUnit)?"/>
 			<property name="message" value="Please use AssertJ assertions."/>
 			<property name="ignoreComments" value="true"/>
 		</module>

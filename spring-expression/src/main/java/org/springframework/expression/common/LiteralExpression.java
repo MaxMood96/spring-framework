@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,20 @@
 
 package org.springframework.expression.common;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.EvaluationException;
 import org.springframework.expression.Expression;
 import org.springframework.expression.TypedValue;
-import org.springframework.lang.Nullable;
 
 /**
- * A very simple hardcoded implementation of the Expression interface that represents a
- * string literal. It is used with CompositeStringExpression when representing a template
- * expression which is made up of pieces - some being real expressions to be handled by
+ * A very simple, hard-coded implementation of the {@link Expression} interface
+ * that represents a string literal.
+ *
+ * <p>It is used with {@link CompositeStringExpression} when representing a template
+ * expression which is made up of pieces, some being real expressions to be handled by
  * an EL implementation like SpEL, and some being just textual elements.
  *
  * @author Andy Clement
@@ -60,9 +63,8 @@ public class LiteralExpression implements Expression {
 	}
 
 	@Override
-	@Nullable
-	public <T> T getValue(@Nullable Class<T> expectedResultType) throws EvaluationException {
-		Object value = getValue();
+	public <T> @Nullable T getValue(@Nullable Class<T> expectedResultType) throws EvaluationException {
+		String value = getValue();
 		return ExpressionUtils.convertTypedValue(null, new TypedValue(value), expectedResultType);
 	}
 
@@ -72,9 +74,8 @@ public class LiteralExpression implements Expression {
 	}
 
 	@Override
-	@Nullable
-	public <T> T getValue(@Nullable Object rootObject, @Nullable Class<T> desiredResultType) throws EvaluationException {
-		Object value = getValue(rootObject);
+	public <T> @Nullable T getValue(@Nullable Object rootObject, @Nullable Class<T> desiredResultType) throws EvaluationException {
+		String value = getValue(rootObject);
 		return ExpressionUtils.convertTypedValue(null, new TypedValue(value), desiredResultType);
 	}
 
@@ -84,11 +85,8 @@ public class LiteralExpression implements Expression {
 	}
 
 	@Override
-	@Nullable
-	public <T> T getValue(EvaluationContext context, @Nullable Class<T> expectedResultType)
-			throws EvaluationException {
-
-		Object value = getValue(context);
+	public <T> @Nullable T getValue(EvaluationContext context, @Nullable Class<T> expectedResultType) throws EvaluationException {
+		String value = getValue(context);
 		return ExpressionUtils.convertTypedValue(context, new TypedValue(value), expectedResultType);
 	}
 
@@ -98,11 +96,10 @@ public class LiteralExpression implements Expression {
 	}
 
 	@Override
-	@Nullable
-	public <T> T getValue(EvaluationContext context, @Nullable Object rootObject, @Nullable Class<T> desiredResultType)
+	public <T> @Nullable T getValue(EvaluationContext context, @Nullable Object rootObject, @Nullable Class<T> desiredResultType)
 			throws EvaluationException {
 
-		Object value = getValue(context, rootObject);
+		String value = getValue(context, rootObject);
 		return ExpressionUtils.convertTypedValue(context, new TypedValue(value), desiredResultType);
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@ package org.springframework.web.socket.sockjs.client;
 import java.net.URI;
 import java.util.UUID;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.IdGenerator;
 import org.springframework.util.JdkIdGenerator;
 import org.springframework.util.StringUtils;
@@ -32,6 +33,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  * and {@link #getTransportUrl(TransportType) transport} URLs.
  *
  * @author Rossen Stoyanchev
+ * @author Juergen Hoeller
  * @since 4.1
  */
 public class SockJsUrlInfo {
@@ -41,18 +43,33 @@ public class SockJsUrlInfo {
 
 	private final URI sockJsUrl;
 
-	@Nullable
-	private String serverId;
+	private @Nullable String serverId;
 
-	@Nullable
-	private String sessionId;
+	private @Nullable String sessionId;
 
-	@Nullable
-	private UUID uuid;
+	private @Nullable UUID uuid;
 
 
+	/**
+	 * Construct a new {@code SockJsUrlInfo} instance,
+	 * calculating a random server id and session id if necessary.
+	 * @param sockJsUrl the target URL
+	 */
 	public SockJsUrlInfo(URI sockJsUrl) {
 		this.sockJsUrl = sockJsUrl;
+	}
+
+	/**
+	 * Construct a new {@code SockJsUrlInfo} instance.
+	 * @param sockJsUrl the target URL
+	 * @param serverId a pre-determined server id, if any
+	 * @param sessionId a pre-determined session id, if any
+	 * @since 6.1.3
+	 */
+	public SockJsUrlInfo(URI sockJsUrl, @Nullable String serverId, @Nullable String sessionId) {
+		this.sockJsUrl = sockJsUrl;
+		this.serverId = serverId;
+		this.sessionId = sessionId;
 	}
 
 

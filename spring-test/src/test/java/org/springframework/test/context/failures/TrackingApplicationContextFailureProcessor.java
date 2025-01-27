@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ApplicationContextFailureProcessor;
 
@@ -33,14 +35,14 @@ import org.springframework.test.context.ApplicationContextFailureProcessor;
  */
 public class TrackingApplicationContextFailureProcessor implements ApplicationContextFailureProcessor {
 
-	public static List<LoadFailure> loadFailures = Collections.synchronizedList(new ArrayList<>());
+	public static final List<LoadFailure> loadFailures = Collections.synchronizedList(new ArrayList<>());
 
 
 	@Override
-	public void processLoadFailure(ApplicationContext context, Throwable exception) {
+	public void processLoadFailure(ApplicationContext context, @Nullable Throwable exception) {
 		loadFailures.add(new LoadFailure(context, exception));
 	}
 
-	public record LoadFailure(ApplicationContext context, Throwable exception) {}
+	public record LoadFailure(ApplicationContext context, @Nullable Throwable exception) {}
 
 }

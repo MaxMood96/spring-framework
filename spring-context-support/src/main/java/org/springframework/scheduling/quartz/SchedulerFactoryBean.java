@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.sql.DataSource;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.SchedulerFactory;
@@ -44,7 +45,6 @@ import org.springframework.context.SmartLifecycle;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.scheduling.SchedulingException;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
@@ -119,8 +119,7 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 	 * @see #setApplicationContext
 	 * @see ResourceLoaderClassLoadHelper
 	 */
-	@Nullable
-	public static ResourceLoader getConfigTimeResourceLoader() {
+	public static @Nullable ResourceLoader getConfigTimeResourceLoader() {
 		return configTimeResourceLoaderHolder.get();
 	}
 
@@ -133,8 +132,7 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 	 * @see #setTaskExecutor
 	 * @see LocalTaskExecutorThreadPool
 	 */
-	@Nullable
-	public static Executor getConfigTimeTaskExecutor() {
+	public static @Nullable Executor getConfigTimeTaskExecutor() {
 		return configTimeTaskExecutorHolder.get();
 	}
 
@@ -147,8 +145,7 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 	 * @see #setDataSource
 	 * @see LocalDataSourceJobStore
 	 */
-	@Nullable
-	public static DataSource getConfigTimeDataSource() {
+	public static @Nullable DataSource getConfigTimeDataSource() {
 		return configTimeDataSourceHolder.get();
 	}
 
@@ -161,43 +158,32 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 	 * @see #setNonTransactionalDataSource
 	 * @see LocalDataSourceJobStore
 	 */
-	@Nullable
-	public static DataSource getConfigTimeNonTransactionalDataSource() {
+	public static @Nullable DataSource getConfigTimeNonTransactionalDataSource() {
 		return configTimeNonTransactionalDataSourceHolder.get();
 	}
 
 
-	@Nullable
-	private SchedulerFactory schedulerFactory;
+	private @Nullable SchedulerFactory schedulerFactory;
 
 	private Class<? extends SchedulerFactory> schedulerFactoryClass = StdSchedulerFactory.class;
 
-	@Nullable
-	private String schedulerName;
+	private @Nullable String schedulerName;
 
-	@Nullable
-	private Resource configLocation;
+	private @Nullable Resource configLocation;
 
-	@Nullable
-	private Properties quartzProperties;
+	private @Nullable Properties quartzProperties;
 
-	@Nullable
-	private Executor taskExecutor;
+	private @Nullable Executor taskExecutor;
 
-	@Nullable
-	private DataSource dataSource;
+	private @Nullable DataSource dataSource;
 
-	@Nullable
-	private DataSource nonTransactionalDataSource;
+	private @Nullable DataSource nonTransactionalDataSource;
 
-	@Nullable
-	private Map<String, ?> schedulerContextMap;
+	private @Nullable Map<String, ?> schedulerContextMap;
 
-	@Nullable
-	private String applicationContextSchedulerContextKey;
+	private @Nullable String applicationContextSchedulerContextKey;
 
-	@Nullable
-	private JobFactory jobFactory;
+	private @Nullable JobFactory jobFactory;
 
 	private boolean jobFactorySet = false;
 
@@ -211,14 +197,11 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 
 	private boolean waitForJobsToCompleteOnShutdown = false;
 
-	@Nullable
-	private String beanName;
+	private @Nullable String beanName;
 
-	@Nullable
-	private ApplicationContext applicationContext;
+	private @Nullable ApplicationContext applicationContext;
 
-	@Nullable
-	private Scheduler scheduler;
+	private @Nullable Scheduler scheduler;
 
 
 	/**
@@ -319,7 +302,7 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 	 * It is therefore strongly recommended to perform all operations on
 	 * the Scheduler within Spring-managed (or plain JTA) transactions.
 	 * Else, database locking will not properly work and might even break
-	 * (e.g. if trying to obtain a lock on Oracle without a transaction).
+	 * (for example, if trying to obtain a lock on Oracle without a transaction).
 	 * <p>Supports both transactional and non-transactional DataSource access.
 	 * With a non-XA DataSource and local Spring transactions, a single DataSource
 	 * argument is sufficient. In case of an XA DataSource and global JTA transactions,
@@ -661,6 +644,7 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 	 * @see #afterPropertiesSet
 	 * @see org.quartz.SchedulerFactory#getScheduler
 	 */
+	@SuppressWarnings("NullAway") // Dataflow analysis limitation
 	protected Scheduler createScheduler(SchedulerFactory schedulerFactory, @Nullable String schedulerName)
 			throws SchedulerException {
 
@@ -736,27 +720,24 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 			}
 			// Not using the Quartz startDelayed method since we explicitly want a daemon
 			// thread here, not keeping the JVM alive in case of all other threads ending.
-			Thread schedulerThread = new Thread() {
-				@Override
-				public void run() {
-					try {
-						TimeUnit.SECONDS.sleep(startupDelay);
-					}
-					catch (InterruptedException ex) {
-						Thread.currentThread().interrupt();
-						// simply proceed
-					}
-					if (logger.isInfoEnabled()) {
-						logger.info("Starting Quartz Scheduler now, after delay of " + startupDelay + " seconds");
-					}
-					try {
-						scheduler.start();
-					}
-					catch (SchedulerException ex) {
-						throw new SchedulingException("Could not start Quartz Scheduler after delay", ex);
-					}
+			Thread schedulerThread = new Thread(() -> {
+				try {
+					TimeUnit.SECONDS.sleep(startupDelay);
 				}
-			};
+				catch (InterruptedException ex) {
+					Thread.currentThread().interrupt();
+					// simply proceed
+				}
+				if (logger.isInfoEnabled()) {
+					logger.info("Starting Quartz Scheduler now, after delay of " + startupDelay + " seconds");
+				}
+				try {
+					scheduler.start();
+				}
+				catch (SchedulerException ex) {
+					throw new SchedulingException("Could not start Quartz Scheduler after delay", ex);
+				}
+			});
 			schedulerThread.setName("Quartz Scheduler [" + scheduler.getSchedulerName() + "]");
 			schedulerThread.setDaemon(true);
 			schedulerThread.start();
@@ -775,8 +756,7 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 	}
 
 	@Override
-	@Nullable
-	public Scheduler getObject() {
+	public @Nullable Scheduler getObject() {
 		return this.scheduler;
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,13 @@ import java.nio.charset.Charset;
 import java.util.Currency;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
+import org.jspecify.annotations.Nullable;
+
+import org.springframework.core.KotlinDetector;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.converter.ConverterRegistry;
-import org.springframework.lang.Nullable;
 
 /**
  * A specialization of {@link GenericConversionService} configured by default
@@ -40,8 +43,7 @@ import org.springframework.lang.Nullable;
  */
 public class DefaultConversionService extends GenericConversionService {
 
-	@Nullable
-	private static volatile DefaultConversionService sharedInstance;
+	private static volatile @Nullable DefaultConversionService sharedInstance;
 
 
 	/**
@@ -81,7 +83,7 @@ public class DefaultConversionService extends GenericConversionService {
 	/**
 	 * Add converters appropriate for most environments.
 	 * @param converterRegistry the registry of converters to add to
-	 * (must also be castable to ConversionService, e.g. being a {@link ConfigurableConversionService})
+	 * (must also be castable to ConversionService, for example, being a {@link ConfigurableConversionService})
 	 * @throws ClassCastException if the given ConverterRegistry could not be cast to a ConversionService
 	 */
 	public static void addDefaultConverters(ConverterRegistry converterRegistry) {
@@ -102,7 +104,7 @@ public class DefaultConversionService extends GenericConversionService {
 	/**
 	 * Add common collection converters.
 	 * @param converterRegistry the registry of converters to add to
-	 * (must also be castable to ConversionService, e.g. being a {@link ConfigurableConversionService})
+	 * (must also be castable to ConversionService, for example, being a {@link ConfigurableConversionService})
 	 * @throws ClassCastException if the given ConverterRegistry could not be cast to a ConversionService
 	 * @since 4.2.3
 	 */
@@ -166,6 +168,14 @@ public class DefaultConversionService extends GenericConversionService {
 
 		converterRegistry.addConverter(new StringToUUIDConverter());
 		converterRegistry.addConverter(UUID.class, String.class, new ObjectToStringConverter());
+
+		converterRegistry.addConverter(new StringToPatternConverter());
+		converterRegistry.addConverter(Pattern.class, String.class, new ObjectToStringConverter());
+
+		if (KotlinDetector.isKotlinPresent()) {
+			converterRegistry.addConverter(new StringToRegexConverter());
+			converterRegistry.addConverter(kotlin.text.Regex.class, String.class, new ObjectToStringConverter());
+		}
 	}
 
 }

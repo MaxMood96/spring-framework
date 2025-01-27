@@ -106,7 +106,7 @@ a Hibernate-based `UserRepository`:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@SpringJUnitConfig(TestConfig.class)
 	@Transactional
@@ -150,7 +150,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@SpringJUnitConfig(TestConfig::class)
 	@Transactional
@@ -216,14 +216,14 @@ Support for `TestTransaction` is automatically available whenever the
 `TransactionalTestExecutionListener` is enabled.
 
 The following example demonstrates some of the features of `TestTransaction`. See the
-javadoc for {api-spring-framework}/test/context/transaction/TestTransaction.html[`TestTransaction`]
+javadoc for {spring-framework-api}/test/context/transaction/TestTransaction.html[`TestTransaction`]
 for further details.
 
 [tabs]
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@ContextConfiguration(classes = TestConfig.class)
 	public class ProgrammaticTransactionManagementTests extends
@@ -255,7 +255,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@ContextConfiguration(classes = [TestConfig::class])
 	class ProgrammaticTransactionManagementTests : AbstractTransactionalJUnit4SpringContextTests() {
@@ -295,14 +295,56 @@ behavior after your test runs (if the test was configured to commit the transact
 `TransactionalTestExecutionListener` supports the `@BeforeTransaction` and
 `@AfterTransaction` annotations for exactly such scenarios. You can annotate any `void`
 method in a test class or any `void` default method in a test interface with one of these
-annotations, and the `TransactionalTestExecutionListener` ensures that your before
-transaction method or after transaction method runs at the appropriate time.
+annotations, and the `TransactionalTestExecutionListener` ensures that your
+before-transaction method or after-transaction method runs at the appropriate time.
 
-TIP: Any before methods (such as methods annotated with JUnit Jupiter's `@BeforeEach`)
-and any after methods (such as methods annotated with JUnit Jupiter's `@AfterEach`) are
-run within a transaction. In addition, methods annotated with `@BeforeTransaction` or
-`@AfterTransaction` are not run for test methods that are not configured to run within a
-transaction.
+[NOTE]
+====
+Generally speaking, `@BeforeTransaction` and `@AfterTransaction` methods must not accept
+any arguments.
+
+However, as of Spring Framework 6.1, for tests using the 
+xref:testing/testcontext-framework/support-classes.adoc#testcontext-junit-jupiter-extension[`SpringExtension`]
+with JUnit Jupiter, `@BeforeTransaction` and `@AfterTransaction` methods may optionally
+accept arguments which will be resolved by any registered JUnit `ParameterResolver`
+extension such as the `SpringExtension`. This means that JUnit-specific arguments like
+`TestInfo` or beans from the test's `ApplicationContext` may be provided to
+`@BeforeTransaction` and `@AfterTransaction` methods, as demonstrated in the following
+example.
+
+[tabs]
+======
+Java::
++
+[source,java,indent=0,subs="verbatim,quotes"]
+----
+@BeforeTransaction
+void verifyInitialDatabaseState(@Autowired DataSource dataSource) {
+	// Use the DataSource to verify the initial state before a transaction is started
+}
+----
+
+Kotlin::
++
+[source,kotlin,indent=0,subs="verbatim,quotes"]
+----
+@BeforeTransaction
+fun verifyInitialDatabaseState(@Autowired dataSource: DataSource) {
+	// Use the DataSource to verify the initial state before a transaction is started
+}
+----
+======
+====
+
+[TIP]
+====
+Any before methods (such as methods annotated with JUnit Jupiter's `@BeforeEach`) and any
+after methods (such as methods annotated with JUnit Jupiter's `@AfterEach`) are run
+within the test-managed transaction for a transactional test method.
+
+Similarly, methods annotated with `@BeforeTransaction` or `@AfterTransaction` are only
+run for transactional test methods.
+====
 
 [[testcontext-tx-mgr-config]]
 == Configuring a Transaction Manager
@@ -313,7 +355,7 @@ of `PlatformTransactionManager` within the test's `ApplicationContext`, you can 
 qualifier by using `@Transactional("myTxMgr")` or `@Transactional(transactionManager =
 "myTxMgr")`, or `TransactionManagementConfigurer` can be implemented by an
 `@Configuration` class. Consult the
-{api-spring-framework}/test/context/transaction/TestContextTransactionUtils.html#retrieveTransactionManager-org.springframework.test.context.TestContext-java.lang.String-[javadoc
+{spring-framework-api}/test/context/transaction/TestContextTransactionUtils.html#retrieveTransactionManager-org.springframework.test.context.TestContext-java.lang.String-[javadoc
 for `TestContextTransactionUtils.retrieveTransactionManager()`] for details on the
 algorithm used to look up a transaction manager in the test's `ApplicationContext`.
 
@@ -333,7 +375,7 @@ following example shows the relevant annotations:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@SpringJUnitConfig
 	@Transactional(transactionManager = "txMgr")
@@ -372,7 +414,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@SpringJUnitConfig
 	@Transactional(transactionManager = "txMgr")
@@ -427,7 +469,7 @@ session:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	// ...
 
@@ -455,7 +497,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	// ...
 
@@ -488,7 +530,7 @@ The following example shows matching methods for JPA:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	// ...
 
@@ -516,7 +558,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	// ...
 
@@ -570,7 +612,7 @@ example.
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	// ...
 
@@ -598,7 +640,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	// ...
 
@@ -626,7 +668,7 @@ Kotlin::
 ======
 
 See
-https://github.com/spring-projects/spring-framework/blob/main/spring-test/src/test/java/org/springframework/test/context/junit/jupiter/orm/JpaEntityListenerTests.java[JpaEntityListenerTests]
+{spring-framework-code}/spring-test/src/test/java/org/springframework/test/context/junit/jupiter/orm/JpaEntityListenerTests.java[JpaEntityListenerTests]
 in the Spring Framework test suite for working examples using all JPA lifecycle callbacks.
 =====
 

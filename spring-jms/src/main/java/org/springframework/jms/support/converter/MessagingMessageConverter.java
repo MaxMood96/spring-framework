@@ -20,11 +20,11 @@ import java.util.Map;
 
 import jakarta.jms.JMSException;
 import jakarta.jms.Session;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.jms.support.JmsHeaderMapper;
 import org.springframework.jms.support.SimpleJmsHeaderMapper;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.core.AbstractMessageSendingTemplate;
@@ -113,7 +113,7 @@ public class MessagingMessageConverter implements MessageConverter, Initializing
 	}
 
 	@Override
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings({"rawtypes", "unchecked"})
 	public Object fromMessage(jakarta.jms.Message message) throws JMSException, MessageConversionException {
 		Map<String, Object> mappedHeaders = extractHeaders(message);
 		Object convertedObject = extractPayload(message);
@@ -132,7 +132,7 @@ public class MessagingMessageConverter implements MessageConverter, Initializing
 	/**
 	 * Create a JMS message for the specified payload and conversionHint.
 	 * The conversion hint is an extra object passed to the {@link MessageConverter},
-	 * e.g. the associated {@code MethodParameter} (may be {@code null}}.
+	 * for example, the associated {@code MethodParameter} (may be {@code null}}.
 	 * @since 4.3
 	 * @see MessageConverter#toMessage(Object, Session)
 	 */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,12 +20,13 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
+import jakarta.servlet.Filter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -33,15 +34,11 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import org.springframework.context.Lifecycle;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
 import org.springframework.web.socket.client.WebSocketClient;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
-import org.springframework.web.socket.server.RequestUpgradeStrategy;
 import org.springframework.web.socket.server.jetty.JettyRequestUpgradeStrategy;
-import org.springframework.web.socket.server.standard.TomcatRequestUpgradeStrategy;
-import org.springframework.web.socket.server.standard.UndertowRequestUpgradeStrategy;
+import org.springframework.web.socket.server.standard.StandardWebSocketUpgradeStrategy;
 import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 
 import static org.junit.jupiter.api.Named.named;
@@ -55,15 +52,9 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
  */
 public abstract class AbstractWebSocketIntegrationTests {
 
-	private static Map<Class<?>, Class<?>> upgradeStrategyConfigTypes = Map.of(
-			JettyWebSocketTestServer.class, JettyUpgradeStrategyConfig.class, //
-			TomcatWebSocketTestServer.class, TomcatUpgradeStrategyConfig.class, //
-			UndertowTestServer.class, UndertowUpgradeStrategyConfig.class);
-
-	@SuppressWarnings("removal")
 	static Stream<Arguments> argumentsFactory() {
 		return Stream.of(
-				arguments(named("Jetty", new JettyWebSocketTestServer()), named("Jetty", new org.springframework.web.socket.client.jetty.JettyWebSocketClient())),
+				arguments(named("Jetty", new JettyWebSocketTestServer()), named("Standard", new StandardWebSocketClient())),
 				arguments(named("Tomcat", new TomcatWebSocketTestServer()), named("Standard", new StandardWebSocketClient())),
 				arguments(named("Undertow", new UndertowTestServer()), named("Standard", new StandardWebSocketClient())));
 	}
@@ -86,24 +77,37 @@ public abstract class AbstractWebSocketIntegrationTests {
 	protected AnnotationConfigWebApplicationContext wac;
 
 
-	protected void setup(WebSocketTestServer server, WebSocketClient webSocketClient, TestInfo testInfo) throws Exception {
-		this.server = server;
-		this.webSocketClient = webSocketClient;
+	protected void setup(WebSocketTestServer server, WebSocketClient client, TestInfo info) throws Exception {
+		setup(server, null, client, info);
+	}
 
-		logger.debug("Setting up '" + testInfo.getTestMethod().get().getName() + "', client=" +
+	protected void setup(
+			WebSocketTestServer server, @Nullable Filter filter, WebSocketClient client, TestInfo info)
+			throws Exception {
+
+		this.server = server;
+		this.webSocketClient = client;
+
+		logger.debug("Setting up '" + info.getTestMethod().get().getName() + "', client=" +
 				this.webSocketClient.getClass().getSimpleName() + ", server=" +
 				this.server.getClass().getSimpleName());
 
 		this.wac = new AnnotationConfigWebApplicationContext();
 		this.wac.register(getAnnotatedConfigClasses());
-		this.wac.register(upgradeStrategyConfigTypes.get(this.server.getClass()));
+		this.wac.register(this.server instanceof JettyWebSocketTestServer ? JettyHandshakeHandler.class :
+				StandardHandshakeHandler.class);
 
 		if (this.webSocketClient instanceof Lifecycle) {
 			((Lifecycle) this.webSocketClient).start();
 		}
 
 		this.server.setup();
-		this.server.deployConfig(this.wac);
+		if (filter != null) {
+			this.server.deployConfig(this.wac, filter);
+		}
+		else {
+			this.server.deployConfig(this.wac);
+		}
 		this.server.start();
 
 		this.wac.setServletContext(this.server.getServletContext());
@@ -113,7 +117,7 @@ public abstract class AbstractWebSocketIntegrationTests {
 	protected abstract Class<?>[] getAnnotatedConfigClasses();
 
 	@AfterEach
-	void teardown() throws Exception {
+	void teardown() {
 		try {
 			if (this.webSocketClient instanceof Lifecycle) {
 				((Lifecycle) this.webSocketClient).stop();
@@ -151,46 +155,18 @@ public abstract class AbstractWebSocketIntegrationTests {
 	}
 
 
-	static abstract class AbstractRequestUpgradeStrategyConfig {
+	static class JettyHandshakeHandler extends DefaultHandshakeHandler {
 
-		@Bean
-		public DefaultHandshakeHandler handshakeHandler() {
-			return new DefaultHandshakeHandler(requestUpgradeStrategy());
-		}
-
-		public abstract RequestUpgradeStrategy requestUpgradeStrategy();
-	}
-
-
-	@Configuration(proxyBeanMethods = false)
-	static class JettyUpgradeStrategyConfig extends AbstractRequestUpgradeStrategyConfig {
-
-		@Override
-		@Bean
-		public RequestUpgradeStrategy requestUpgradeStrategy() {
-			return new JettyRequestUpgradeStrategy();
+		public JettyHandshakeHandler() {
+			super(new JettyRequestUpgradeStrategy());
 		}
 	}
 
 
-	@Configuration(proxyBeanMethods = false)
-	static class TomcatUpgradeStrategyConfig extends AbstractRequestUpgradeStrategyConfig {
+	static class StandardHandshakeHandler extends DefaultHandshakeHandler {
 
-		@Override
-		@Bean
-		public RequestUpgradeStrategy requestUpgradeStrategy() {
-			return new TomcatRequestUpgradeStrategy();
-		}
-	}
-
-
-	@Configuration(proxyBeanMethods = false)
-	static class UndertowUpgradeStrategyConfig extends AbstractRequestUpgradeStrategyConfig {
-
-		@Override
-		@Bean
-		public RequestUpgradeStrategy requestUpgradeStrategy() {
-			return new UndertowRequestUpgradeStrategy();
+		public StandardHandshakeHandler() {
+			super(new StandardWebSocketUpgradeStrategy());
 		}
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package org.springframework.expression.spel.ast;
 
-import java.util.StringJoiner;
 import java.util.function.Supplier;
 
 import org.springframework.asm.MethodVisitor;
@@ -28,7 +27,12 @@ import org.springframework.expression.spel.SpelEvaluationException;
 
 /**
  * Represents a DOT separated expression sequence, such as
- * {@code 'property1.property2.methodOne()'}.
+ * {@code property1.property2.methodOne()} or
+ * {@code property1?.property2?.methodOne()} when the null-safe navigation
+ * operator is used.
+ *
+ * <p>May also contain array/collection/map indexers, such as
+ * {@code property1[0].property2['key']}.
  *
  * @author Andy Clement
  * @author Sam Brannen
@@ -111,11 +115,22 @@ public class CompoundExpression extends SpelNodeImpl {
 
 	@Override
 	public String toStringAST() {
-		StringJoiner sj = new StringJoiner(".");
+		StringBuilder sb = new StringBuilder();
 		for (int i = 0; i < getChildCount(); i++) {
-			sj.add(getChild(i).toStringAST());
+			sb.append(getChild(i).toStringAST());
+			if (i < getChildCount() - 1) {
+				SpelNodeImpl nextChild = this.children[i + 1];
+				if (nextChild.isNullSafe()) {
+					sb.append("?.");
+				}
+				// Don't append a '.' if the next child is an Indexer.
+				// For example, we want 'myVar[0]' instead of 'myVar.[0]'.
+				else if (!(nextChild instanceof Indexer)) {
+					sb.append('.');
+				}
+			}
 		}
-		return sj.toString();
+		return sb.toString();
 	}
 
 	@Override

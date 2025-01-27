@@ -16,6 +16,8 @@
 
 package org.springframework.web.server
 
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.withContext
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.BDDMockito.given
@@ -24,9 +26,12 @@ import org.springframework.web.testfixture.http.server.reactive.MockServerHttpRe
 import org.springframework.web.testfixture.server.MockServerWebExchange
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 
 /**
  * @author Arjen Poutsma
+ * @author Sebastien Deleuze
  */
 class CoWebFilterTests {
 
@@ -40,11 +45,67 @@ class CoWebFilterTests {
 		val filter = MyCoWebFilter()
 		val result = filter.filter(exchange, chain)
 
-		StepVerifier.create(result)
-			.verifyComplete()
+		StepVerifier.create(result).verifyComplete()
 
 		assertThat(exchange.attributes["foo"]).isEqualTo("bar")
 	}
+
+	@Test
+	fun multipleFilters() {
+		val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("https://example.com"))
+
+		val chain = Mockito.mock(WebFilterChain::class.java)
+		given(chain.filter(exchange)).willAnswer { MyOtherCoWebFilter().filter(exchange,chain) }.willReturn(Mono.empty())
+
+		val result = MyCoWebFilter().filter(exchange, chain)
+
+		StepVerifier.create(result).verifyComplete()
+
+		assertThat(exchange.attributes["foo"]).isEqualTo("bar")
+		assertThat(exchange.attributes["foofoo"]).isEqualTo("barbar")
+	}
+
+	@Test
+	fun filterWithContext() {
+		val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("https://example.com"))
+
+		val chain = Mockito.mock(WebFilterChain::class.java)
+		given(chain.filter(exchange)).willReturn(Mono.empty())
+
+		val filter = MyCoWebFilterWithContext()
+		val result = filter.filter(exchange, chain)
+
+		StepVerifier.create(result).verifyComplete()
+
+		val context = exchange.attributes[CoWebFilter.COROUTINE_CONTEXT_ATTRIBUTE] as CoroutineContext
+		assertThat(context).isNotNull()
+		val coroutineName = context[CoroutineName.Key] as CoroutineName
+		assertThat(coroutineName).isNotNull()
+		assertThat(coroutineName.name).isEqualTo("foo")
+	}
+
+	@Test
+	fun multipleFiltersWithContext() {
+		val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("https://example.com"))
+
+		val chain = Mockito.mock(WebFilterChain::class.java)
+		given(chain.filter(exchange)).willAnswer { MyOtherCoWebFilterWithContext().filter(exchange,chain) }.willReturn(Mono.empty())
+
+		val filter = MyCoWebFilterWithContext()
+		val result = filter.filter(exchange, chain)
+
+		StepVerifier.create(result).verifyComplete()
+
+		val context = exchange.attributes[CoWebFilter.COROUTINE_CONTEXT_ATTRIBUTE] as CoroutineContext
+		assertThat(context).isNotNull()
+		val coroutineName = context[CoroutineName.Key] as CoroutineName
+		assertThat(coroutineName).isNotNull()
+		assertThat(coroutineName.name).isEqualTo("foo")
+		val coroutineDescription = context[CoroutineDescription.Key] as CoroutineDescription
+		assertThat(coroutineDescription).isNotNull()
+		assertThat(coroutineDescription.description).isEqualTo("foofoo")
+	}
+
 }
 
 
@@ -54,3 +115,34 @@ private class MyCoWebFilter : CoWebFilter() {
 		chain.filter(exchange)
 	}
 }
+
+private class MyOtherCoWebFilter : CoWebFilter() {
+	override suspend fun filter(exchange: ServerWebExchange, chain: CoWebFilterChain) {
+		exchange.attributes["foofoo"] = "barbar"
+		chain.filter(exchange)
+	}
+}
+
+private class MyCoWebFilterWithContext : CoWebFilter() {
+	override suspend fun filter(exchange: ServerWebExchange, chain: CoWebFilterChain) {
+		withContext(CoroutineName("foo")) {
+			chain.filter(exchange)
+		}
+	}
+}
+
+private class MyOtherCoWebFilterWithContext : CoWebFilter() {
+	override suspend fun filter(exchange: ServerWebExchange, chain: CoWebFilterChain) {
+		withContext(CoroutineDescription("foofoo")) {
+			chain.filter(exchange)
+		}
+	}
+}
+
+data class CoroutineDescription(val description: String) : AbstractCoroutineContextElement(CoroutineDescription) {
+
+	companion object Key : CoroutineContext.Key<CoroutineDescription>
+
+	override fun toString(): String = "CoroutineDescription($description)"
+}
+

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.xmlunit.assertj.XmlAssert;
@@ -53,7 +54,6 @@ import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.http.converter.support.AllEncompassingFormHttpMessageConverter;
 import org.springframework.http.converter.xml.MappingJackson2XmlHttpMessageConverter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
@@ -765,6 +765,24 @@ class RequestResponseBodyMethodProcessorTests {
 		assertThat(value).isEqualTo("foo");
 	}
 
+	@Test  // gh-25788
+	void resolveArgumentTypeVariableWithAbstractMethod() throws Exception {
+		this.servletRequest.setContent("\"foo\"".getBytes(StandardCharsets.UTF_8));
+		this.servletRequest.setContentType(MediaType.APPLICATION_JSON_VALUE);
+
+		Method method = SubControllerImplementingAbstractMethod.class.getMethod("handle", Object.class);
+		HandlerMethod handlerMethod = new HandlerMethod(new SubControllerImplementingAbstractMethod(), method);
+		MethodParameter methodParameter = handlerMethod.getMethodParameters()[0];
+
+		List<HttpMessageConverter<?>> converters = List.of(new MappingJackson2HttpMessageConverter());
+		RequestResponseBodyMethodProcessor processor = new RequestResponseBodyMethodProcessor(converters);
+
+		assertThat(processor.supportsParameter(methodParameter)).isTrue();
+		String value = (String) processor.readWithMessageConverters(
+				this.request, methodParameter, methodParameter.getGenericParameterType());
+		assertThat(value).isEqualTo("foo");
+	}
+
 	private void assertContentDisposition(RequestResponseBodyMethodProcessor processor,
 			boolean expectContentDisposition, String requestURI, String comment) throws Exception {
 
@@ -830,7 +848,7 @@ class RequestResponseBodyMethodProcessorTests {
 	}
 
 
-	private static abstract class MyParameterizedController<DTO extends Identifiable> {
+	private abstract static class MyParameterizedController<DTO extends Identifiable> {
 
 		@SuppressWarnings("unused")
 		public void handleDto(@RequestBody DTO dto) {}
@@ -850,7 +868,7 @@ class RequestResponseBodyMethodProcessorTests {
 
 
 	@SuppressWarnings("unused")
-	private static abstract class MyParameterizedControllerWithList<DTO extends Identifiable> {
+	private abstract static class MyParameterizedControllerWithList<DTO extends Identifiable> {
 
 		public void handleDto(@RequestBody List<DTO> dto) {
 		}
@@ -952,8 +970,7 @@ class RequestResponseBodyMethodProcessorTests {
 			this.withView1 = withView1;
 		}
 
-		@Nullable
-		public String getWithView2() {
+		public @Nullable String getWithView2() {
 			return withView2;
 		}
 
@@ -961,8 +978,7 @@ class RequestResponseBodyMethodProcessorTests {
 			this.withView2 = withView2;
 		}
 
-		@Nullable
-		public String getWithoutView() {
+		public @Nullable String getWithoutView() {
 			return withoutView;
 		}
 
@@ -1142,6 +1158,21 @@ class RequestResponseBodyMethodProcessorTests {
 
 
 	static class SubControllerImplementingInterface extends MyControllerImplementingInterface {
+
+		@Override
+		public String handle(String arg) {
+			return arg;
+		}
+	}
+
+
+	abstract static class MyControllerWithAbstractMethod<A> {
+
+		public abstract A handle(@RequestBody A arg);
+	}
+
+
+	static class SubControllerImplementingAbstractMethod extends MyControllerWithAbstractMethod<String> {
 
 		@Override
 		public String handle(String arg) {

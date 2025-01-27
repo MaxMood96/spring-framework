@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,6 @@
 package org.springframework.web.reactive.resource;
 
 import java.io.IOException;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,9 +25,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Mono;
 
 import org.springframework.beans.factory.InitializingBean;
@@ -37,24 +37,19 @@ import org.springframework.core.ResolvableType;
 import org.springframework.core.codec.Hints;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
-import org.springframework.core.log.LogFormatUtils;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.codec.ResourceHttpMessageWriter;
 import org.springframework.http.server.PathContainer;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
-import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.HandlerMapping;
 import org.springframework.web.server.MethodNotAllowedException;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebHandler;
 import org.springframework.web.util.pattern.PathPattern;
@@ -66,7 +61,7 @@ import org.springframework.web.util.pattern.PathPattern;
  * <p>The {@linkplain #setLocations "locations"} property takes a list of Spring
  * {@link Resource} locations from which static resources are allowed to
  * be served by this handler. Resources could be served from a classpath location,
- * e.g. "classpath:/META-INF/public-web-resources/", allowing convenient packaging
+ * for example, "classpath:/META-INF/public-web-resources/", allowing convenient packaging
  * and serving of resources such as .js, .css, and others in jar files.
  *
  * <p>This request handler may also be configured with a
@@ -95,8 +90,7 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 	private static final Log logger = LogFactory.getLog(ResourceWebHandler.class);
 
 
-	@Nullable
-	private ResourceLoader resourceLoader;
+	private @Nullable ResourceLoader resourceLoader;
 
 	private final List<String> locationValues = new ArrayList<>(4);
 
@@ -108,22 +102,19 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 
 	private final List<ResourceTransformer> resourceTransformers = new ArrayList<>(4);
 
-	@Nullable
-	private ResourceResolverChain resolverChain;
+	private @Nullable ResourceResolverChain resolverChain;
 
-	@Nullable
-	private ResourceTransformerChain transformerChain;
+	private @Nullable ResourceTransformerChain transformerChain;
 
-	@Nullable
-	private CacheControl cacheControl;
+	private @Nullable CacheControl cacheControl;
 
-	@Nullable
-	private ResourceHttpMessageWriter resourceHttpMessageWriter;
+	private @Nullable ResourceHttpMessageWriter resourceHttpMessageWriter;
 
-	@Nullable
-	private Map<String, MediaType> mediaTypes;
+	private @Nullable Map<String, MediaType> mediaTypes;
 
 	private boolean useLastModified = true;
+
+	private @Nullable Function<Resource, String> etagGenerator;
 
 	private boolean optimizeLocations = false;
 
@@ -162,7 +153,10 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 	public void setLocations(@Nullable List<Resource> locations) {
 		this.locationResources.clear();
 		if (locations != null) {
-			this.locationResources.addAll(locations);
+			for (Resource location : locations) {
+				ResourceHandlerUtils.assertResourceLocation(location);
+				this.locationResources.add(location);
+			}
 		}
 	}
 
@@ -234,8 +228,7 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 	/**
 	 * Return the configured resource message writer.
 	 */
-	@Nullable
-	public ResourceHttpMessageWriter getResourceHttpMessageWriter() {
+	public @Nullable ResourceHttpMessageWriter getResourceHttpMessageWriter() {
 		return this.resourceHttpMessageWriter;
 	}
 
@@ -251,8 +244,7 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 	 * Return the {@link org.springframework.http.CacheControl} instance to build
 	 * the Cache-Control HTTP response header.
 	 */
-	@Nullable
-	public CacheControl getCacheControl() {
+	public @Nullable CacheControl getCacheControl() {
 		return this.cacheControl;
 	}
 
@@ -275,6 +267,28 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 	 */
 	public boolean isUseLastModified() {
 		return this.useLastModified;
+	}
+
+	/**
+	 * Configure a generator function that will be used to create the ETag information,
+	 * given a {@link Resource} that is about to be written to the response.
+	 * <p>This function should return a String that will be used as an argument in
+	 * {@link ServerWebExchange#checkNotModified(String)}, or {@code null} if no value
+	 * can be generated for the given resource.
+	 * @param etagGenerator the HTTP ETag generator function to use.
+	 * @since 6.1
+	 */
+	public void setEtagGenerator(@Nullable Function<Resource, String> etagGenerator) {
+		this.etagGenerator = etagGenerator;
+	}
+
+	/**
+	 * Return the HTTP ETag generator function to be used when serving resources.
+	 * @return the HTTP ETag generator function
+	 * @since 6.1
+	 */
+	public @Nullable Function<Resource, String> getEtagGenerator() {
+		return this.etagGenerator;
 	}
 
 	/**
@@ -314,7 +328,7 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 			this.mediaTypes = new HashMap<>(mediaTypes.size());
 		}
 		mediaTypes.forEach((ext, type) ->
-				this.mediaTypes.put(ext.toLowerCase(Locale.ENGLISH), type));
+				this.mediaTypes.put(ext.toLowerCase(Locale.ROOT), type));
 	}
 
 	/**
@@ -354,6 +368,7 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 			Assert.isTrue(CollectionUtils.isEmpty(this.locationResources), "Please set " +
 					"either Resource-based \"locations\" or String-based \"locationValues\", but not both.");
 			for (String location : this.locationValues) {
+				location = ResourceHandlerUtils.initLocationPath(location);
 				result.add(this.resourceLoader.getResource(location));
 			}
 		}
@@ -403,7 +418,7 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 		return getResource(exchange)
 				.switchIfEmpty(Mono.defer(() -> {
 					logger.debug(exchange.getLogPrefix() + "Resource not found");
-					return Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND));
+					return Mono.error(new NoResourceFoundException(getResourcePath(exchange)));
 				}))
 				.flatMap(resource -> {
 					try {
@@ -420,7 +435,9 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 						}
 
 						// Header phase
-						if (isUseLastModified() && exchange.checkNotModified(Instant.ofEpochMilli(resource.lastModified()))) {
+						String eTagValue = (this.getEtagGenerator() != null) ? this.getEtagGenerator().apply(resource) : null;
+						Instant lastModified = isUseLastModified() ? Instant.ofEpochMilli(resource.lastModified()) : Instant.MIN;
+						if (exchange.checkNotModified(eTagValue, lastModified)) {
 							logger.trace(exchange.getLogPrefix() + "Resource not modified");
 							return Mono.empty();
 						}
@@ -439,9 +456,9 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 						ResourceHttpMessageWriter writer = getResourceHttpMessageWriter();
 						Assert.state(writer != null, "No ResourceHttpMessageWriter");
 						if (HttpMethod.HEAD == httpMethod) {
-							writer.addHeaders(exchange.getResponse(), resource, mediaType,
-									Hints.from(Hints.LOG_PREFIX_HINT, exchange.getLogPrefix()));
-							return exchange.getResponse().setComplete();
+							return writer.addDefaultHeaders(exchange.getResponse(), resource, mediaType,
+											Hints.from(Hints.LOG_PREFIX_HINT, exchange.getLogPrefix()))
+									.then(exchange.getResponse().setComplete());
 						}
 						else {
 							return writer.write(Mono.just(resource),
@@ -456,13 +473,11 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 				});
 	}
 
+	@SuppressWarnings("NullAway") // Lambda
 	protected Mono<Resource> getResource(ServerWebExchange exchange) {
 		String rawPath = getResourcePath(exchange);
 		String path = processPath(rawPath);
-		if (!StringUtils.hasText(path) || isInvalidPath(path)) {
-			return Mono.empty();
-		}
-		if (isInvalidEncodedPath(path)) {
+		if (ResourceHandlerUtils.shouldIgnoreInputPath(path) || isInvalidPath(path)) {
 			return Mono.empty();
 		}
 
@@ -484,136 +499,28 @@ public class ResourceWebHandler implements WebHandler, InitializingBean {
 
 	/**
 	 * Process the given resource path.
-	 * <p>The default implementation replaces:
-	 * <ul>
-	 * <li>Backslash with forward slash.
-	 * <li>Duplicate occurrences of slash with a single slash.
-	 * <li>Any combination of leading slash and control characters (00-1F and 7F)
-	 * with a single "/" or "". For example {@code "  / // foo/bar"}
-	 * becomes {@code "/foo/bar"}.
-	 * </ul>
+	 * <p>By default, this method delegates to {@link ResourceHandlerUtils#normalizeInputPath}.
 	 */
 	protected String processPath(String path) {
-		path = StringUtils.replace(path, "\\", "/");
-		path = cleanDuplicateSlashes(path);
-		return cleanLeadingSlash(path);
-	}
-
-	private String cleanDuplicateSlashes(String path) {
-		StringBuilder sb = null;
-		char prev = 0;
-		for (int i = 0; i < path.length(); i++) {
-			char curr = path.charAt(i);
-			try {
-				if (curr == '/' && prev == '/') {
-					if (sb == null) {
-						sb = new StringBuilder(path.substring(0, i));
-					}
-					continue;
-				}
-				if (sb != null) {
-					sb.append(path.charAt(i));
-				}
-			}
-			finally {
-				prev = curr;
-			}
-		}
-		return (sb != null ? sb.toString() : path);
-	}
-
-	private String cleanLeadingSlash(String path) {
-		boolean slash = false;
-		for (int i = 0; i < path.length(); i++) {
-			if (path.charAt(i) == '/') {
-				slash = true;
-			}
-			else if (path.charAt(i) > ' ' && path.charAt(i) != 127) {
-				if (i == 0 || (i == 1 && slash)) {
-					return path;
-				}
-				return (slash ? "/" + path.substring(i) : path.substring(i));
-			}
-		}
-		return (slash ? "/" : "");
+		return ResourceHandlerUtils.normalizeInputPath(path);
 	}
 
 	/**
-	 * Check whether the given path contains invalid escape sequences.
-	 * @param path the path to validate
-	 * @return {@code true} if the path is invalid, {@code false} otherwise
-	 */
-	private boolean isInvalidEncodedPath(String path) {
-		if (path.contains("%")) {
-			try {
-				// Use URLDecoder (vs UriUtils) to preserve potentially decoded UTF-8 chars
-				String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
-				if (isInvalidPath(decodedPath)) {
-					return true;
-				}
-				decodedPath = processPath(decodedPath);
-				if (isInvalidPath(decodedPath)) {
-					return true;
-				}
-			}
-			catch (IllegalArgumentException ex) {
-				// May not be possible to decode...
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * Identifies invalid resource paths. By default rejects:
-	 * <ul>
-	 * <li>Paths that contain "WEB-INF" or "META-INF"
-	 * <li>Paths that contain "../" after a call to
-	 * {@link StringUtils#cleanPath}.
-	 * <li>Paths that represent a {@link ResourceUtils#isUrl
-	 * valid URL} or would represent one after the leading slash is removed.
-	 * </ul>
-	 * <p><strong>Note:</strong> this method assumes that leading, duplicate '/'
-	 * or control characters (e.g. white space) have been trimmed so that the
-	 * path starts predictably with a single '/' or does not have one.
-	 * @param path the path to validate
-	 * @return {@code true} if the path is invalid, {@code false} otherwise
+	 * Invoked after {@link ResourceHandlerUtils#isInvalidPath(String)}
+	 * to allow subclasses to perform further validation.
+	 * <p>By default, this method does not perform any validations.
 	 */
 	protected boolean isInvalidPath(String path) {
-		if (path.contains("WEB-INF") || path.contains("META-INF")) {
-			if (logger.isWarnEnabled()) {
-				logger.warn(LogFormatUtils.formatValue(
-						"Path with \"WEB-INF\" or \"META-INF\": [" + path + "]", -1, true));
-			}
-			return true;
-		}
-		if (path.contains(":/")) {
-			String relativePath = (path.charAt(0) == '/' ? path.substring(1) : path);
-			if (ResourceUtils.isUrl(relativePath) || relativePath.startsWith("url:")) {
-				if (logger.isWarnEnabled()) {
-					logger.warn(LogFormatUtils.formatValue(
-							"Path represents URL or has \"url:\" prefix: [" + path + "]", -1, true));
-				}
-				return true;
-			}
-		}
-		if (path.contains("..") && StringUtils.cleanPath(path).contains("../")) {
-			if (logger.isWarnEnabled()) {
-				logger.warn(LogFormatUtils.formatValue(
-						"Path contains \"../\" after call to StringUtils#cleanPath: [" + path + "]", -1, true));
-			}
-			return true;
-		}
 		return false;
 	}
 
-	@Nullable
-	private MediaType getMediaType(Resource resource) {
+	private @Nullable MediaType getMediaType(Resource resource) {
 		MediaType mediaType = null;
 		String filename = resource.getFilename();
 		if (!CollectionUtils.isEmpty(this.mediaTypes)) {
 			String ext = StringUtils.getFilenameExtension(filename);
 			if (ext != null) {
-				mediaType = this.mediaTypes.get(ext.toLowerCase(Locale.ENGLISH));
+				mediaType = this.mediaTypes.get(ext.toLowerCase(Locale.ROOT));
 			}
 		}
 		if (mediaType == null) {

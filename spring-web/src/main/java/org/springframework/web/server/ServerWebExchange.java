@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Mono;
 
 import org.springframework.context.ApplicationContext;
@@ -29,7 +30,6 @@ import org.springframework.context.i18n.LocaleContext;
 import org.springframework.http.codec.multipart.Part;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.MultiValueMap;
 
@@ -75,8 +75,7 @@ public interface ServerWebExchange {
 	 * @return the attribute value
 	 */
 	@SuppressWarnings("unchecked")
-	@Nullable
-	default <T> T getAttribute(String name) {
+	default <T> @Nullable T getAttribute(String name) {
 		return (T) getAttributes().get(name);
 	}
 
@@ -142,6 +141,20 @@ public interface ServerWebExchange {
 	Mono<MultiValueMap<String, Part>> getMultipartData();
 
 	/**
+	 * Cleans up any storage used for multipart handling.
+	 * @since 6.0.10
+	 * @see Part#delete()
+	 */
+	default Mono<Void> cleanupMultipart() {
+		return getMultipartData()
+				.onErrorComplete()  // ignore errors reading multipart data
+				.flatMapIterable(Map::values)
+				.flatMapIterable(Function.identity())
+				.flatMap(part -> part.delete().onErrorComplete())
+				.then();
+	}
+
+	/**
 	 * Return the {@link LocaleContext} using the configured
 	 * {@link org.springframework.web.server.i18n.LocaleContextResolver}.
 	 */
@@ -154,8 +167,7 @@ public interface ServerWebExchange {
 	 * @since 5.0.3
 	 * @see org.springframework.web.server.adapter.WebHttpHandlerBuilder#applicationContext(ApplicationContext)
 	 */
-	@Nullable
-	ApplicationContext getApplicationContext();
+	@Nullable ApplicationContext getApplicationContext();
 
 	/**
 	 * Returns {@code true} if the one of the {@code checkNotModified} methods

@@ -19,7 +19,7 @@ package org.springframework.util;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Simple customizable helper class for creating new {@link Thread} instances.
@@ -41,8 +41,7 @@ public class CustomizableThreadCreator implements Serializable {
 
 	private boolean daemon = false;
 
-	@Nullable
-	private ThreadGroup threadGroup;
+	private @Nullable ThreadGroup threadGroup;
 
 	private final AtomicInteger threadCount = new AtomicInteger();
 
@@ -136,8 +135,7 @@ public class CustomizableThreadCreator implements Serializable {
 	 * Return the thread group that threads should be created in
 	 * (or {@code null} for the default group).
 	 */
-	@Nullable
-	public ThreadGroup getThreadGroup() {
+	public @Nullable ThreadGroup getThreadGroup() {
 		return this.threadGroup;
 	}
 
@@ -159,7 +157,7 @@ public class CustomizableThreadCreator implements Serializable {
 	/**
 	 * Return the thread name to use for a newly created {@link Thread}.
 	 * <p>The default implementation returns the specified thread name prefix
-	 * with an increasing thread count appended: e.g. "SimpleAsyncTaskExecutor-0".
+	 * with an increasing thread count appended: for example, "SimpleAsyncTaskExecutor-0".
 	 * @see #getThreadNamePrefix()
 	 */
 	protected String nextThreadName() {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,7 @@ import javax.xml.transform.stream.StreamSource;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.xml.sax.ContentHandler;
@@ -53,7 +54,6 @@ import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.ext.LexicalHandler;
 
-import org.springframework.lang.Nullable;
 import org.springframework.oxm.Marshaller;
 import org.springframework.oxm.Unmarshaller;
 import org.springframework.oxm.UnmarshallingFailureException;
@@ -82,10 +82,9 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 
 	private boolean processExternalEntities = false;
 
-	@Nullable
-	private DocumentBuilderFactory documentBuilderFactory;
+	private volatile @Nullable DocumentBuilderFactory documentBuilderFactory;
 
-	private final Object documentBuilderFactoryMonitor = new Object();
+	private volatile @Nullable SAXParserFactory saxParserFactory;
 
 
 	/**
@@ -94,6 +93,8 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 	 */
 	public void setSupportDtd(boolean supportDtd) {
 		this.supportDtd = supportDtd;
+		this.documentBuilderFactory = null;
+		this.saxParserFactory = null;
 	}
 
 	/**
@@ -118,6 +119,8 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 		if (processExternalEntities) {
 			this.supportDtd = true;
 		}
+		this.documentBuilderFactory = null;
+		this.saxParserFactory = null;
 	}
 
 	/**
@@ -137,14 +140,13 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 	 */
 	protected Document buildDocument() {
 		try {
-			DocumentBuilder documentBuilder;
-			synchronized (this.documentBuilderFactoryMonitor) {
-				if (this.documentBuilderFactory == null) {
-					this.documentBuilderFactory = createDocumentBuilderFactory();
-				}
-				documentBuilder = createDocumentBuilder(this.documentBuilderFactory);
+			DocumentBuilderFactory builderFactory = this.documentBuilderFactory;
+			if (builderFactory == null) {
+				builderFactory = createDocumentBuilderFactory();
+				this.documentBuilderFactory = builderFactory;
 			}
-			return documentBuilder.newDocument();
+			DocumentBuilder builder = createDocumentBuilder(builderFactory);
+			return builder.newDocument();
 		}
 		catch (ParserConfigurationException ex) {
 			throw new UnmarshallingFailureException("Could not create document placeholder: " + ex.getMessage(), ex);
@@ -179,11 +181,11 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 	protected DocumentBuilder createDocumentBuilder(DocumentBuilderFactory factory)
 			throws ParserConfigurationException {
 
-		DocumentBuilder documentBuilder = factory.newDocumentBuilder();
+		DocumentBuilder builder = factory.newDocumentBuilder();
 		if (!isProcessExternalEntities()) {
-			documentBuilder.setEntityResolver(NO_OP_ENTITY_RESOLVER);
+			builder.setEntityResolver(NO_OP_ENTITY_RESOLVER);
 		}
-		return documentBuilder;
+		return builder;
 	}
 
 	/**
@@ -193,11 +195,17 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 	 * @throws ParserConfigurationException if thrown by JAXP methods
 	 */
 	protected XMLReader createXmlReader() throws SAXException, ParserConfigurationException {
-		SAXParserFactory saxParserFactory = SAXParserFactory.newInstance();
-		saxParserFactory.setNamespaceAware(true);
-		saxParserFactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", !isSupportDtd());
-		saxParserFactory.setFeature("http://xml.org/sax/features/external-general-entities", isProcessExternalEntities());
-		SAXParser saxParser = saxParserFactory.newSAXParser();
+		SAXParserFactory parserFactory = this.saxParserFactory;
+		if (parserFactory == null) {
+			parserFactory = SAXParserFactory.newInstance();
+			parserFactory.setNamespaceAware(true);
+			parserFactory.setFeature(
+					"http://apache.org/xml/features/disallow-doctype-decl", !isSupportDtd());
+			parserFactory.setFeature(
+					"http://xml.org/sax/features/external-general-entities", isProcessExternalEntities());
+			this.saxParserFactory = parserFactory;
+		}
+		SAXParser saxParser = parserFactory.newSAXParser();
 		XMLReader xmlReader = saxParser.getXMLReader();
 		if (!isProcessExternalEntities()) {
 			xmlReader.setEntityResolver(NO_OP_ENTITY_RESOLVER);
@@ -210,8 +218,7 @@ public abstract class AbstractMarshaller implements Marshaller, Unmarshaller {
 	 * a byte stream, or {@code null} if none.
 	 * <p>The default implementation returns {@code null}.
 	 */
-	@Nullable
-	protected String getDefaultEncoding() {
+	protected @Nullable String getDefaultEncoding() {
 		return null;
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,14 @@ package org.springframework.http.converter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Type;
+import java.nio.charset.Charset;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpOutputMessage;
 import org.springframework.http.MediaType;
 import org.springframework.http.StreamingHttpOutputMessage;
-import org.springframework.lang.Nullable;
 
 /**
  * Abstract base class for most {@link GenericHttpMessageConverter} implementations.
@@ -60,6 +62,17 @@ public abstract class AbstractGenericHttpMessageConverter<T> extends AbstractHtt
 		super(supportedMediaTypes);
 	}
 
+	/**
+	 * Construct an {@code AbstractGenericHttpMessageConverter} with a default charset and
+	 * multiple supported media types.
+	 * @param defaultCharset the default character set
+	 * @param supportedMediaTypes the supported media types
+	 * @since 6.2
+	 */
+	protected AbstractGenericHttpMessageConverter(Charset defaultCharset, MediaType... supportedMediaTypes) {
+		super(defaultCharset, supportedMediaTypes);
+	}
+
 
 	@Override
 	protected boolean supports(Class<?> clazz) {
@@ -81,23 +94,34 @@ public abstract class AbstractGenericHttpMessageConverter<T> extends AbstractHtt
 	 * and then calls {@link #writeInternal}.
 	 */
 	@Override
-	public final void write(final T t, @Nullable final Type type, @Nullable MediaType contentType,
+	public final void write(final T t, final @Nullable Type type, @Nullable MediaType contentType,
 			HttpOutputMessage outputMessage) throws IOException, HttpMessageNotWritableException {
 
 		final HttpHeaders headers = outputMessage.getHeaders();
 		addDefaultHeaders(headers, t, contentType);
 
 		if (outputMessage instanceof StreamingHttpOutputMessage streamingOutputMessage) {
-			streamingOutputMessage.setBody(outputStream -> writeInternal(t, type, new HttpOutputMessage() {
+			streamingOutputMessage.setBody(new StreamingHttpOutputMessage.Body() {
 				@Override
-				public OutputStream getBody() {
-					return outputStream;
+				public void writeTo(OutputStream outputStream) throws IOException {
+					writeInternal(t, type, new HttpOutputMessage() {
+						@Override
+						public OutputStream getBody() {
+							return outputStream;
+						}
+
+						@Override
+						public HttpHeaders getHeaders() {
+							return headers;
+						}
+					});
 				}
+
 				@Override
-				public HttpHeaders getHeaders() {
-					return headers;
+				public boolean repeatable() {
+					return supportsRepeatableWrites(t);
 				}
-			}));
+			});
 		}
 		else {
 			writeInternal(t, type, outputMessage);

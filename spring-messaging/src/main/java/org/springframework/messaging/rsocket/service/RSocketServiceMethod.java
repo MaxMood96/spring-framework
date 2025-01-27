@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
@@ -34,10 +35,10 @@ import org.springframework.core.ReactiveAdapter;
 import org.springframework.core.ReactiveAdapterRegistry;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.core.annotation.SynthesizingMethodParameter;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.rsocket.RSocketRequester;
 import org.springframework.messaging.rsocket.RSocketStrategies;
 import org.springframework.util.Assert;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.MimeType;
 import org.springframework.util.StringUtils;
 import org.springframework.util.StringValueResolver;
@@ -58,8 +59,7 @@ final class RSocketServiceMethod {
 
 	private final List<RSocketServiceArgumentResolver> argumentResolvers;
 
-	@Nullable
-	private final String route;
+	private final @Nullable String route;
 
 	private final Function<RSocketRequestValues, Object> responseFunction;
 
@@ -90,8 +90,8 @@ final class RSocketServiceMethod {
 		return parameters;
 	}
 
-	@Nullable
-	private static String initRoute(
+	@SuppressWarnings("NullAway") // Dataflow analysis limitation
+	private static @Nullable String initRoute(
 			Method method, Class<?> containingClass, RSocketStrategies strategies,
 			@Nullable StringValueResolver embeddedValueResolver) {
 
@@ -134,9 +134,7 @@ final class RSocketServiceMethod {
 		Class<?> actualType = actualParam.getNestedParameterType();
 
 		Function<RSocketRequestValues, Publisher<?>> responseFunction;
-		if (actualType.equals(void.class) || actualType.equals(Void.class) ||
-				(reactiveAdapter != null && reactiveAdapter.isNoValue())) {
-
+		if (ClassUtils.isVoidType(actualType) || (reactiveAdapter != null && reactiveAdapter.isNoValue())) {
 			responseFunction = values -> {
 				RSocketRequester.RetrieveSpec retrieveSpec = initRequest(requester, values);
 				return (values.getPayload() == null && values.getPayloadValue() == null ?
@@ -217,14 +215,13 @@ final class RSocketServiceMethod {
 		return this.method;
 	}
 
-	@Nullable
-	public Object invoke(Object[] arguments) {
+	public @Nullable Object invoke(@Nullable Object[] arguments) {
 		RSocketRequestValues.Builder requestValues = RSocketRequestValues.builder(this.route);
 		applyArguments(requestValues, arguments);
 		return this.responseFunction.apply(requestValues.build());
 	}
 
-	private void applyArguments(RSocketRequestValues.Builder requestValues, Object[] arguments) {
+	private void applyArguments(RSocketRequestValues.Builder requestValues, @Nullable Object[] arguments) {
 		Assert.isTrue(arguments.length == this.parameters.length, "Method argument mismatch");
 		for (int i = 0; i < arguments.length; i++) {
 			Object value = arguments[i];

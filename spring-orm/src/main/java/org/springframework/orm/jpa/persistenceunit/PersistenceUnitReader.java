@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import jakarta.persistence.ValidationMode;
 import jakarta.persistence.spi.PersistenceUnitTransactionType;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.xml.sax.ErrorHandler;
@@ -39,7 +40,6 @@ import org.xml.sax.SAXException;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.jdbc.datasource.lookup.DataSourceLookup;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
@@ -154,9 +154,12 @@ final class PersistenceUnitReader {
 	/**
 	 * Validate the given stream and return a valid DOM document for parsing.
 	 */
-	protected Document buildDocument(ErrorHandler handler, InputStream stream)
+	Document buildDocument(ErrorHandler handler, InputStream stream)
 			throws ParserConfigurationException, SAXException, IOException {
 
+		// This document loader is used for loading application configuration files.
+		// As a result, attackers would need complete write access to application configuration
+		// to leverage XXE attacks. This does not qualify as privilege escalation.
 		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
 		dbf.setNamespaceAware(true);
 		DocumentBuilder parser = dbf.newDocumentBuilder();
@@ -168,9 +171,7 @@ final class PersistenceUnitReader {
 	/**
 	 * Parse the validated document and add entries to the given unit info list.
 	 */
-	protected List<SpringPersistenceUnitInfo> parseDocument(
-			Resource resource, Document document, List<SpringPersistenceUnitInfo> infos) throws IOException {
-
+	void parseDocument(Resource resource, Document document, List<SpringPersistenceUnitInfo> infos) throws IOException {
 		Element persistence = document.getDocumentElement();
 		String version = persistence.getAttribute(PERSISTENCE_VERSION);
 		URL rootUrl = determinePersistenceUnitRootUrl(resource);
@@ -179,14 +180,13 @@ final class PersistenceUnitReader {
 		for (Element unit : units) {
 			infos.add(parsePersistenceUnitInfo(unit, version, rootUrl));
 		}
-
-		return infos;
 	}
 
 	/**
 	 * Parse the unit info DOM element.
 	 */
-	protected SpringPersistenceUnitInfo parsePersistenceUnitInfo(
+	@SuppressWarnings("removal")
+	SpringPersistenceUnitInfo parsePersistenceUnitInfo(
 			Element persistenceUnit, String version, @Nullable URL rootUrl) throws IOException {
 
 		SpringPersistenceUnitInfo unitInfo = new SpringPersistenceUnitInfo();
@@ -253,7 +253,7 @@ final class PersistenceUnitReader {
 	/**
 	 * Parse the {@code property} XML elements.
 	 */
-	protected void parseProperties(Element persistenceUnit, SpringPersistenceUnitInfo unitInfo) {
+	void parseProperties(Element persistenceUnit, SpringPersistenceUnitInfo unitInfo) {
 		Element propRoot = DomUtils.getChildElementByTagName(persistenceUnit, PROPERTIES);
 		if (propRoot == null) {
 			return;
@@ -269,7 +269,7 @@ final class PersistenceUnitReader {
 	/**
 	 * Parse the {@code class} XML elements.
 	 */
-	protected void parseManagedClasses(Element persistenceUnit, SpringPersistenceUnitInfo unitInfo) {
+	void parseManagedClasses(Element persistenceUnit, SpringPersistenceUnitInfo unitInfo) {
 		List<Element> classes = DomUtils.getChildElementsByTagName(persistenceUnit, MANAGED_CLASS_NAME);
 		for (Element element : classes) {
 			String value = DomUtils.getTextValue(element).trim();
@@ -282,7 +282,7 @@ final class PersistenceUnitReader {
 	/**
 	 * Parse the {@code mapping-file} XML elements.
 	 */
-	protected void parseMappingFiles(Element persistenceUnit, SpringPersistenceUnitInfo unitInfo) {
+	void parseMappingFiles(Element persistenceUnit, SpringPersistenceUnitInfo unitInfo) {
 		List<Element> files = DomUtils.getChildElementsByTagName(persistenceUnit, MAPPING_FILE_NAME);
 		for (Element element : files) {
 			String value = DomUtils.getTextValue(element).trim();
@@ -295,7 +295,7 @@ final class PersistenceUnitReader {
 	/**
 	 * Parse the {@code jar-file} XML elements.
 	 */
-	protected void parseJarFiles(Element persistenceUnit, SpringPersistenceUnitInfo unitInfo) throws IOException {
+	void parseJarFiles(Element persistenceUnit, SpringPersistenceUnitInfo unitInfo) throws IOException {
 		List<Element> jars = DomUtils.getChildElementsByTagName(persistenceUnit, JAR_FILE_URL);
 		for (Element element : jars) {
 			String value = DomUtils.getTextValue(element).trim();
@@ -331,8 +331,7 @@ final class PersistenceUnitReader {
 	 * @return the corresponding persistence unit root URL
 	 * @throws IOException if the checking failed
 	 */
-	@Nullable
-	static URL determinePersistenceUnitRootUrl(Resource resource) throws IOException {
+	static @Nullable URL determinePersistenceUnitRootUrl(Resource resource) throws IOException {
 		URL originalURL = resource.getURL();
 
 		// If we get an archive, simply return the jar URL (section 6.2 from the JPA spec)

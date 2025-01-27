@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,12 @@ package org.springframework.jdbc.core.namedparam;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.jdbc.core.SqlParameterValue;
-import org.springframework.lang.Nullable;
 
 /**
  * Class that provides helper methods for the use of {@link SqlParameterSource},
@@ -59,7 +61,7 @@ public abstract class SqlParameterSourceUtils {
 	 * @see BeanPropertySqlParameterSource
 	 * @see NamedParameterJdbcTemplate#batchUpdate(String, SqlParameterSource[])
 	 */
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings({"rawtypes", "unchecked"})
 	public static SqlParameterSource[] createBatch(Collection<?> candidates) {
 		SqlParameterSource[] batch = new SqlParameterSource[candidates.size()];
 		int i = 0;
@@ -94,8 +96,7 @@ public abstract class SqlParameterSourceUtils {
 	 * @return the value object
 	 * @see SqlParameterValue
 	 */
-	@Nullable
-	public static Object getTypedValue(SqlParameterSource source, String parameterName) {
+	public static @Nullable Object getTypedValue(SqlParameterSource source, String parameterName) {
 		int sqlType = source.getSqlType(parameterName);
 		if (sqlType != SqlParameterSource.TYPE_UNKNOWN) {
 			return new SqlParameterValue(sqlType, source.getTypeName(parameterName), source.getValue(parameterName));
@@ -115,7 +116,7 @@ public abstract class SqlParameterSourceUtils {
 		String[] paramNames = parameterSource.getParameterNames();
 		if (paramNames != null) {
 			for (String name : paramNames) {
-				caseInsensitiveParameterNames.put(name.toLowerCase(), name);
+				caseInsensitiveParameterNames.put(name.toLowerCase(Locale.ROOT), name);
 			}
 		}
 		return caseInsensitiveParameterNames;

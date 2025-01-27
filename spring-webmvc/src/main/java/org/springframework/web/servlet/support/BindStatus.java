@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,13 @@ package org.springframework.web.servlet.support;
 import java.beans.PropertyEditor;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.PropertyAccessorFactory;
 import org.springframework.context.NoSuchMessageException;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
@@ -55,41 +57,32 @@ public class BindStatus {
 
 	private final boolean htmlEscape;
 
-	@Nullable
-	private final String expression;
+	private final @Nullable String expression;
 
-	@Nullable
-	private final Errors errors;
+	private final @Nullable Errors errors;
 
-	private final String[] errorCodes;
+	private final @Nullable String[] errorCodes;
 
-	@Nullable
-	private String[] errorMessages;
+	private String @Nullable [] errorMessages;
 
-	@Nullable
-	private List<? extends ObjectError> objectErrors;
+	private @Nullable List<? extends ObjectError> objectErrors;
 
-	@Nullable
-	private Object value;
+	private @Nullable Object value;
 
-	@Nullable
-	private Class<?> valueType;
+	private @Nullable Class<?> valueType;
 
-	@Nullable
-	private Object actualValue;
+	private @Nullable Object actualValue;
 
-	@Nullable
-	private PropertyEditor editor;
+	private @Nullable PropertyEditor editor;
 
-	@Nullable
-	private BindingResult bindingResult;
+	private @Nullable BindingResult bindingResult;
 
 
 	/**
 	 * Create a new BindStatus instance, representing a field or object status.
 	 * @param requestContext the current RequestContext
 	 * @param path the bean and property path for which values and errors
-	 * will be resolved (e.g. "customer.address.street")
+	 * will be resolved (for example, "customer.address.street")
 	 * @param htmlEscape whether to HTML-escape error messages and string values
 	 * @throws IllegalStateException if no corresponding Errors object found
 	 */
@@ -171,8 +164,8 @@ public class BindStatus {
 	/**
 	 * Extract the error codes from the ObjectError list.
 	 */
-	private static String[] initErrorCodes(List<? extends ObjectError> objectErrors) {
-		String[] errorCodes = new String[objectErrors.size()];
+	private static @Nullable String[] initErrorCodes(List<? extends ObjectError> objectErrors) {
+		@Nullable String[] errorCodes = new String[objectErrors.size()];
 		for (int i = 0; i < objectErrors.size(); i++) {
 			ObjectError error = objectErrors.get(i);
 			errorCodes[i] = error.getCode();
@@ -183,7 +176,7 @@ public class BindStatus {
 
 	/**
 	 * Return the bean and property path for which values and errors
-	 * will be resolved (e.g. "customer.address.street").
+	 * will be resolved (for example, "customer.address.street").
 	 */
 	public String getPath() {
 		return this.path;
@@ -192,12 +185,11 @@ public class BindStatus {
 	/**
 	 * Return a bind expression that can be used in HTML forms as input name
 	 * for the respective field, or {@code null} if not field-specific.
-	 * <p>Returns a bind path appropriate for resubmission, e.g. "address.street".
+	 * <p>Returns a bind path appropriate for resubmission, for example, "address.street".
 	 * Note that the complete bind path as required by the bind tag is
 	 * "customer.address.street", if bound to a "customer" bean.
 	 */
-	@Nullable
-	public String getExpression() {
+	public @Nullable String getExpression() {
 		return this.expression;
 	}
 
@@ -207,8 +199,7 @@ public class BindStatus {
 	 * <p>This value will be an HTML-escaped String if the original value
 	 * already was a String.
 	 */
-	@Nullable
-	public Object getValue() {
+	public @Nullable Object getValue() {
 		return this.value;
 	}
 
@@ -217,8 +208,7 @@ public class BindStatus {
 	 * '{@code getValue().getClass()}' since '{@code getValue()}' may
 	 * return '{@code null}'.
 	 */
-	@Nullable
-	public Class<?> getValueType() {
+	public @Nullable Class<?> getValueType() {
 		return this.valueType;
 	}
 
@@ -226,8 +216,7 @@ public class BindStatus {
 	 * Return the actual value of the field, i.e. the raw property value,
 	 * or {@code null} if not available.
 	 */
-	@Nullable
-	public Object getActualValue() {
+	public @Nullable Object getActualValue() {
 		return this.actualValue;
 	}
 
@@ -259,7 +248,7 @@ public class BindStatus {
 	 * Return the error codes for the field or object, if any.
 	 * Returns an empty array instead of null if none.
 	 */
-	public String[] getErrorCodes() {
+	public @Nullable String[] getErrorCodes() {
 		return this.errorCodes;
 	}
 
@@ -267,7 +256,8 @@ public class BindStatus {
 	 * Return the first error codes for the field or object, if any.
 	 */
 	public String getErrorCode() {
-		return (this.errorCodes.length > 0 ? this.errorCodes[0] : "");
+		return (this.errorCodes.length > 0 ? Objects.requireNonNull(this.errorCodes[0],
+				"Error code must not be null") : "");
 	}
 
 	/**
@@ -289,7 +279,7 @@ public class BindStatus {
 	/**
 	 * Return an error message string, concatenating all messages
 	 * separated by the given delimiter.
-	 * @param delimiter separator string, e.g. ", " or "<br>"
+	 * @param delimiter separator string, for example, ", " or "<br>"
 	 * @return the error message string
 	 */
 	public String getErrorMessagesAsString(String delimiter) {
@@ -321,8 +311,7 @@ public class BindStatus {
 	 * @return the current Errors instance, or {@code null} if none
 	 * @see org.springframework.validation.BindingResult
 	 */
-	@Nullable
-	public Errors getErrors() {
+	public @Nullable Errors getErrors() {
 		return this.errors;
 	}
 
@@ -331,8 +320,7 @@ public class BindStatus {
 	 * is currently bound to.
 	 * @return the current PropertyEditor, or {@code null} if none
 	 */
-	@Nullable
-	public PropertyEditor getEditor() {
+	public @Nullable PropertyEditor getEditor() {
 		return this.editor;
 	}
 
@@ -342,8 +330,7 @@ public class BindStatus {
 	 * @param valueClass the value class that an editor is needed for
 	 * @return the associated PropertyEditor, or {@code null} if none
 	 */
-	@Nullable
-	public PropertyEditor findEditor(Class<?> valueClass) {
+	public @Nullable PropertyEditor findEditor(Class<?> valueClass) {
 		return (this.bindingResult != null ? this.bindingResult.findEditor(this.expression, valueClass) : null);
 	}
 

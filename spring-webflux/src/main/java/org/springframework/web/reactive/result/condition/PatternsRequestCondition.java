@@ -26,8 +26,9 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.http.server.PathContainer;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.pattern.PathPattern;
@@ -89,8 +90,12 @@ public final class PatternsRequestCondition extends AbstractRequestCondition<Pat
 		return " || ";
 	}
 
-	private boolean isEmptyPathMapping() {
-		return this.patterns == EMPTY_PATH_PATTERN;
+	/**
+	 * Whether the condition is the "" (empty path) mapping.
+	 * @since 6.0.10
+	 */
+	public boolean isEmptyPathMapping() {
+		return (this.patterns == EMPTY_PATH_PATTERN);
 	}
 
 	/**
@@ -151,14 +156,12 @@ public final class PatternsRequestCondition extends AbstractRequestCondition<Pat
 	 * or {@code null} if no patterns match.
 	 */
 	@Override
-	@Nullable
-	public PatternsRequestCondition getMatchingCondition(ServerWebExchange exchange) {
+	public @Nullable PatternsRequestCondition getMatchingCondition(ServerWebExchange exchange) {
 		SortedSet<PathPattern> matches = getMatchingPatterns(exchange);
 		return (matches != null ? new PatternsRequestCondition(matches) : null);
 	}
 
-	@Nullable
-	private SortedSet<PathPattern> getMatchingPatterns(ServerWebExchange exchange) {
+	private @Nullable SortedSet<PathPattern> getMatchingPatterns(ServerWebExchange exchange) {
 		PathContainer lookupPath = exchange.getRequest().getPath().pathWithinApplication();
 		TreeSet<PathPattern> result = null;
 		for (PathPattern pattern : this.patterns) {

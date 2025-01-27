@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,13 +23,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 
-import org.springframework.core.task.AsyncListenableTaskExecutor;
+import org.jspecify.annotations.Nullable;
+
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.core.task.TaskDecorator;
 import org.springframework.core.task.TaskRejectedException;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
-import org.springframework.util.concurrent.ListenableFuture;
-import org.springframework.util.concurrent.ListenableFutureTask;
 
 /**
  * Adapter that takes a JDK {@code java.util.concurrent.Executor} and
@@ -44,12 +43,11 @@ import org.springframework.util.concurrent.ListenableFutureTask;
  * @see java.util.concurrent.Executors
  */
 @SuppressWarnings("deprecation")
-public class TaskExecutorAdapter implements AsyncListenableTaskExecutor {
+public class TaskExecutorAdapter implements AsyncTaskExecutor {
 
 	private final Executor concurrentExecutor;
 
-	@Nullable
-	private TaskDecorator taskDecorator;
+	private @Nullable TaskDecorator taskDecorator;
 
 
 	/**
@@ -93,8 +91,7 @@ public class TaskExecutorAdapter implements AsyncListenableTaskExecutor {
 			doExecute(this.concurrentExecutor, this.taskDecorator, task);
 		}
 		catch (RejectedExecutionException ex) {
-			throw new TaskRejectedException(
-					"Executor [" + this.concurrentExecutor + "] did not accept task: " + task, ex);
+			throw new TaskRejectedException(this.concurrentExecutor, task, ex);
 		}
 	}
 
@@ -112,8 +109,7 @@ public class TaskExecutorAdapter implements AsyncListenableTaskExecutor {
 			}
 		}
 		catch (RejectedExecutionException ex) {
-			throw new TaskRejectedException(
-					"Executor [" + this.concurrentExecutor + "] did not accept task: " + task, ex);
+			throw new TaskRejectedException(this.concurrentExecutor, task, ex);
 		}
 	}
 
@@ -131,34 +127,7 @@ public class TaskExecutorAdapter implements AsyncListenableTaskExecutor {
 			}
 		}
 		catch (RejectedExecutionException ex) {
-			throw new TaskRejectedException(
-					"Executor [" + this.concurrentExecutor + "] did not accept task: " + task, ex);
-		}
-	}
-
-	@Override
-	public ListenableFuture<?> submitListenable(Runnable task) {
-		try {
-			ListenableFutureTask<Object> future = new ListenableFutureTask<>(task, null);
-			doExecute(this.concurrentExecutor, this.taskDecorator, future);
-			return future;
-		}
-		catch (RejectedExecutionException ex) {
-			throw new TaskRejectedException(
-					"Executor [" + this.concurrentExecutor + "] did not accept task: " + task, ex);
-		}
-	}
-
-	@Override
-	public <T> ListenableFuture<T> submitListenable(Callable<T> task) {
-		try {
-			ListenableFutureTask<T> future = new ListenableFutureTask<>(task);
-			doExecute(this.concurrentExecutor, this.taskDecorator, future);
-			return future;
-		}
-		catch (RejectedExecutionException ex) {
-			throw new TaskRejectedException(
-					"Executor [" + this.concurrentExecutor + "] did not accept task: " + task, ex);
+			throw new TaskRejectedException(this.concurrentExecutor, task, ex);
 		}
 	}
 

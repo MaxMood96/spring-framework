@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,11 +23,14 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.util.Set;
+import java.util.function.BiConsumer;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.lang.Nullable;
 
 /**
  * Resource-based implementation of {@link HandlerFunction}.
@@ -43,9 +46,12 @@ class ResourceHandlerFunction implements HandlerFunction<ServerResponse> {
 
 	private final Resource resource;
 
+	private final BiConsumer<Resource, HttpHeaders> headersConsumer;
 
-	public ResourceHandlerFunction(Resource resource) {
+
+	public ResourceHandlerFunction(Resource resource, BiConsumer<Resource, HttpHeaders> headersConsumer) {
 		this.resource = resource;
+		this.headersConsumer = headersConsumer;
 	}
 
 
@@ -53,11 +59,15 @@ class ResourceHandlerFunction implements HandlerFunction<ServerResponse> {
 	public ServerResponse handle(ServerRequest request) {
 		HttpMethod method = request.method();
 		if (HttpMethod.GET.equals(method)) {
-			return EntityResponse.fromObject(this.resource).build();
+			return EntityResponse.fromObject(this.resource)
+					.headers(headers -> this.headersConsumer.accept(this.resource, headers))
+					.build();
 		}
 		else if (HttpMethod.HEAD.equals(method)) {
 			Resource headResource = new HeadMethodResource(this.resource);
-			return EntityResponse.fromObject(headResource).build();
+			return EntityResponse.fromObject(headResource)
+					.headers(headers -> this.headersConsumer.accept(this.resource, headers))
+					.build();
 		}
 		else if (HttpMethod.OPTIONS.equals(method)) {
 			return ServerResponse.ok()
@@ -121,8 +131,7 @@ class ResourceHandlerFunction implements HandlerFunction<ServerResponse> {
 		}
 
 		@Override
-		@Nullable
-		public String getFilename() {
+		public @Nullable String getFilename() {
 			return this.delegate.getFilename();
 		}
 

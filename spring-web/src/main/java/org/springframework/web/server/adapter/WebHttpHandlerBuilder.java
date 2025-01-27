@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import io.micrometer.observation.ObservationRegistry;
+import org.jspecify.annotations.Nullable;
 import reactor.blockhound.BlockHound;
 import reactor.blockhound.integration.BlockHoundIntegration;
 
@@ -34,7 +35,6 @@ import org.springframework.http.server.reactive.HttpHandler;
 import org.springframework.http.server.reactive.HttpHandlerDecoratorFactory;
 import org.springframework.http.server.reactive.observation.DefaultServerRequestObservationConvention;
 import org.springframework.http.server.reactive.observation.ServerRequestObservationConvention;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.server.ServerWebExchange;
@@ -85,33 +85,25 @@ public final class WebHttpHandlerBuilder {
 
 	private final WebHandler webHandler;
 
-	@Nullable
-	private final ApplicationContext applicationContext;
+	private final @Nullable ApplicationContext applicationContext;
 
 	private final List<WebFilter> filters = new ArrayList<>();
 
 	private final List<WebExceptionHandler> exceptionHandlers = new ArrayList<>();
 
-	@Nullable
-	private Function<HttpHandler, HttpHandler> httpHandlerDecorator;
+	private @Nullable Function<HttpHandler, HttpHandler> httpHandlerDecorator;
 
-	@Nullable
-	private WebSessionManager sessionManager;
+	private @Nullable WebSessionManager sessionManager;
 
-	@Nullable
-	private ServerCodecConfigurer codecConfigurer;
+	private @Nullable ServerCodecConfigurer codecConfigurer;
 
-	@Nullable
-	private LocaleContextResolver localeContextResolver;
+	private @Nullable LocaleContextResolver localeContextResolver;
 
-	@Nullable
-	private ForwardedHeaderTransformer forwardedHeaderTransformer;
+	private @Nullable ForwardedHeaderTransformer forwardedHeaderTransformer;
 
-	@Nullable
-	private ObservationRegistry observationRegistry;
+	private @Nullable ObservationRegistry observationRegistry;
 
-	@Nullable
-	private ServerRequestObservationConvention observationConvention;
+	private @Nullable ServerRequestObservationConvention observationConvention;
 
 
 	/**
@@ -162,6 +154,10 @@ public final class WebHttpHandlerBuilder {
 	 * ordered.
 	 * <li>{@link HttpHandlerDecoratorFactory} [0..N] -- detected by type and
 	 * ordered.
+	 * <li>{@link ObservationRegistry} -- detected by type and
+	 * configured if unique.
+	 * <li>{@link ServerRequestObservationConvention} -- detected by type and
+	 * configured if unique.
 	 * <li>{@link WebSessionManager} [0..1] -- looked up by the name
 	 * {@link #WEB_SESSION_MANAGER_BEAN_NAME}.
 	 * <li>{@link ServerCodecConfigurer} [0..1] -- looked up by the name
@@ -192,6 +188,9 @@ public final class WebHttpHandlerBuilder {
 		context.getBeanProvider(HttpHandlerDecoratorFactory.class)
 				.orderedStream()
 				.forEach(builder::httpHandlerDecorator);
+
+		context.getBeanProvider(ObservationRegistry.class).ifUnique(builder::observationRegistry);
+		context.getBeanProvider(ServerRequestObservationConvention.class).ifAvailable(builder::observationConvention);
 
 		try {
 			builder.sessionManager(
@@ -236,7 +235,6 @@ public final class WebHttpHandlerBuilder {
 	public WebHttpHandlerBuilder filter(WebFilter... filters) {
 		if (!ObjectUtils.isEmpty(filters)) {
 			this.filters.addAll(Arrays.asList(filters));
-			updateFilters();
 		}
 		return this;
 	}
@@ -247,27 +245,7 @@ public final class WebHttpHandlerBuilder {
 	 */
 	public WebHttpHandlerBuilder filters(Consumer<List<WebFilter>> consumer) {
 		consumer.accept(this.filters);
-		updateFilters();
 		return this;
-	}
-
-	private void updateFilters() {
-		if (this.filters.isEmpty()) {
-			return;
-		}
-
-		List<WebFilter> filtersToUse = this.filters.stream()
-				.peek(filter -> {
-					if (filter instanceof ForwardedHeaderTransformer forwardedHeaderTransformerFilter
-							&& this.forwardedHeaderTransformer == null) {
-						this.forwardedHeaderTransformer = forwardedHeaderTransformerFilter;
-					}
-				})
-				.filter(filter -> !(filter instanceof ForwardedHeaderTransformer))
-				.toList();
-
-		this.filters.clear();
-		this.filters.addAll(filtersToUse);
 	}
 
 	/**
@@ -371,7 +349,7 @@ public final class WebHttpHandlerBuilder {
 	}
 
 	/**
-	 * Configure a {@link ObservationRegistry} for recording server exchange observations.
+	 * Configure an {@link ObservationRegistry} for recording server exchange observations.
 	 * By default, a {@link ObservationRegistry#NOOP no-op} registry will be configured.
 	 * @param observationRegistry the observation registry
 	 * @since 6.1
@@ -422,7 +400,7 @@ public final class WebHttpHandlerBuilder {
 	 */
 	public HttpHandler build() {
 		WebHandler decorated = new FilteringWebHandler(this.webHandler, this.filters);
-		decorated = new ExceptionHandlingWebHandler(decorated,  this.exceptionHandlers);
+		decorated = new ExceptionHandlingWebHandler(decorated, this.exceptionHandlers);
 
 		HttpWebHandlerAdapter adapted = new HttpWebHandlerAdapter(decorated);
 		if (this.sessionManager != null) {

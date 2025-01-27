@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,11 @@ package org.springframework.web;
 import java.net.URI;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 
@@ -38,67 +39,60 @@ final class DefaultErrorResponseBuilder implements ErrorResponse.Builder {
 
 	private final HttpStatusCode statusCode;
 
-	@Nullable
-	private HttpHeaders headers;
+	private @Nullable HttpHeaders headers;
 
 	private final ProblemDetail problemDetail;
 
-	private String detailMessageCode;
-
-	@Nullable
-	private Object[] detailMessageArguments;
+	private String typeMessageCode;
 
 	private String titleMessageCode;
 
+	private String detailMessageCode;
 
-	DefaultErrorResponseBuilder(Throwable ex, HttpStatusCode statusCode, String detail) {
+	private Object @Nullable [] detailMessageArguments;
+
+
+	DefaultErrorResponseBuilder(Throwable ex, ProblemDetail problemDetail) {
 		Assert.notNull(ex, "Throwable is required");
-		Assert.notNull(statusCode, "HttpStatusCode is required");
-		Assert.notNull(detail, "`detail` is required");
 		this.exception = ex;
-		this.statusCode = statusCode;
-		this.problemDetail = ProblemDetail.forStatusAndDetail(statusCode, detail);
-		this.detailMessageCode = ErrorResponse.getDefaultDetailMessageCode(ex.getClass(), null);
+		this.statusCode = HttpStatusCode.valueOf(problemDetail.getStatus());
+		this.problemDetail = problemDetail;
+		this.typeMessageCode = ErrorResponse.getDefaultTypeMessageCode(ex.getClass());
 		this.titleMessageCode = ErrorResponse.getDefaultTitleMessageCode(ex.getClass());
+		this.detailMessageCode = ErrorResponse.getDefaultDetailMessageCode(ex.getClass(), null);
 	}
 
 
 	@Override
 	public ErrorResponse.Builder header(String headerName, String... headerValues) {
-		this.headers = (this.headers != null ? this.headers : new HttpHeaders());
 		for (String headerValue : headerValues) {
-			this.headers.add(headerName, headerValue);
+			getHeaders().add(headerName, headerValue);
 		}
 		return this;
 	}
 
 	@Override
 	public ErrorResponse.Builder headers(Consumer<HttpHeaders> headersConsumer) {
+		headersConsumer.accept(getHeaders());
 		return this;
 	}
 
-	@Override
-	public ErrorResponse.Builder detail(String detail) {
-		this.problemDetail.setDetail(detail);
-		return this;
-	}
-
-	@Override
-	public ErrorResponse.Builder detailMessageCode(String messageCode) {
-		Assert.notNull(messageCode, "`detailMessageCode` is required");
-		this.detailMessageCode = messageCode;
-		return this;
-	}
-
-	@Override
-	public ErrorResponse.Builder detailMessageArguments(Object... messageArguments) {
-		this.detailMessageArguments = messageArguments;
-		return this;
+	private HttpHeaders getHeaders() {
+		if (this.headers == null) {
+			this.headers = new HttpHeaders();
+		}
+		return this.headers;
 	}
 
 	@Override
 	public ErrorResponse.Builder type(URI type) {
 		this.problemDetail.setType(type);
+		return this;
+	}
+
+	@Override
+	public ErrorResponse.Builder typeMessageCode(String messageCode) {
+		this.typeMessageCode = messageCode;
 		return this;
 	}
 
@@ -122,6 +116,25 @@ final class DefaultErrorResponseBuilder implements ErrorResponse.Builder {
 	}
 
 	@Override
+	public ErrorResponse.Builder detail(String detail) {
+		this.problemDetail.setDetail(detail);
+		return this;
+	}
+
+	@Override
+	public ErrorResponse.Builder detailMessageCode(String messageCode) {
+		Assert.notNull(messageCode, "`detailMessageCode` is required");
+		this.detailMessageCode = messageCode;
+		return this;
+	}
+
+	@Override
+	public ErrorResponse.Builder detailMessageArguments(Object... messageArguments) {
+		this.detailMessageArguments = messageArguments;
+		return this;
+	}
+
+	@Override
 	public ErrorResponse.Builder property(String name, @Nullable Object value) {
 		this.problemDetail.setProperty(name, value);
 		return this;
@@ -131,7 +144,8 @@ final class DefaultErrorResponseBuilder implements ErrorResponse.Builder {
 	public ErrorResponse build() {
 		return new SimpleErrorResponse(
 				this.exception, this.statusCode, this.headers, this.problemDetail,
-				this.detailMessageCode, this.detailMessageArguments, this.titleMessageCode);
+				this.typeMessageCode, this.titleMessageCode, this.detailMessageCode,
+				this.detailMessageArguments);
 	}
 
 
@@ -148,24 +162,27 @@ final class DefaultErrorResponseBuilder implements ErrorResponse.Builder {
 
 		private final ProblemDetail problemDetail;
 
-		private final String detailMessageCode;
-
-		@Nullable
-		private final Object[] detailMessageArguments;
+		private final String typeMessageCode;
 
 		private final String titleMessageCode;
 
+		private final String detailMessageCode;
+
+		private final Object @Nullable [] detailMessageArguments;
+
 		SimpleErrorResponse(
 				Throwable ex, HttpStatusCode statusCode, @Nullable HttpHeaders headers, ProblemDetail problemDetail,
-				String detailMessageCode, @Nullable Object[] detailMessageArguments, String titleMessageCode) {
+				String typeMessageCode, String titleMessageCode, String detailMessageCode,
+				Object @Nullable [] detailMessageArguments) {
 
 			this.exception = ex;
 			this.statusCode = statusCode;
 			this.headers = (headers != null ? headers : HttpHeaders.EMPTY);
 			this.problemDetail = problemDetail;
+			this.typeMessageCode = typeMessageCode;
+			this.titleMessageCode = titleMessageCode;
 			this.detailMessageCode = detailMessageCode;
 			this.detailMessageArguments = detailMessageArguments;
-			this.titleMessageCode = titleMessageCode;
 		}
 
 		@Override
@@ -184,18 +201,23 @@ final class DefaultErrorResponseBuilder implements ErrorResponse.Builder {
 		}
 
 		@Override
-		public String getDetailMessageCode() {
-			return this.detailMessageCode;
-		}
-
-		@Override
-		public Object[] getDetailMessageArguments() {
-			return this.detailMessageArguments;
+		public String getTypeMessageCode() {
+			return this.typeMessageCode;
 		}
 
 		@Override
 		public String getTitleMessageCode() {
 			return this.titleMessageCode;
+		}
+
+		@Override
+		public String getDetailMessageCode() {
+			return this.detailMessageCode;
+		}
+
+		@Override
+		public Object @Nullable [] getDetailMessageArguments() {
+			return this.detailMessageArguments;
 		}
 
 		@Override

@@ -21,12 +21,13 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.util.StringUtils;
 
 /**
  * Abstract base class for filename suffix based {@link VersionStrategy}
- * implementations, e.g. "static/myresource-version.js"
+ * implementations, for example, "static/myresource-version.js".
  *
  * @author Rossen Stoyanchev
  * @author Brian Clozel
@@ -40,7 +41,7 @@ public abstract class AbstractFileNameVersionStrategy implements VersionStrategy
 
 
 	@Override
-	public String extractVersion(String requestPath) {
+	public @Nullable String extractVersion(String requestPath) {
 		Matcher matcher = pattern.matcher(requestPath);
 		if (matcher.find()) {
 			String match = matcher.group(1);

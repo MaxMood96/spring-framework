@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,10 +21,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.javapoet.ClassName;
 import org.springframework.javapoet.JavaFile;
 import org.springframework.javapoet.TypeSpec;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -37,8 +38,7 @@ import org.springframework.util.Assert;
  */
 public final class GeneratedClass {
 
-	@Nullable
-	private final GeneratedClass enclosingClass;
+	private final @Nullable GeneratedClass enclosingClass;
 
 	private final ClassName name;
 
@@ -90,7 +90,7 @@ public final class GeneratedClass {
 	private String generateSequencedMethodName(MethodName name) {
 		int sequence = this.methodNameSequenceGenerator
 				.computeIfAbsent(name, key -> new AtomicInteger()).getAndIncrement();
-		return (sequence > 0) ? name.toString() + sequence : name.toString();
+		return (sequence > 0 ? name.toString() + sequence : name.toString());
 	}
 
 	/**
@@ -98,8 +98,7 @@ public final class GeneratedClass {
 	 * instance represents a top-level class.
 	 * @return the enclosing generated class, if any
 	 */
-	@Nullable
-	public GeneratedClass getEnclosingClass() {
+	public @Nullable GeneratedClass getEnclosingClass() {
 		return this.enclosingClass;
 	}
 
@@ -142,6 +141,7 @@ public final class GeneratedClass {
 
 	private TypeSpec.Builder apply() {
 		TypeSpec.Builder type = getBuilder(this.type);
+		type.addAnnotation(Generated.class);
 		this.methods.doWithMethodSpecs(type::addMethod);
 		this.declaredClasses.values().forEach(declaredClass ->
 				type.addType(declaredClass.apply().build()));

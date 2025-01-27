@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,30 +20,35 @@ import java.sql.SQLException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.dao.DataAccessException;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
- * Base class for {@link SQLExceptionTranslator} implementations that allow for
- * fallback to some other {@link SQLExceptionTranslator}.
+ * Base class for {@link SQLExceptionTranslator} implementations that allow for a
+ * fallback to some other {@link SQLExceptionTranslator}, as well as for custom
+ * overrides.
  *
  * @author Juergen Hoeller
  * @since 2.5.6
+ * @see #doTranslate
+ * @see #setFallbackTranslator
+ * @see #setCustomTranslator
  */
 public abstract class AbstractFallbackSQLExceptionTranslator implements SQLExceptionTranslator {
 
 	/** Logger available to subclasses. */
 	protected final Log logger = LogFactory.getLog(getClass());
 
-	@Nullable
-	private SQLExceptionTranslator fallbackTranslator;
+	private @Nullable SQLExceptionTranslator fallbackTranslator;
+
+	private @Nullable SQLExceptionTranslator customTranslator;
 
 
 	/**
-	 * Override the default SQL state fallback translator
-	 * (typically a {@link SQLStateSQLExceptionTranslator}).
+	 * Set the fallback translator to use when this translator cannot find a
+	 * specific match itself.
 	 */
 	public void setFallbackTranslator(@Nullable SQLExceptionTranslator fallback) {
 		this.fallbackTranslator = fallback;
@@ -51,10 +56,29 @@ public abstract class AbstractFallbackSQLExceptionTranslator implements SQLExcep
 
 	/**
 	 * Return the fallback exception translator, if any.
+	 * @see #setFallbackTranslator
 	 */
-	@Nullable
-	public SQLExceptionTranslator getFallbackTranslator() {
+	public @Nullable SQLExceptionTranslator getFallbackTranslator() {
 		return this.fallbackTranslator;
+	}
+
+	/**
+	 * Set a custom exception translator to override any match that this translator
+	 * would find. Note that such a custom {@link SQLExceptionTranslator} delegate
+	 * is meant to return {@code null} if it does not have an override itself.
+	 * @since 6.1
+	 */
+	public void setCustomTranslator(@Nullable SQLExceptionTranslator customTranslator) {
+		this.customTranslator = customTranslator;
+	}
+
+	/**
+	 * Return a custom exception translator, if any.
+	 * @since 6.1
+	 * @see #setCustomTranslator
+	 */
+	public @Nullable SQLExceptionTranslator getCustomTranslator() {
+		return this.customTranslator;
 	}
 
 
@@ -63,9 +87,17 @@ public abstract class AbstractFallbackSQLExceptionTranslator implements SQLExcep
 	 * {@link #getFallbackTranslator() fallback translator} if necessary.
 	 */
 	@Override
-	@Nullable
-	public DataAccessException translate(String task, @Nullable String sql, SQLException ex) {
+	public @Nullable DataAccessException translate(String task, @Nullable String sql, SQLException ex) {
 		Assert.notNull(ex, "Cannot translate a null SQLException");
+
+		SQLExceptionTranslator custom = getCustomTranslator();
+		if (custom != null) {
+			DataAccessException dae = custom.translate(task, sql, ex);
+			if (dae != null) {
+				// Custom exception match found.
+				return dae;
+			}
+		}
 
 		DataAccessException dae = doTranslate(task, sql, ex);
 		if (dae != null) {
@@ -93,8 +125,7 @@ public abstract class AbstractFallbackSQLExceptionTranslator implements SQLExcep
 	 * @return the DataAccessException, wrapping the {@code SQLException};
 	 * or {@code null} if no exception match found
 	 */
-	@Nullable
-	protected abstract DataAccessException doTranslate(String task, @Nullable String sql, SQLException ex);
+	protected abstract @Nullable DataAccessException doTranslate(String task, @Nullable String sql, SQLException ex);
 
 
 	/**

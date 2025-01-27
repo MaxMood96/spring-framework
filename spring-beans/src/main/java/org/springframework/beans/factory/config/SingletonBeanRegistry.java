@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2015 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,9 @@
 
 package org.springframework.beans.factory.config;
 
-import org.springframework.lang.Nullable;
+import java.util.function.Consumer;
+
+import org.jspecify.annotations.Nullable;
 
 /**
  * Interface that defines a registry for shared bean instances.
@@ -58,6 +60,17 @@ public interface SingletonBeanRegistry {
 	void registerSingleton(String beanName, Object singletonObject);
 
 	/**
+	 * Add a callback to be triggered when the specified singleton becomes available
+	 * in the bean registry.
+	 * @param beanName the name of the bean
+	 * @param singletonConsumer a callback for reacting to the availability of the freshly
+	 * registered/created singleton instance (intended for follow-up steps before the bean is
+	 * actively used by other callers, not for modifying the given singleton instance itself)
+	 * @since 6.2
+	 */
+	void addSingletonCallback(String beanName, Consumer<Object> singletonConsumer);
+
+	/**
 	 * Return the (raw) singleton object registered under the given name.
 	 * <p>Only checks already instantiated singletons; does not return an Object
 	 * for singleton bean definitions which have not been instantiated yet.
@@ -70,8 +83,7 @@ public interface SingletonBeanRegistry {
 	 * @return the registered singleton object, or {@code null} if none found
 	 * @see ConfigurableListableBeanFactory#getBeanDefinition
 	 */
-	@Nullable
-	Object getSingleton(String beanName);
+	@Nullable Object getSingleton(String beanName);
 
 	/**
 	 * Check if this registry contains a singleton instance with the given name.
@@ -129,7 +141,10 @@ public interface SingletonBeanRegistry {
 	 * Return the singleton mutex used by this registry (for external collaborators).
 	 * @return the mutex object (never {@code null})
 	 * @since 4.2
+	 * @deprecated as of 6.2, in favor of lenient singleton locking
+	 * (with this method returning an arbitrary object to lock on)
 	 */
+	@Deprecated(since = "6.2")
 	Object getSingletonMutex();
 
 }

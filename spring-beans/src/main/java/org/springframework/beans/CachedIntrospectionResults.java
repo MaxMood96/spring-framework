@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.security.ProtectionDomain;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,10 +33,9 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.core.io.support.SpringFactoriesLoader;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ConcurrentReferenceHashMap;
 import org.springframework.util.StringUtils;
@@ -88,8 +86,7 @@ public final class CachedIntrospectionResults {
 	 * Set of ClassLoaders that this CachedIntrospectionResults class will always
 	 * accept classes from, even if the classes do not qualify as cache-safe.
 	 */
-	static final Set<ClassLoader> acceptedClassLoaders =
-			Collections.newSetFromMap(new ConcurrentHashMap<>(16));
+	static final Set<ClassLoader> acceptedClassLoaders = ConcurrentHashMap.newKeySet(16);
 
 	/**
 	 * Map keyed by Class containing CachedIntrospectionResults, strongly held.
@@ -110,7 +107,7 @@ public final class CachedIntrospectionResults {
 	 * Accept the given ClassLoader as cache-safe, even if its classes would
 	 * not qualify as cache-safe in this CachedIntrospectionResults class.
 	 * <p>This configuration method is only relevant in scenarios where the Spring
-	 * classes reside in a 'common' ClassLoader (e.g. the system ClassLoader)
+	 * classes reside in a 'common' ClassLoader (for example, the system ClassLoader)
 	 * whose lifecycle is not coupled to the application. In such a scenario,
 	 * CachedIntrospectionResults would by default not cache any of the application's
 	 * classes, since they would create a leak in the common ClassLoader.
@@ -235,9 +232,6 @@ public final class CachedIntrospectionResults {
 	/** PropertyDescriptor objects keyed by property name String. */
 	private final Map<String, PropertyDescriptor> propertyDescriptors;
 
-	/** TypeDescriptor objects keyed by PropertyDescriptor. */
-	private final ConcurrentMap<PropertyDescriptor, TypeDescriptor> typeDescriptorCache;
-
 
 	/**
 	 * Create a new CachedIntrospectionResults instance for the given class.
@@ -296,12 +290,10 @@ public final class CachedIntrospectionResults {
 				currClass = currClass.getSuperclass();
 			}
 
-			// Check for record-style accessors without prefix: e.g. "lastName()"
+			// Check for record-style accessors without prefix: for example, "lastName()"
 			// - accessor method directly referring to instance field of same name
 			// - same convention for component accessors of Java 15 record classes
 			introspectPlainAccessors(beanClass, readMethodNames);
-
-			this.typeDescriptorCache = new ConcurrentReferenceHashMap<>();
 		}
 		catch (IntrospectionException ex) {
 			throw new FatalBeanException("Failed to obtain BeanInfo for class [" + beanClass.getName() + "]", ex);
@@ -383,8 +375,7 @@ public final class CachedIntrospectionResults {
 		return this.beanInfo.getBeanDescriptor().getBeanClass();
 	}
 
-	@Nullable
-	PropertyDescriptor getPropertyDescriptor(String name) {
+	@Nullable PropertyDescriptor getPropertyDescriptor(String name) {
 		PropertyDescriptor pd = this.propertyDescriptors.get(name);
 		if (pd == null && StringUtils.hasLength(name)) {
 			// Same lenient fallback checking as in Property...
@@ -408,16 +399,6 @@ public final class CachedIntrospectionResults {
 		catch (IntrospectionException ex) {
 			throw new FatalBeanException("Failed to re-introspect class [" + beanClass.getName() + "]", ex);
 		}
-	}
-
-	TypeDescriptor addTypeDescriptor(PropertyDescriptor pd, TypeDescriptor td) {
-		TypeDescriptor existing = this.typeDescriptorCache.putIfAbsent(pd, td);
-		return (existing != null ? existing : td);
-	}
-
-	@Nullable
-	TypeDescriptor getTypeDescriptor(PropertyDescriptor pd) {
-		return this.typeDescriptorCache.get(pd);
 	}
 
 }

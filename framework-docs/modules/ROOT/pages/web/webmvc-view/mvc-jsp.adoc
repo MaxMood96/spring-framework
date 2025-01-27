@@ -44,7 +44,7 @@ Spring tags have HTML escaping features to enable or disable escaping of charact
 
 The `spring.tld` tag library descriptor (TLD) is included in the `spring-webmvc.jar`.
 For a comprehensive reference on individual tags, browse the
-{api-spring-framework}/web/servlet/tags/package-summary.html#package.description[API reference]
+{spring-framework-api}/web/servlet/tags/package-summary.html#package.description[API reference]
 or see the tag library description.
 
 
@@ -189,7 +189,7 @@ hobbies. The following example shows the `Preferences` class:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	public class Preferences {
 
@@ -225,7 +225,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	class Preferences(
 			var receiveNewsletter: Boolean,
@@ -592,7 +592,7 @@ called `UserValidator`, as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	public class UserValidator implements Validator {
 
@@ -609,7 +609,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	class UserValidator : Validator {
 
@@ -683,7 +683,7 @@ the HTML would be as follows:
 ----
 
 What if we want to display the entire list of errors for a given page? The next example
-shows that the `errors` tag also supports some basic wildcarding functionality.
+shows that the `errors` tag also supports some basic wildcard functionality.
 
 * `path="{asterisk}"`: Displays all errors.
 * `path="lastName"`: Displays all errors associated with the `lastName` field.
@@ -745,7 +745,7 @@ The HTML would be as follows:
 
 The `spring-form.tld` tag library descriptor (TLD) is included in the `spring-webmvc.jar`.
 For a comprehensive reference on individual tags, browse the
-{api-spring-framework}/web/servlet/tags/form/package-summary.html#package.description[API reference]
+{spring-framework-api}/web/servlet/tags/form/package-summary.html#package.description[API reference]
 or see the tag library description.
 
 
@@ -801,7 +801,7 @@ The following example shows the corresponding `@Controller` method:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@RequestMapping(method = RequestMethod.DELETE)
 	public String deletePet(@PathVariable int ownerId, @PathVariable int petId) {
@@ -812,7 +812,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@RequestMapping(method = [RequestMethod.DELETE])
 	fun deletePet(@PathVariable ownerId: Int, @PathVariable petId: Int): String {

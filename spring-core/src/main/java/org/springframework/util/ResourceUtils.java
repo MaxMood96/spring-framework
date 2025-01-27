@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,15 @@ package org.springframework.util;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.Locale;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Utility methods for resolving resource locations to files in the
@@ -100,6 +102,7 @@ public abstract class ResourceUtils {
 	 * @return whether the location qualifies as a URL
 	 * @see #CLASSPATH_URL_PREFIX
 	 * @see java.net.URL
+	 * @see #toURL(String)
 	 */
 	public static boolean isUrl(@Nullable String resourceLocation) {
 		if (resourceLocation == null) {
@@ -125,6 +128,7 @@ public abstract class ResourceUtils {
 	 * "classpath:" pseudo URL, a "file:" URL, or a plain file path
 	 * @return a corresponding URL object
 	 * @throws FileNotFoundException if the resource cannot be resolved to a URL
+	 * @see #toURL(String)
 	 */
 	public static URL getURL(String resourceLocation) throws FileNotFoundException {
 		Assert.notNull(resourceLocation, "Resource location must not be null");
@@ -165,6 +169,7 @@ public abstract class ResourceUtils {
 	 * @return a corresponding File object
 	 * @throws FileNotFoundException if the resource cannot be resolved to
 	 * a file in the file system
+	 * @see #getFile(URL)
 	 */
 	public static File getFile(String resourceLocation) throws FileNotFoundException {
 		Assert.notNull(resourceLocation, "Resource location must not be null");
@@ -196,6 +201,7 @@ public abstract class ResourceUtils {
 	 * @return a corresponding File object
 	 * @throws FileNotFoundException if the URL cannot be resolved to
 	 * a file in the file system
+	 * @see #getFile(URL, String)
 	 */
 	public static File getFile(URL resourceUrl) throws FileNotFoundException {
 		return getFile(resourceUrl, "URL");
@@ -236,6 +242,7 @@ public abstract class ResourceUtils {
 	 * @throws FileNotFoundException if the URL cannot be resolved to
 	 * a file in the file system
 	 * @since 2.5
+	 * @see #getFile(URI, String)
 	 */
 	public static File getFile(URI resourceUri) throws FileNotFoundException {
 		return getFile(resourceUri, "URI");
@@ -267,6 +274,7 @@ public abstract class ResourceUtils {
 	 * i.e. has protocol "file", "vfsfile" or "vfs".
 	 * @param url the URL to check
 	 * @return whether the URL has been identified as a file system URL
+	 * @see #isJarURL(URL)
 	 */
 	public static boolean isFileURL(URL url) {
 		String protocol = url.getProtocol();
@@ -275,10 +283,12 @@ public abstract class ResourceUtils {
 	}
 
 	/**
-	 * Determine whether the given URL points to a resource in a jar file.
-	 * i.e. has protocol "jar", "war, ""zip", "vfszip" or "wsjar".
+	 * Determine whether the given URL points to a resource in a jar file
+	 * &mdash; for example, whether the URL has protocol "jar", "war, "zip",
+	 * "vfszip", or "wsjar".
 	 * @param url the URL to check
 	 * @return whether the URL has been identified as a JAR URL
+	 * @see #isJarFileURL(URL)
 	 */
 	public static boolean isJarURL(URL url) {
 		String protocol = url.getProtocol();
@@ -293,10 +303,11 @@ public abstract class ResourceUtils {
 	 * @param url the URL to check
 	 * @return whether the URL has been identified as a JAR file URL
 	 * @since 4.1
+	 * @see #extractJarFileURL(URL)
 	 */
 	public static boolean isJarFileURL(URL url) {
 		return (URL_PROTOCOL_FILE.equals(url.getProtocol()) &&
-				url.getPath().toLowerCase().endsWith(JAR_FILE_EXTENSION));
+				url.getPath().toLowerCase(Locale.ROOT).endsWith(JAR_FILE_EXTENSION));
 	}
 
 	/**
@@ -305,6 +316,7 @@ public abstract class ResourceUtils {
 	 * @param jarUrl the original URL
 	 * @return the URL for the actual jar file
 	 * @throws MalformedURLException if no valid jar file URL could be extracted
+	 * @see #extractArchiveURL(URL)
 	 */
 	public static URL extractJarFileURL(URL jarUrl) throws MalformedURLException {
 		String urlFile = jarUrl.getFile();
@@ -366,6 +378,7 @@ public abstract class ResourceUtils {
 	 * @return the URI instance
 	 * @throws URISyntaxException if the URL wasn't a valid URI
 	 * @see java.net.URL#toURI()
+	 * @see #toURI(String)
 	 */
 	public static URI toURI(URL url) throws URISyntaxException {
 		return toURI(url.toString());
@@ -377,56 +390,66 @@ public abstract class ResourceUtils {
 	 * @param location the location String to convert into a URI instance
 	 * @return the URI instance
 	 * @throws URISyntaxException if the location wasn't a valid URI
+	 * @see #toURI(URL)
 	 */
 	public static URI toURI(String location) throws URISyntaxException {
 		return new URI(StringUtils.replace(location, " ", "%20"));
 	}
 
 	/**
-	 * Create a URL instance for the given location String,
+	 * Create a clean URL instance for the given location String,
 	 * going through URI construction and then URL conversion.
 	 * @param location the location String to convert into a URL instance
 	 * @return the URL instance
 	 * @throws MalformedURLException if the location wasn't a valid URL
 	 * @since 6.0
+	 * @see java.net.URI#toURL()
+	 * @see #toURI(String)
 	 */
-	@SuppressWarnings("deprecation")  // on JDK 20
+	@SuppressWarnings("deprecation")  // on JDK 20 (deprecated URL constructor)
 	public static URL toURL(String location) throws MalformedURLException {
 		try {
 			// Prefer URI construction with toURL conversion (as of 6.1)
 			return toURI(StringUtils.cleanPath(location)).toURL();
 		}
 		catch (URISyntaxException | IllegalArgumentException ex) {
-			// Lenient fallback to deprecated (on JDK 20) URL constructor,
+			// Lenient fallback to deprecated URL constructor,
 			// e.g. for decoded location Strings with percent characters.
 			return new URL(location);
 		}
 	}
 
 	/**
-	 * Create a URL instance for the given root URL and relative path,
+	 * Create a clean URL instance for the given root URL and relative path,
 	 * going through URI construction and then URL conversion.
 	 * @param root the root URL to start from
 	 * @param relativePath the relative path to apply
 	 * @return the relative URL instance
 	 * @throws MalformedURLException if the end result is not a valid URL
 	 * @since 6.0
+	 * @see #toURL(String)
+	 * @see StringUtils#applyRelativePath
 	 */
+	@SuppressWarnings("deprecation")  // on JDK 20 (deprecated URL constructor)
 	public static URL toRelativeURL(URL root, String relativePath) throws MalformedURLException {
 		// # can appear in filenames, java.net.URL should not treat it as a fragment
 		relativePath = StringUtils.replace(relativePath, "#", "%23");
 
-		return toURL(StringUtils.applyRelativePath(root.toString(), relativePath));
+		// Retain original URL instance, potentially including custom URLStreamHandler.
+		return new URL(root, StringUtils.cleanPath(StringUtils.applyRelativePath(root.toString(), relativePath)));
 	}
 
 	/**
 	 * Set the {@link URLConnection#setUseCaches "useCaches"} flag on the
-	 * given connection, preferring {@code false} but leaving the
-	 * flag at {@code true} for JNLP based resources.
+	 * given connection, preferring {@code false} but leaving the flag at
+	 * its JVM default value for jar resources (typically {@code true}).
 	 * @param con the URLConnection to set the flag on
+	 * @see URLConnection#setUseCaches
 	 */
 	public static void useCachesIfNecessary(URLConnection con) {
-		con.setUseCaches(con.getClass().getSimpleName().startsWith("JNLP"));
+		if (!(con instanceof JarURLConnection)) {
+			con.setUseCaches(false);
+		}
 	}
 
 }

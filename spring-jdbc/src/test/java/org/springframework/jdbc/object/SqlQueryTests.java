@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -30,6 +29,7 @@ import java.util.Map;
 
 import javax.sql.DataSource;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +37,6 @@ import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.jdbc.Customer;
 import org.springframework.jdbc.core.SqlParameter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,9 +53,9 @@ import static org.mockito.Mockito.verify;
  * @author Thomas Risberg
  * @author Juergen Hoeller
  */
-public class SqlQueryTests  {
+class SqlQueryTests {
 
-	//FIXME inline?
+	// FIXME inline?
 	private static final String SELECT_ID =
 			"select id from custmr";
 	private static final String SELECT_ID_WHERE =
@@ -96,20 +95,20 @@ public class SqlQueryTests  {
 
 
 	@BeforeEach
-	public void setUp() throws Exception {
+	void setUp() throws Exception {
 		given(this.dataSource.getConnection()).willReturn(this.connection);
 		given(this.connection.prepareStatement(anyString())).willReturn(this.preparedStatement);
 		given(preparedStatement.executeQuery()).willReturn(resultSet);
 	}
 
 	@Test
-	public void testQueryWithoutParams() throws SQLException {
+	void testQueryWithoutParams() throws SQLException {
 		given(resultSet.next()).willReturn(true, false);
 		given(resultSet.getInt(1)).willReturn(1);
 
 		SqlQuery<Integer> query = new MappingSqlQueryWithParameters<>() {
 			@Override
-			protected Integer mapRow(ResultSet rs, int rownum, @Nullable Object[] params, @Nullable Map<? ,?> context)
+			protected Integer mapRow(ResultSet rs, int rownum, Object @Nullable [] params, @Nullable Map<? ,?> context)
 					throws SQLException {
 				assertThat(params).as("params were null").isNull();
 				assertThat(context).as("context was null").isNull();
@@ -121,14 +120,14 @@ public class SqlQueryTests  {
 		query.compile();
 		List<Integer> list = query.execute();
 
-		assertThat(list).isEqualTo(Arrays.asList(1));
+		assertThat(list).containsExactly(1);
 		verify(connection).prepareStatement(SELECT_ID);
 		verify(resultSet).close();
 		verify(preparedStatement).close();
 	}
 
 	@Test
-	public void testQueryWithoutEnoughParams() {
+	void testQueryWithoutEnoughParams() {
 		MappingSqlQuery<Integer> query = new MappingSqlQuery<>() {
 			@Override
 			protected Integer mapRow(ResultSet rs, int rownum) throws SQLException {
@@ -146,7 +145,7 @@ public class SqlQueryTests  {
 	}
 
 	@Test
-	public void testQueryWithMissingMapParams() {
+	void testQueryWithMissingMapParams() {
 		MappingSqlQuery<Integer> query = new MappingSqlQuery<>() {
 			@Override
 			protected Integer mapRow(ResultSet rs, int rownum) throws SQLException {
@@ -164,7 +163,7 @@ public class SqlQueryTests  {
 	}
 
 	@Test
-	public void testStringQueryWithResults() throws Exception {
+	void testStringQueryWithResults() throws Exception {
 		String[] dbResults = new String[] { "alpha", "beta", "charlie" };
 		given(resultSet.next()).willReturn(true, true, true, false);
 		given(resultSet.getString(1)).willReturn(dbResults[0], dbResults[1], dbResults[2]);
@@ -179,7 +178,7 @@ public class SqlQueryTests  {
 	}
 
 	@Test
-	public void testStringQueryWithoutResults() throws SQLException {
+	void testStringQueryWithoutResults() throws SQLException {
 		given(resultSet.next()).willReturn(false);
 		StringQuery query = new StringQuery(dataSource, SELECT_FORENAME_EMPTY);
 		String[] results = query.run();
@@ -191,7 +190,7 @@ public class SqlQueryTests  {
 	}
 
 	@Test
-	public void testFindCustomerIntInt() throws SQLException {
+	void testFindCustomerIntInt() throws SQLException {
 		given(resultSet.next()).willReturn(true, false);
 		given(resultSet.getInt("id")).willReturn(1);
 		given(resultSet.getString("forename")).willReturn("rod");
@@ -232,7 +231,7 @@ public class SqlQueryTests  {
 	}
 
 	@Test
-	public void testFindCustomerString() throws SQLException {
+	void testFindCustomerString() throws SQLException {
 		given(resultSet.next()).willReturn(true, false);
 		given(resultSet.getInt("id")).willReturn(1);
 		given(resultSet.getString("forename")).willReturn("rod");
@@ -271,7 +270,7 @@ public class SqlQueryTests  {
 	}
 
 	@Test
-	public void testFindCustomerMixed() throws SQLException {
+	void testFindCustomerMixed() throws SQLException {
 		reset(connection);
 		PreparedStatement preparedStatement2 = mock();
 		ResultSet resultSet2 = mock();
@@ -300,7 +299,7 @@ public class SqlQueryTests  {
 			}
 
 			public Customer findCustomer(int id, String name) {
-				return findObject(new Object[] { id, name });
+				return findObject(id, name);
 			}
 		}
 
@@ -325,7 +324,7 @@ public class SqlQueryTests  {
 	}
 
 	@Test
-	public void testFindTooManyCustomers() throws SQLException {
+	void testFindTooManyCustomers() throws SQLException {
 		given(resultSet.next()).willReturn(true, true, false);
 		given(resultSet.getInt("id")).willReturn(1, 2);
 		given(resultSet.getString("forename")).willReturn("rod", "rod");
@@ -362,7 +361,7 @@ public class SqlQueryTests  {
 	}
 
 	@Test
-	public void testListCustomersIntInt() throws SQLException {
+	void testListCustomersIntInt() throws SQLException {
 		given(resultSet.next()).willReturn(true, true, false);
 		given(resultSet.getInt("id")).willReturn(1, 2);
 		given(resultSet.getString("forename")).willReturn("rod", "dave");
@@ -399,7 +398,7 @@ public class SqlQueryTests  {
 	}
 
 	@Test
-	public void testListCustomersString() throws SQLException {
+	void testListCustomersString() throws SQLException {
 		given(resultSet.next()).willReturn(true, true, false);
 		given(resultSet.getInt("id")).willReturn(1, 2);
 		given(resultSet.getString("forename")).willReturn("rod", "dave");
@@ -434,7 +433,7 @@ public class SqlQueryTests  {
 	}
 
 	@Test
-	public void testFancyCustomerQuery() throws SQLException {
+	void testFancyCustomerQuery() throws SQLException {
 		given(resultSet.next()).willReturn(true, false);
 		given(resultSet.getInt("id")).willReturn(1);
 		given(resultSet.getString("forename")).willReturn("rod");
@@ -476,8 +475,7 @@ public class SqlQueryTests  {
 	}
 
 	@Test
-	public void testUnnamedParameterDeclarationWithNamedParameterQuery()
-			throws SQLException {
+	void testUnnamedParameterDeclarationWithNamedParameterQuery() {
 		class CustomerQuery extends MappingSqlQuery<Customer> {
 
 			public CustomerQuery(DataSource ds) {
@@ -509,13 +507,13 @@ public class SqlQueryTests  {
 	}
 
 	@Test
-	public void testNamedParameterCustomerQueryWithUnnamedDeclarations()
+	void testNamedParameterCustomerQueryWithUnnamedDeclarations()
 			throws SQLException {
 		doTestNamedParameterCustomerQuery(false);
 	}
 
 	@Test
-	public void testNamedParameterCustomerQueryWithNamedDeclarations()
+	void testNamedParameterCustomerQueryWithNamedDeclarations()
 			throws SQLException {
 		doTestNamedParameterCustomerQuery(true);
 	}
@@ -573,7 +571,7 @@ public class SqlQueryTests  {
 	}
 
 	@Test
-	public void testNamedParameterInListQuery() throws SQLException {
+	void testNamedParameterInListQuery() throws SQLException {
 		given(resultSet.next()).willReturn(true, true, false);
 		given(resultSet.getInt("id")).willReturn(1, 2);
 		given(resultSet.getString("forename")).willReturn("rod", "juergen");
@@ -626,7 +624,7 @@ public class SqlQueryTests  {
 	}
 
 	@Test
-	public void testNamedParameterQueryReusingParameter() throws SQLException {
+	void testNamedParameterQueryReusingParameter() throws SQLException {
 		given(resultSet.next()).willReturn(true, true, false);
 		given(resultSet.getInt("id")).willReturn(1, 2);
 		given(resultSet.getString("forename")).willReturn("rod", "juergen");
@@ -677,7 +675,7 @@ public class SqlQueryTests  {
 	}
 
 	@Test
-	public void testNamedParameterUsingInvalidQuestionMarkPlaceHolders()
+	void testNamedParameterUsingInvalidQuestionMarkPlaceHolders()
 			throws SQLException {
 		given(
 		connection.prepareStatement(SELECT_ID_FORENAME_WHERE_ID_REUSED_1,
@@ -713,7 +711,7 @@ public class SqlQueryTests  {
 	}
 
 	@Test
-	public void testUpdateCustomers() throws SQLException {
+	void testUpdateCustomers() throws SQLException {
 		given(resultSet.next()).willReturn(true, true, false);
 		given(resultSet.getInt("id")).willReturn(1, 2);
 		given(connection.prepareStatement(SELECT_ID_FORENAME_WHERE_ID,

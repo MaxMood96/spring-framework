@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ import java.beans.PropertyEditor;
 
 import jakarta.servlet.jsp.JspTagException;
 import jakarta.servlet.jsp.PageContext;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.validation.Errors;
 import org.springframework.web.servlet.support.BindStatus;
@@ -43,32 +43,32 @@ import org.springframework.web.servlet.support.BindStatus;
  * as the bean property that this errors object applies to. Nested tags
  * such as the {@link TransformTag} can access those exposed properties.
  *
+ * <h3>Attribute Summary</h3>
  * <table>
- * <caption>Attribute Summary</caption>
  * <thead>
  * <tr>
- * <th class="colFirst">Attribute</th>
- * <th class="colOne">Required?</th>
- * <th class="colOne">Runtime Expression?</th>
- * <th class="colLast">Description</th>
+ * <th class="table-header col-first">Attribute</th>
+ * <th class="table-header col-second">Required?</th>
+ * <th class="table-header col-second">Runtime Expression?</th>
+ * <th class="table-header col-last">Description</th>
  * </tr>
  * </thead>
  * <tbody>
- * <tr class="altColor">
+ * <tr class="even-row-color">
  * <td><p>htmlEscape</p></td>
  * <td><p>false</p></td>
  * <td><p>true</p></td>
  * <td><p>Set HTML escaping for this tag, as boolean value. Overrides the default
  * HTML escaping setting for the current page.</p></td>
  * </tr>
- * <tr class="rowColor">
+ * <tr class="odd-row-color">
  * <td><p>ignoreNestedPath</p></td>
  * <td><p>false</p></td>
  * <td><p>true</p></td>
  * <td><p>Set whether to ignore a nested path, if any.
  * Default is to not ignore.</p></td>
  * </tr>
- * <tr class="altColor">
+ * <tr class="even-row-color">
  * <td><p>path</p></td>
  * <td><p>true</p></td>
  * <td><p>true</p></td>
@@ -97,19 +97,16 @@ public class BindTag extends HtmlEscapingAwareTag implements EditorAwareTag {
 
 	private boolean ignoreNestedPath = false;
 
-	@Nullable
-	private BindStatus status;
+	private @Nullable BindStatus status;
 
-	@Nullable
-	private Object previousPageStatus;
+	private @Nullable Object previousPageStatus;
 
-	@Nullable
-	private Object previousRequestStatus;
+	private @Nullable Object previousRequestStatus;
 
 
 	/**
-	 * Set the path that this tag should apply. Can be a bean (e.g. "person")
-	 * to get global errors, or a bean property (e.g. "person.name") to get
+	 * Set the path that this tag should apply. Can be a bean (for example, "person")
+	 * to get global errors, or a bean property (for example, "person.name") to get
 	 * field errors (also supporting nested fields and "person.na*" mappings).
 	 * "person.*" will return all errors for the specified bean, both global
 	 * and field errors.
@@ -206,8 +203,7 @@ public class BindTag extends HtmlEscapingAwareTag implements EditorAwareTag {
 	 * @return the property that this tag is currently bound to,
 	 * or {@code null} if none
 	 */
-	@Nullable
-	public final String getProperty() {
+	public final @Nullable String getProperty() {
 		return getStatus().getExpression();
 	}
 
@@ -216,14 +212,12 @@ public class BindTag extends HtmlEscapingAwareTag implements EditorAwareTag {
 	 * Intended for cooperating nesting tags.
 	 * @return the current Errors instance, or {@code null} if none
 	 */
-	@Nullable
-	public final Errors getErrors() {
+	public final @Nullable Errors getErrors() {
 		return getStatus().getErrors();
 	}
 
 	@Override
-	@Nullable
-	public final PropertyEditor getEditor() {
+	public final @Nullable PropertyEditor getEditor() {
 		return getStatus().getEditor();
 	}
 

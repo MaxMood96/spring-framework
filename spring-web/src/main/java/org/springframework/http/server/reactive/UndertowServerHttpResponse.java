@@ -25,6 +25,7 @@ import java.nio.file.StandardOpenOption;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.Cookie;
 import io.undertow.server.handlers.CookieImpl;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Publisher;
 import org.xnio.channels.StreamSinkChannel;
@@ -38,7 +39,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ZeroCopyHttpOutputMessage;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -56,8 +56,7 @@ class UndertowServerHttpResponse extends AbstractListenerServerHttpResponse impl
 
 	private final UndertowServerHttpRequest request;
 
-	@Nullable
-	private StreamSinkChannel responseChannel;
+	private @Nullable StreamSinkChannel responseChannel;
 
 
 	UndertowServerHttpResponse(
@@ -88,13 +87,6 @@ class UndertowServerHttpResponse extends AbstractListenerServerHttpResponse impl
 	}
 
 	@Override
-	@Deprecated
-	public Integer getRawStatusCode() {
-		Integer status = super.getRawStatusCode();
-		return (status != null ? status : this.exchange.getStatusCode());
-	}
-
-	@Override
 	protected void applyStatusCode() {
 		HttpStatusCode status = super.getStatusCode();
 		if (status != null) {
@@ -122,6 +114,7 @@ class UndertowServerHttpResponse extends AbstractListenerServerHttpResponse impl
 				}
 				cookie.setSecure(httpCookie.isSecure());
 				cookie.setHttpOnly(httpCookie.isHttpOnly());
+				// TODO: add "Partitioned" attribute when Undertow supports it
 				cookie.setSameSiteMode(httpCookie.getSameSite());
 				this.exchange.setResponseCookie(cookie);
 			}
@@ -163,8 +156,7 @@ class UndertowServerHttpResponse extends AbstractListenerServerHttpResponse impl
 
 		private final StreamSinkChannel channel;
 
-		@Nullable
-		private volatile ByteBuffer byteBuffer;
+		private volatile @Nullable ByteBuffer byteBuffer;
 
 		/** Keep track of write listener calls, for {@link #writePossible}. */
 		private volatile boolean writePossible;

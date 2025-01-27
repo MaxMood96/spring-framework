@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,11 +22,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 
 import org.apache.commons.logging.Log;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.context.SmartLifecycle;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
@@ -59,13 +59,11 @@ public abstract class AbstractBrokerMessageHandler
 
 	private final Collection<String> destinationPrefixes;
 
-	@Nullable
-	private Predicate<String> userDestinationPredicate;
+	private @Nullable Predicate<String> userDestinationPredicate;
 
 	private boolean preservePublishOrder = false;
 
-	@Nullable
-	private ApplicationEventPublisher eventPublisher;
+	private @Nullable ApplicationEventPublisher eventPublisher;
 
 	private final AtomicBoolean brokerAvailable = new AtomicBoolean();
 
@@ -74,6 +72,8 @@ public abstract class AbstractBrokerMessageHandler
 	private final BrokerAvailabilityEvent notAvailableEvent = new BrokerAvailabilityEvent(false, this);
 
 	private boolean autoStartup = true;
+
+	private @Nullable Integer phase;
 
 	private volatile boolean running;
 
@@ -84,8 +84,8 @@ public abstract class AbstractBrokerMessageHandler
 
 	/**
 	 * Constructor with no destination prefixes (matches all destinations).
-	 * @param inboundChannel the channel for receiving messages from clients (e.g. WebSocket clients)
-	 * @param outboundChannel the channel for sending messages to clients (e.g. WebSocket clients)
+	 * @param inboundChannel the channel for receiving messages from clients (for example, WebSocket clients)
+	 * @param outboundChannel the channel for sending messages to clients (for example, WebSocket clients)
 	 * @param brokerChannel the channel for the application to send messages to the broker
 	 */
 	public AbstractBrokerMessageHandler(SubscribableChannel inboundChannel, MessageChannel outboundChannel,
@@ -96,8 +96,8 @@ public abstract class AbstractBrokerMessageHandler
 
 	/**
 	 * Constructor with destination prefixes to match to destinations of messages.
-	 * @param inboundChannel the channel for receiving messages from clients (e.g. WebSocket clients)
-	 * @param outboundChannel the channel for sending messages to clients (e.g. WebSocket clients)
+	 * @param inboundChannel the channel for receiving messages from clients (for example, WebSocket clients)
+	 * @param outboundChannel the channel for sending messages to clients (for example, WebSocket clients)
 	 * @param brokerChannel the channel for the application to send messages to the broker
 	 * @param destinationPrefixes prefixes to use to filter out messages
 	 */
@@ -161,8 +161,7 @@ public abstract class AbstractBrokerMessageHandler
 	 * ThreadPoolExecutor that in turn does not guarantee processing in order.
 	 * <p>When this flag is set to {@code true} messages within the same session
 	 * will be sent to the {@code "clientOutboundChannel"} one at a time in
-	 * order to preserve the order of publication. Enable this only if needed
-	 * since there is some performance overhead to keep messages in order.
+	 * order to preserve the order of publication.
 	 * @param preservePublishOrder whether to publish in order
 	 * @since 5.1
 	 */
@@ -184,8 +183,7 @@ public abstract class AbstractBrokerMessageHandler
 		this.eventPublisher = publisher;
 	}
 
-	@Nullable
-	public ApplicationEventPublisher getApplicationEventPublisher() {
+	public @Nullable ApplicationEventPublisher getApplicationEventPublisher() {
 		return this.eventPublisher;
 	}
 
@@ -196,6 +194,21 @@ public abstract class AbstractBrokerMessageHandler
 	@Override
 	public boolean isAutoStartup() {
 		return this.autoStartup;
+	}
+
+	/**
+	 * Set the phase that this handler should run in.
+	 * <p>By default, this is {@link SmartLifecycle#DEFAULT_PHASE}, but with
+	 * {@code @EnableWebSocketMessageBroker} configuration it is set to 0.
+	 * @since 6.1.4
+	 */
+	public void setPhase(int phase) {
+		this.phase = phase;
+	}
+
+	@Override
+	public int getPhase() {
+		return (this.phase != null ? this.phase : SmartLifecycle.super.getPhase());
 	}
 
 

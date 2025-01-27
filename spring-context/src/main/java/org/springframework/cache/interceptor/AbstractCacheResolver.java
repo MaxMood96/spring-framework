@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -37,8 +38,7 @@ import org.springframework.util.Assert;
  */
 public abstract class AbstractCacheResolver implements CacheResolver, InitializingBean {
 
-	@Nullable
-	private CacheManager cacheManager;
+	private @Nullable CacheManager cacheManager;
 
 
 	/**
@@ -73,7 +73,7 @@ public abstract class AbstractCacheResolver implements CacheResolver, Initializi
 	}
 
 	@Override
-	public void afterPropertiesSet()  {
+	public void afterPropertiesSet() {
 		Assert.notNull(this.cacheManager, "CacheManager is required");
 	}
 
@@ -103,7 +103,6 @@ public abstract class AbstractCacheResolver implements CacheResolver, Initializi
 	 * @param context the context of the particular invocation
 	 * @return the cache name(s) to resolve, or {@code null} if no cache should be resolved
 	 */
-	@Nullable
-	protected abstract Collection<String> getCacheNames(CacheOperationInvocationContext<?> context);
+	protected abstract @Nullable Collection<String> getCacheNames(CacheOperationInvocationContext<?> context);
 
 }

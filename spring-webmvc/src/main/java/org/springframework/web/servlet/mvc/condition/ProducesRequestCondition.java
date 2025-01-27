@@ -23,9 +23,9 @@ import java.util.List;
 import java.util.Set;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.MimeType;
 import org.springframework.util.ObjectUtils;
@@ -83,7 +83,7 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 	 * @param produces expressions with syntax defined by {@link RequestMapping#produces()}
 	 * @param headers expressions with syntax defined by {@link RequestMapping#headers()}
 	 */
-	public ProducesRequestCondition(String[] produces, @Nullable String[] headers) {
+	public ProducesRequestCondition(String @Nullable [] produces, String @Nullable [] headers) {
 		this(produces, headers, null);
 	}
 
@@ -94,17 +94,17 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 	 * @param headers expressions with syntax defined by {@link RequestMapping#headers()}
 	 * @param manager used to determine requested media types
 	 */
-	public ProducesRequestCondition(String[] produces, @Nullable String[] headers,
+	public ProducesRequestCondition(String @Nullable [] produces, String @Nullable [] headers,
 			@Nullable ContentNegotiationManager manager) {
 
 		this.expressions = parseExpressions(produces, headers);
 		if (this.expressions.size() > 1) {
 			Collections.sort(this.expressions);
 		}
-		this.contentNegotiationManager = manager != null ? manager : DEFAULT_CONTENT_NEGOTIATION_MANAGER;
+		this.contentNegotiationManager = (manager != null ? manager : DEFAULT_CONTENT_NEGOTIATION_MANAGER);
 	}
 
-	private List<ProduceMediaTypeExpression> parseExpressions(String[] produces, @Nullable String[] headers) {
+	private List<ProduceMediaTypeExpression> parseExpressions(String @Nullable [] produces, String @Nullable [] headers) {
 		Set<ProduceMediaTypeExpression> result = null;
 		if (!ObjectUtils.isEmpty(headers)) {
 			for (String header : headers) {
@@ -195,8 +195,7 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 	 * or {@code null} if no expressions match.
 	 */
 	@Override
-	@Nullable
-	public ProducesRequestCondition getMatchingCondition(HttpServletRequest request) {
+	public @Nullable ProducesRequestCondition getMatchingCondition(HttpServletRequest request) {
 		if (CorsUtils.isPreFlightRequest(request)) {
 			return EMPTY_CONDITION;
 		}
@@ -222,8 +221,7 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 		}
 	}
 
-	@Nullable
-	private List<ProduceMediaTypeExpression> getMatchingExpressions(List<MediaType> acceptedMediaTypes) {
+	private @Nullable List<ProduceMediaTypeExpression> getMatchingExpressions(List<MediaType> acceptedMediaTypes) {
 		List<ProduceMediaTypeExpression> result = null;
 		for (ProduceMediaTypeExpression expression : this.expressions) {
 			if (expression.match(acceptedMediaTypes)) {

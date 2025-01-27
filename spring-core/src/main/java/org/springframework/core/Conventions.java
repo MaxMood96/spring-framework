@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,8 @@ import java.lang.reflect.Proxy;
 import java.util.Collection;
 import java.util.Iterator;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 
@@ -67,7 +68,7 @@ public final class Conventions {
 		boolean pluralize = false;
 
 		if (value.getClass().isArray()) {
-			valueClass = value.getClass().getComponentType();
+			valueClass = value.getClass().componentType();
 			pluralize = true;
 		}
 		else if (value instanceof Collection<?> collection) {
@@ -104,7 +105,7 @@ public final class Conventions {
 		String reactiveSuffix = "";
 
 		if (parameter.getParameterType().isArray()) {
-			valueClass = parameter.getParameterType().getComponentType();
+			valueClass = parameter.getParameterType().componentType();
 			pluralize = true;
 		}
 		else if (Collection.class.isAssignableFrom(parameter.getParameterType())) {
@@ -142,7 +143,7 @@ public final class Conventions {
 	 * Determine the conventional variable name for the return type of the given
 	 * method, taking the generic collection type, if any, into account, falling
 	 * back on the given actual return value if the method declaration is not
-	 * specific enough, e.g. {@code Object} return type or untyped collection.
+	 * specific enough, for example, {@code Object} return type or untyped collection.
 	 * @param method the method to generate a variable name for
 	 * @param value the return value (may be {@code null} if not available)
 	 * @return the generated variable name
@@ -155,7 +156,7 @@ public final class Conventions {
 	 * Determine the conventional variable name for the return type of the given
 	 * method, taking the generic collection type, if any, into account, falling
 	 * back on the given return value if the method declaration is not specific
-	 * enough, e.g. {@code Object} return type or untyped collection.
+	 * enough, for example, {@code Object} return type or untyped collection.
 	 * <p>As of 5.0 this method supports reactive types:<br>
 	 * {@code Mono<com.myapp.Product>} becomes {@code "productMono"}<br>
 	 * {@code Flux<com.myapp.MyProduct>} becomes {@code "myProductFlux"}<br>
@@ -178,7 +179,7 @@ public final class Conventions {
 		String reactiveSuffix = "";
 
 		if (resolvedType.isArray()) {
-			valueClass = resolvedType.getComponentType();
+			valueClass = resolvedType.componentType();
 			pluralize = true;
 		}
 		else if (Collection.class.isAssignableFrom(resolvedType)) {
@@ -211,7 +212,7 @@ public final class Conventions {
 	}
 
 	/**
-	 * Convert {@code String}s in attribute name format (e.g. lowercase, hyphens
+	 * Convert {@code String}s in attribute name format (for example, lowercase, hyphens
 	 * separating words) into property name format (camel-case). For example
 	 * {@code transaction-manager} becomes {@code "transactionManager"}.
 	 */
@@ -271,7 +272,7 @@ public final class Conventions {
 		}
 		else if (valueClass.getName().lastIndexOf('$') != -1 && valueClass.getDeclaringClass() == null) {
 			// '$' in the class name but no inner class -
-			// assuming it's a special subclass (e.g. by OpenJPA)
+			// assuming it's a special subclass (for example, by OpenJPA)
 			valueClass = valueClass.getSuperclass();
 		}
 		return valueClass;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,8 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -39,19 +40,8 @@ import org.springframework.web.socket.adapter.NativeWebSocketSession;
  */
 public class WebSocketClientSockJsSession extends AbstractClientSockJsSession implements NativeWebSocketSession {
 
-	@Nullable
-	private WebSocketSession webSocketSession;
+	private @Nullable WebSocketSession webSocketSession;
 
-	/**
-	 * Create a new {@code WebSocketClientSockJsSession}.
-	 * @deprecated as of 6.0, in favor of {@link #WebSocketClientSockJsSession(TransportRequest, WebSocketHandler, CompletableFuture)}
-	 */
-	@Deprecated(since = "6.0")
-	public WebSocketClientSockJsSession(TransportRequest request, WebSocketHandler handler,
-			org.springframework.util.concurrent.SettableListenableFuture<WebSocketSession> connectFuture) {
-
-		super(request, handler, connectFuture);
-	}
 
 	public WebSocketClientSockJsSession(TransportRequest request, WebSocketHandler handler,
 			CompletableFuture<WebSocketSession> connectFuture) {
@@ -68,25 +58,24 @@ public class WebSocketClientSockJsSession extends AbstractClientSockJsSession im
 
 	@SuppressWarnings("unchecked")
 	@Override
-	@Nullable
-	public <T> T getNativeSession(@Nullable Class<T> requiredType) {
+	public <T> @Nullable T getNativeSession(@Nullable Class<T> requiredType) {
 		return (requiredType == null || requiredType.isInstance(this.webSocketSession) ? (T) this.webSocketSession : null);
 	}
 
 	@Override
-	public InetSocketAddress getLocalAddress() {
+	public @Nullable InetSocketAddress getLocalAddress() {
 		Assert.state(this.webSocketSession != null, "WebSocketSession not yet initialized");
 		return this.webSocketSession.getLocalAddress();
 	}
 
 	@Override
-	public InetSocketAddress getRemoteAddress() {
+	public @Nullable InetSocketAddress getRemoteAddress() {
 		Assert.state(this.webSocketSession != null, "WebSocketSession not yet initialized");
 		return this.webSocketSession.getRemoteAddress();
 	}
 
 	@Override
-	public String getAcceptedProtocol() {
+	public @Nullable String getAcceptedProtocol() {
 		Assert.state(this.webSocketSession != null, "WebSocketSession not yet initialized");
 		return this.webSocketSession.getAcceptedProtocol();
 	}

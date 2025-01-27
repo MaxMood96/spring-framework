@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,9 +26,7 @@ import org.apache.commons.logging.LogFactory;
 /**
  * Factory for common {@link Log} delegates with Spring's logging conventions.
  *
- * <p>Mainly for internal use within the framework with Apache Commons Logging,
- * typically in the form of the {@code spring-jcl} bridge but also compatible
- * with other Commons Logging bridges.
+ * <p>Mainly for internal use within the framework with Apache Commons Logging.
  *
  * @author Rossen Stoyanchev
  * @author Juergen Hoeller
@@ -46,7 +44,7 @@ public final class LogDelegateFactory {
 	 * secondary logger if logging for the primary logger is not enabled.
 	 * <p>This may be used for fallback logging from lower-level packages that
 	 * logically should log together with some higher-level package but the two
-	 * don't happen to share a suitable parent package (e.g. logging for the web
+	 * don't happen to share a suitable parent package (for example, logging for the web
 	 * and lower-level http and codec packages). For such cases the primary
 	 * (class-based) logger can be wrapped with a shared fallback logger.
 	 * @param primaryLogger primary logger to try first

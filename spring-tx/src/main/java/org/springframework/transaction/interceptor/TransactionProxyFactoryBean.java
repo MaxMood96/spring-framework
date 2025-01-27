@@ -18,6 +18,8 @@ package org.springframework.transaction.interceptor;
 
 import java.util.Properties;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aop.Pointcut;
 import org.springframework.aop.framework.AbstractSingletonProxyFactoryBean;
 import org.springframework.aop.framework.ProxyFactory;
@@ -26,7 +28,6 @@ import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.ListableBeanFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.transaction.PlatformTransactionManager;
 
 /**
@@ -117,8 +118,7 @@ public class TransactionProxyFactoryBean extends AbstractSingletonProxyFactoryBe
 
 	private final TransactionInterceptor transactionInterceptor = new TransactionInterceptor();
 
-	@Nullable
-	private Pointcut pointcut;
+	private @Nullable Pointcut pointcut;
 
 
 	/**
@@ -133,7 +133,7 @@ public class TransactionProxyFactoryBean extends AbstractSingletonProxyFactoryBe
 	/**
 	 * Set properties with method names as keys and transaction attribute
 	 * descriptors (parsed via TransactionAttributeEditor) as values:
-	 * e.g. key = "myMethod", value = "PROPAGATION_REQUIRED,readOnly".
+	 * for example, key = "myMethod", value = "PROPAGATION_REQUIRED,readOnly".
 	 * <p>Note: Method names are always applied to the target class,
 	 * no matter if defined in an interface or the class itself.
 	 * <p>Internally, a NameMatchTransactionAttributeSource will be

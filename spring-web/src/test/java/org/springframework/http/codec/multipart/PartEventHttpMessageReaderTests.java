@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
+import org.springframework.core.io.buffer.DataBufferLimitException;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.NettyDataBufferFactory;
 import org.springframework.http.ContentDisposition;
@@ -41,7 +42,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.AssertionsForClassTypes.entry;
 import static org.springframework.core.ResolvableType.forClass;
 
 /**
@@ -58,38 +58,38 @@ class PartEventHttpMessageReaderTests {
 	private final PartEventHttpMessageReader reader = new PartEventHttpMessageReader();
 
 	@Test
-	public void canRead() {
+	void canRead() {
 		assertThat(this.reader.canRead(forClass(PartEvent.class), MediaType.MULTIPART_FORM_DATA)).isTrue();
 		assertThat(this.reader.canRead(forClass(PartEvent.class), null)).isTrue();
 	}
 
 	@Test
-	public void simple() {
+	void simple() {
 		MockServerHttpRequest request = createRequest(
 				new ClassPathResource("simple.multipart", getClass()), "simple-boundary");
 
 		Flux<PartEvent> result = this.reader.read(forClass(PartEvent.class), request, emptyMap());
 
 		StepVerifier.create(result)
-				.assertNext(form(headers -> assertThat(headers).isEmpty(), "This is implicitly typed plain ASCII text.\r\nIt does NOT end with a linebreak."))
+				.assertNext(form(headers -> assertThat(headers.isEmpty()).isTrue(), "This is implicitly typed plain ASCII text.\r\nIt does NOT end with a linebreak."))
 				.assertNext(form(headers -> assertThat(headers.getContentType()).isEqualTo(TEXT_PLAIN_ASCII),
 						"This is explicitly typed plain ASCII text.\r\nIt DOES end with a linebreak.\r\n"))
 				.verifyComplete();
 	}
 
 	@Test
-	public void noHeaders() {
+	void noHeaders() {
 		MockServerHttpRequest request = createRequest(
 				new ClassPathResource("no-header.multipart", getClass()), "boundary");
 		Flux<PartEvent> result = this.reader.read(forClass(PartEvent.class), request, emptyMap());
 
 		StepVerifier.create(result)
-				.assertNext(data(headers -> assertThat(headers).isEmpty(), bodyText("a"), true))
+				.assertNext(data(headers -> assertThat(headers.isEmpty()).isTrue(), bodyText("a"), true))
 				.verifyComplete();
 	}
 
 	@Test
-	public void noEndBoundary() {
+	void noEndBoundary() {
 		MockServerHttpRequest request = createRequest(
 				new ClassPathResource("no-end-boundary.multipart", getClass()), "boundary");
 
@@ -101,7 +101,7 @@ class PartEventHttpMessageReaderTests {
 	}
 
 	@Test
-	public void garbage() {
+	void garbage() {
 		MockServerHttpRequest request = createRequest(
 				new ClassPathResource("garbage-1.multipart", getClass()), "boundary");
 
@@ -114,7 +114,7 @@ class PartEventHttpMessageReaderTests {
 
 
 	@Test
-	public void noEndHeader() {
+	void noEndHeader() {
 		MockServerHttpRequest request = createRequest(
 				new ClassPathResource("no-end-header.multipart", getClass()), "boundary");
 		Flux<PartEvent> result = this.reader.read(forClass(PartEvent.class), request, emptyMap());
@@ -125,7 +125,7 @@ class PartEventHttpMessageReaderTests {
 	}
 
 	@Test
-	public void noEndBody() {
+	void noEndBody() {
 		MockServerHttpRequest request = createRequest(
 				new ClassPathResource("no-end-body.multipart", getClass()), "boundary");
 		Flux<PartEvent> result = this.reader.read(forClass(PartEvent.class), request, emptyMap());
@@ -136,26 +136,26 @@ class PartEventHttpMessageReaderTests {
 	}
 
 	@Test
-	public void noBody() {
+	void noBody() {
 		MockServerHttpRequest request = createRequest(
 				new ClassPathResource("no-body.multipart", getClass()), "boundary");
 		Flux<PartEvent> result = this.reader.read(forClass(PartEvent.class), request, emptyMap());
 
 		StepVerifier.create(result)
-				.assertNext(form(headers -> assertThat(headers).contains(entry("Part", List.of("1"))), ""))
-				.assertNext(data(headers -> assertThat(headers).contains(entry("Part", List.of("2"))), bodyText("a"), true))
+				.assertNext(form(headers -> assertThat(headers.hasHeaderValues("Part", List.of("1"))).isTrue(), ""))
+				.assertNext(data(headers -> assertThat(headers.hasHeaderValues("Part", List.of("2"))).isTrue(), bodyText("a"), true))
 				.verifyComplete();
 	}
 
 
 	@Test
-	public void cancel() {
+	void cancel() {
 		MockServerHttpRequest request = createRequest(
 				new ClassPathResource("simple.multipart", getClass()), "simple-boundary");
 		Flux<PartEvent> result = this.reader.read(forClass(PartEvent.class), request, emptyMap());
 
 		StepVerifier.create(result, 3)
-				.assertNext(form(headers -> assertThat(headers).isEmpty(),
+				.assertNext(form(headers -> assertThat(headers.isEmpty()).isTrue(),
 						"This is implicitly typed plain ASCII text.\r\nIt does NOT end with a linebreak."))
 				.thenCancel()
 				.verify();
@@ -163,7 +163,7 @@ class PartEventHttpMessageReaderTests {
 
 
 	@Test
-	public void firefox() {
+	void firefox() {
 
 		MockServerHttpRequest request = createRequest(new ClassPathResource("firefox.multipart", getClass()),
 				"---------------------------18399284482060392383840973206");
@@ -185,7 +185,7 @@ class PartEventHttpMessageReaderTests {
 	}
 
 	@Test
-	public void chrome() {
+	void chrome() {
 
 		MockServerHttpRequest request = createRequest(new ClassPathResource("chrome.multipart", getClass()),
 				"----WebKitFormBoundaryEveBLvRT65n21fwU");
@@ -206,7 +206,7 @@ class PartEventHttpMessageReaderTests {
 	}
 
 	@Test
-	public void safari() {
+	void safari() {
 
 		MockServerHttpRequest request = createRequest(new ClassPathResource("safari.multipart", getClass()),
 				"----WebKitFormBoundaryG8fJ50opQOML0oGD");
@@ -226,22 +226,69 @@ class PartEventHttpMessageReaderTests {
 				.verifyComplete();
 	}
 
+	@Test
+	void tooManyParts() {
+		MockServerHttpRequest request = createRequest(
+				new ClassPathResource("simple.multipart", getClass()), "simple-boundary");
+
+		PartEventHttpMessageReader reader = new PartEventHttpMessageReader();
+		reader.setMaxParts(1);
+
+		Flux<PartEvent> result = reader.read(forClass(PartEvent.class), request, emptyMap());
+
+		StepVerifier.create(result)
+				.assertNext(form(headers -> assertThat(headers.isEmpty()).isTrue(), "This is implicitly typed plain ASCII text.\r\nIt does NOT end with a linebreak."))
+				.expectError(DecodingException.class)
+				.verify();
+	}
 
 	@Test
-	public void utf8Headers() {
+	void partSizeTooLarge() {
+		MockServerHttpRequest request = createRequest(new ClassPathResource("safari.multipart", getClass()),
+				"----WebKitFormBoundaryG8fJ50opQOML0oGD");
+
+		PartEventHttpMessageReader reader = new PartEventHttpMessageReader();
+		reader.setMaxPartSize(60);
+
+		Flux<PartEvent> result = reader.read(forClass(PartEvent.class), request, emptyMap());
+
+		StepVerifier.create(result)
+				.assertNext(data(headersFormField("text1"), bodyText("a"), true))
+				.assertNext(data(headersFormField("text2"), bodyText("b"), true))
+				.expectError(DataBufferLimitException.class)
+				.verify();
+	}
+
+	@Test
+	void formPartTooLarge() {
+		MockServerHttpRequest request = createRequest(
+				new ClassPathResource("simple.multipart", getClass()), "simple-boundary");
+
+		PartEventHttpMessageReader reader = new PartEventHttpMessageReader();
+		reader.setMaxInMemorySize(40);
+
+		Flux<PartEvent> result = reader.read(forClass(PartEvent.class), request, emptyMap());
+
+		StepVerifier.create(result)
+				.expectError(DataBufferLimitException.class)
+				.verify();
+	}
+
+	@Test
+	void utf8Headers() {
 		MockServerHttpRequest request = createRequest(
 				new ClassPathResource("utf8.multipart", getClass()), "\"simple-boundary\"");
 
 		Flux<PartEvent> result = this.reader.read(forClass(PartEvent.class), request, emptyMap());
 
 		StepVerifier.create(result)
-				.assertNext(data(headers -> assertThat(headers).containsEntry("Føø", List.of("Bår")),
+				.assertNext(data(headers -> assertThat(headers.hasHeaderValues("Føø", List.of("Bår"))).isTrue(),
 						bodyText("This is plain ASCII text."), true))
 				.verifyComplete();
 	}
 
 	@Test
-	public void exceedHeaderLimit() {
+	void exceedHeaderLimit() {
 		Flux<DataBuffer> body = DataBufferUtils
 				.readByteChannel((new ClassPathResource("files.multipart", getClass()))::readableChannel, bufferFactory,
 						282);

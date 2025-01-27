@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,8 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Clob;
 import java.sql.SQLException;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.FileCopyUtils;
 
 /**
@@ -38,16 +39,14 @@ import org.springframework.util.FileCopyUtils;
  * @author Juergen Hoeller
  * @since 2.5.3
  */
+@Deprecated
 class PassThroughClob implements Clob {
 
-	@Nullable
-	private String content;
+	private @Nullable String content;
 
-	@Nullable
-	private Reader characterStream;
+	private @Nullable Reader characterStream;
 
-	@Nullable
-	private InputStream asciiStream;
+	private @Nullable InputStream asciiStream;
 
 	private final long contentLength;
 

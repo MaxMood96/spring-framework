@@ -16,6 +16,8 @@
 
 package org.springframework.web.reactive.function.client;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.NestedRuntimeException;
 
 /**
@@ -42,7 +44,7 @@ public abstract class WebClientException extends NestedRuntimeException {
 	 * @param msg the message
 	 * @param ex the exception
 	 */
-	public WebClientException(String msg, Throwable ex) {
+	public WebClientException(@Nullable String msg, Throwable ex) {
 		super(msg, ex);
 	}
 

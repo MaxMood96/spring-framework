@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.ContextHierarchy;
 import org.springframework.test.context.NestedTestConfiguration;
+import org.springframework.test.context.aot.DisabledInAotMode;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.context.junit.jupiter.nested.ContextHierarchyNestedTests.ParentConfig;
 
@@ -46,6 +47,7 @@ import static org.springframework.test.context.NestedTestConfiguration.Enclosing
 @ExtendWith(SpringExtension.class)
 @ContextHierarchy(@ContextConfiguration(classes = ParentConfig.class))
 @NestedTestConfiguration(OVERRIDE) // since INHERIT is now the global default
+@DisabledInAotMode("@ContextHierarchy is not supported in AOT")
 class ContextHierarchyNestedTests {
 
 	private static final String FOO = "foo";
@@ -80,7 +82,7 @@ class ContextHierarchyNestedTests {
 
 
 		@Test
-		void nestedTest() throws Exception {
+		void nestedTest() {
 			assertThat(this.context).as("local ApplicationContext").isNotNull();
 			assertThat(this.context.getParent()).as("parent ApplicationContext").isNull();
 
@@ -105,7 +107,7 @@ class ContextHierarchyNestedTests {
 
 
 		@Test
-		void nestedTest() throws Exception {
+		void nestedTest() {
 			assertThat(this.context).as("local ApplicationContext").isNotNull();
 			assertThat(this.context.getParent()).as("parent ApplicationContext").isNotNull();
 
@@ -133,7 +135,7 @@ class ContextHierarchyNestedTests {
 
 
 			@Test
-			void nestedTest() throws Exception {
+			void nestedTest() {
 				assertThat(this.context).as("local ApplicationContext").isNotNull();
 				assertThat(this.context.getParent()).as("parent ApplicationContext").isNotNull();
 
@@ -158,7 +160,7 @@ class ContextHierarchyNestedTests {
 
 
 				@Test
-				void nestedTest() throws Exception {
+				void nestedTest() {
 					assertThat(this.context).as("local ApplicationContext").isNotNull();
 					assertThat(this.context.getParent()).as("parent ApplicationContext").isNotNull();
 					assertThat(this.context.getParent().getParent()).as("grandparent ApplicationContext").isNotNull();

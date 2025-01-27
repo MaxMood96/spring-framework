@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,9 +29,9 @@ import com.thoughtworks.qdox.JavaProjectBuilder;
 import com.thoughtworks.qdox.model.JavaClass;
 import com.thoughtworks.qdox.model.JavaSource;
 import org.assertj.core.api.AssertProvider;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.io.InputStreamSource;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.FileCopyUtils;
@@ -218,12 +218,10 @@ public final class SourceFile extends DynamicFile implements AssertProvider<Sour
 	}
 
 	/**
-	 * AssertJ {@code assertThat} support.
-	 * @deprecated use {@code assertThat(sourceFile)} rather than calling this
-	 * method directly.
+	 * Use {@code assertThat(sourceFile)} rather than calling this method
+	 * directly.
 	 */
 	@Override
-	@Deprecated
 	public SourceFileAssert assertThat() {
 		return new SourceFileAssert(this);
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package org.springframework.validation;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Extended variant of the {@link Validator} interface, adding support for
@@ -59,9 +59,23 @@ public interface SmartValidator extends Validator {
 	 * @see jakarta.validation.Validator#validateValue(Class, String, Object, Class[])
 	 */
 	default void validateValue(
-			Class<?> targetType, String fieldName, @Nullable Object value, Errors errors, Object... validationHints) {
+			Class<?> targetType, @Nullable String fieldName, @Nullable Object value, Errors errors, Object... validationHints) {
 
 		throw new IllegalArgumentException("Cannot validate individual value for " + targetType);
+	}
+
+	/**
+	 * Return a contained validator instance of the specified type, unwrapping
+	 * as far as necessary.
+	 * @param type the class of the object to return
+	 * @param <T> the type of the object to return
+	 * @return a validator instance of the specified type; {@code null} if there
+	 * isn't a nested validator; an exception may be raised if the specified
+	 * validator type does not match.
+	 * @since 6.1
+	 */
+	default <T> @Nullable T unwrap(@Nullable Class<T> type) {
+		return null;
 	}
 
 }

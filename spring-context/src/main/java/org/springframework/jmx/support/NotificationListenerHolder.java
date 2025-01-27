@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,8 @@ import javax.management.NotificationFilter;
 import javax.management.NotificationListener;
 import javax.management.ObjectName;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.ObjectUtils;
 
 /**
@@ -42,17 +43,13 @@ import org.springframework.util.ObjectUtils;
  */
 public class NotificationListenerHolder {
 
-	@Nullable
-	private NotificationListener notificationListener;
+	private @Nullable NotificationListener notificationListener;
 
-	@Nullable
-	private NotificationFilter notificationFilter;
+	private @Nullable NotificationFilter notificationFilter;
 
-	@Nullable
-	private Object handback;
+	private @Nullable Object handback;
 
-	@Nullable
-	protected Set<Object> mappedObjectNames;
+	protected @Nullable Set<Object> mappedObjectNames;
 
 
 	/**
@@ -65,8 +62,7 @@ public class NotificationListenerHolder {
 	/**
 	 * Get the {@link javax.management.NotificationListener}.
 	 */
-	@Nullable
-	public NotificationListener getNotificationListener() {
+	public @Nullable NotificationListener getNotificationListener() {
 		return this.notificationListener;
 	}
 
@@ -84,8 +80,7 @@ public class NotificationListenerHolder {
 	 * with the encapsulated {@link #getNotificationListener() NotificationListener}.
 	 * <p>May be {@code null}.
 	 */
-	@Nullable
-	public NotificationFilter getNotificationFilter() {
+	public @Nullable NotificationFilter getNotificationFilter() {
 		return this.notificationFilter;
 	}
 
@@ -107,8 +102,7 @@ public class NotificationListenerHolder {
 	 * @return the handback object (may be {@code null})
 	 * @see javax.management.NotificationListener#handleNotification(javax.management.Notification, Object)
 	 */
-	@Nullable
-	public Object getHandback() {
+	public @Nullable Object getHandback() {
 		return this.handback;
 	}
 
@@ -141,8 +135,7 @@ public class NotificationListenerHolder {
 	 * be registered as a listener for {@link javax.management.Notification Notifications}.
 	 * @throws MalformedObjectNameException if an {@code ObjectName} is malformed
 	 */
-	@Nullable
-	public ObjectName[] getResolvedObjectNames() throws MalformedObjectNameException {
+	public ObjectName @Nullable [] getResolvedObjectNames() throws MalformedObjectNameException {
 		if (this.mappedObjectNames == null) {
 			return null;
 		}
@@ -158,25 +151,17 @@ public class NotificationListenerHolder {
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof NotificationListenerHolder otherNlh)) {
-			return false;
-		}
-		return (ObjectUtils.nullSafeEquals(this.notificationListener, otherNlh.notificationListener) &&
-				ObjectUtils.nullSafeEquals(this.notificationFilter, otherNlh.notificationFilter) &&
-				ObjectUtils.nullSafeEquals(this.handback, otherNlh.handback) &&
-				ObjectUtils.nullSafeEquals(this.mappedObjectNames, otherNlh.mappedObjectNames));
+		return (this == other || (other instanceof NotificationListenerHolder that &&
+				ObjectUtils.nullSafeEquals(this.notificationListener, that.notificationListener) &&
+				ObjectUtils.nullSafeEquals(this.notificationFilter, that.notificationFilter) &&
+				ObjectUtils.nullSafeEquals(this.handback, that.handback) &&
+				ObjectUtils.nullSafeEquals(this.mappedObjectNames, that.mappedObjectNames)));
 	}
 
 	@Override
 	public int hashCode() {
-		int hashCode = ObjectUtils.nullSafeHashCode(this.notificationListener);
-		hashCode = 29 * hashCode + ObjectUtils.nullSafeHashCode(this.notificationFilter);
-		hashCode = 29 * hashCode + ObjectUtils.nullSafeHashCode(this.handback);
-		hashCode = 29 * hashCode + ObjectUtils.nullSafeHashCode(this.mappedObjectNames);
-		return hashCode;
+		return ObjectUtils.nullSafeHash(this.notificationListener, this.notificationFilter,
+				this.handback, this.mappedObjectNames);
 	}
 
 }

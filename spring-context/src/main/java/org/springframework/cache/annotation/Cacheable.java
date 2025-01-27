@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,8 +70,17 @@ public @interface Cacheable {
 
 	/**
 	 * Names of the caches in which method invocation results are stored.
-	 * <p>Names may be used to determine the target cache (or caches), matching
-	 * the qualifier value or bean name of a specific bean definition.
+	 * <p>Names may be used to determine the target cache(s), to be resolved via the
+	 * configured {@link #cacheResolver()} which typically delegates to
+	 * {@link org.springframework.cache.CacheManager#getCache}.
+	 * <p>This will usually be a single cache name. If multiple names are specified,
+	 * they will be consulted for a cache hit in the order of definition, and they
+	 * will all receive a put/evict request for the same newly cached value.
+	 * <p>Note that asynchronous/reactive cache access may not fully consult all
+	 * specified caches, depending on the target cache. In the case of late-determined
+	 * cache misses (for example, with Redis), further caches will not get consulted anymore.
+	 * As a consequence, specifying multiple cache names in an async cache mode setup
+	 * only makes sense with early-determined cache misses (for example, with Caffeine).
 	 * @since 4.2
 	 * @see #value
 	 * @see CacheConfig#cacheNames
@@ -177,9 +186,9 @@ public @interface Cacheable {
 	 * <li>Only one cache may be specified</li>
 	 * <li>No other cache-related operation can be combined</li>
 	 * </ol>
-	 * This is effectively a hint and the actual cache provider that you are
-	 * using may not support it in a synchronized fashion. Check your provider
-	 * documentation for more details on the actual semantics.
+	 * This is effectively a hint and the chosen cache provider might not actually
+	 * support it in a synchronized fashion. Check your provider documentation for
+	 * more details on the actual semantics.
 	 * @since 4.3
 	 * @see org.springframework.cache.Cache#get(Object, Callable)
 	 */

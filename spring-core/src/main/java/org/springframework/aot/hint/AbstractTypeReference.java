@@ -18,7 +18,7 @@ package org.springframework.aot.hint;
 
 import java.util.Objects;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Base {@link TypeReference} implementation that ensures consistent behaviour
@@ -34,14 +34,15 @@ public abstract class AbstractTypeReference implements TypeReference {
 
 	private final String simpleName;
 
-	@Nullable
-	private final TypeReference enclosingType;
+	private final @Nullable TypeReference enclosingType;
+
 
 	protected AbstractTypeReference(String packageName, String simpleName, @Nullable TypeReference enclosingType) {
 		this.packageName = packageName;
 		this.simpleName = simpleName;
 		this.enclosingType = enclosingType;
 	}
+
 
 	@Override
 	public String getName() {
@@ -61,36 +62,35 @@ public abstract class AbstractTypeReference implements TypeReference {
 		return this.simpleName;
 	}
 
-	@Nullable
 	@Override
-	public TypeReference getEnclosingType() {
+	public @Nullable TypeReference getEnclosingType() {
 		return this.enclosingType;
 	}
 
-	protected abstract boolean isPrimitive();
-
 	protected String addPackageIfNecessary(String part) {
 		if (this.packageName.isEmpty() ||
-				this.packageName.equals("java.lang") && isPrimitive()) {
+				(this.packageName.equals("java.lang") && isPrimitive())) {
 			return part;
 		}
 		return this.packageName + '.' + part;
 	}
 
+	protected abstract boolean isPrimitive();
+
 	@Override
-	public int hashCode() {
-		return Objects.hash(getCanonicalName());
+	public int compareTo(TypeReference other) {
+		return this.getCanonicalName().compareToIgnoreCase(other.getCanonicalName());
 	}
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof TypeReference otherReference)) {
-			return false;
-		}
-		return getCanonicalName().equals(otherReference.getCanonicalName());
+		return (this == other || (other instanceof TypeReference that &&
+				getCanonicalName().equals(that.getCanonicalName())));
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(getCanonicalName());
 	}
 
 	@Override

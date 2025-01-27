@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,19 +22,19 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import javax.annotation.Nonnull;
+import javax.annotation.CheckForNull;
 import javax.annotation.meta.TypeQualifierNickname;
-import javax.annotation.meta.When;
 
 /**
- * A common Spring annotation to declare that annotated elements can be {@code null} under
- * some circumstance.
+ * A common Spring annotation to declare that annotated elements can be {@code null}
+ * under certain circumstances.
  *
  * <p>Leverages JSR-305 meta-annotations to indicate nullability in Java to common
  * tools with JSR-305 support and used by Kotlin to infer nullability of Spring API.
  *
- * <p>Should be used at parameter, return value, and field level. Methods override should
- * repeat parent {@code @Nullable} annotations unless they behave differently.
+ * <p>Should be used at the parameter, return value, and field level. Method
+ * overrides should repeat parent {@code @Nullable} annotations unless they behave
+ * differently.
  *
  * <p>Can be used in association with {@code @NonNullApi} or {@code @NonNullFields} to
  * override the default non-nullable semantic to nullable.
@@ -42,6 +42,7 @@ import javax.annotation.meta.When;
  * @author Sebastien Deleuze
  * @author Juergen Hoeller
  * @since 5.0
+ * @deprecated since 7.0; use {@link org.jspecify.annotations.Nullable} instead
  * @see NonNullApi
  * @see NonNullFields
  * @see NonNull
@@ -49,7 +50,8 @@ import javax.annotation.meta.When;
 @Target({ElementType.METHOD, ElementType.PARAMETER, ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Nonnull(when = When.MAYBE)
+@CheckForNull
 @TypeQualifierNickname
+@Deprecated
 public @interface Nullable {
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,8 @@ import java.util.Set;
 import javax.xml.XMLConstants;
 import javax.xml.namespace.NamespaceContext;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 
 /**
@@ -66,8 +67,7 @@ public class SimpleNamespaceContext implements NamespaceContext {
 	}
 
 	@Override
-	@Nullable
-	public String getPrefix(String namespaceUri) {
+	public @Nullable String getPrefix(String namespaceUri) {
 		Set<String> prefixes = getPrefixesSet(namespaceUri);
 		return (!prefixes.isEmpty() ? prefixes.iterator().next() : null);
 	}
@@ -90,7 +90,7 @@ public class SimpleNamespaceContext implements NamespaceContext {
 		}
 		else {
 			Set<String> prefixes = this.namespaceUriToPrefixes.get(namespaceUri);
-			return (prefixes != null ?  Collections.unmodifiableSet(prefixes) : Collections.emptySet());
+			return (prefixes != null ? Collections.unmodifiableSet(prefixes) : Collections.emptySet());
 		}
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,14 @@
 
 package org.springframework.beans.factory.config;
 
-import java.util.LinkedHashSet;
 import java.util.Set;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.TypeConverter;
 import org.springframework.core.ResolvableType;
-import org.springframework.lang.Nullable;
+import org.springframework.util.CollectionUtils;
 
 /**
  * Simple factory for shared Set instances. Allows for central setup
@@ -35,12 +36,10 @@ import org.springframework.lang.Nullable;
  */
 public class SetFactoryBean extends AbstractFactoryBean<Set<Object>> {
 
-	@Nullable
-	private Set<?> sourceSet;
+	private @Nullable Set<?> sourceSet;
 
 	@SuppressWarnings("rawtypes")
-	@Nullable
-	private Class<? extends Set> targetSetClass;
+	private @Nullable Class<? extends Set> targetSetClass;
 
 
 	/**
@@ -85,7 +84,7 @@ public class SetFactoryBean extends AbstractFactoryBean<Set<Object>> {
 			result = BeanUtils.instantiateClass(this.targetSetClass);
 		}
 		else {
-			result = new LinkedHashSet<>(this.sourceSet.size());
+			result = CollectionUtils.newLinkedHashSet(this.sourceSet.size());
 		}
 		Class<?> valueType = null;
 		if (this.targetSetClass != null) {

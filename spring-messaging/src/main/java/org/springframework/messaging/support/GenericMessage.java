@@ -19,7 +19,8 @@ package org.springframework.messaging.support;
 import java.io.Serializable;
 import java.util.Map;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.util.Assert;
@@ -90,20 +91,15 @@ public class GenericMessage<T> implements Message<T>, Serializable {
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof GenericMessage<?> otherMsg)) {
-			return false;
-		}
 		// Using nullSafeEquals for proper array equals comparisons
-		return (ObjectUtils.nullSafeEquals(this.payload, otherMsg.payload) && this.headers.equals(otherMsg.headers));
+		return (this == other || (other instanceof GenericMessage<?> that &&
+				ObjectUtils.nullSafeEquals(this.payload, that.payload) && this.headers.equals(that.headers)));
 	}
 
 	@Override
 	public int hashCode() {
 		// Using nullSafeHashCode for proper array hashCode handling
-		return (ObjectUtils.nullSafeHashCode(this.payload) * 23 + this.headers.hashCode());
+		return ObjectUtils.nullSafeHash(this.payload, this.headers);
 	}
 
 	@Override

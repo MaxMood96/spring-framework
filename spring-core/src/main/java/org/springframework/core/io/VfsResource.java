@@ -22,7 +22,8 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.ResourceUtils;
 
@@ -130,9 +131,8 @@ public class VfsResource extends AbstractResource {
 	}
 
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return (this == obj || (obj instanceof VfsResource that &&
-				this.resource.equals(that.resource)));
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof VfsResource that && this.resource.equals(that.resource)));
 	}
 
 	@Override

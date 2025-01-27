@@ -26,8 +26,8 @@ import javax.naming.NamingException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
 
 /**
@@ -44,8 +44,7 @@ public class JndiTemplate {
 
 	protected final Log logger = LogFactory.getLog(getClass());
 
-	@Nullable
-	private Properties environment;
+	private @Nullable Properties environment;
 
 
 	/**
@@ -72,8 +71,7 @@ public class JndiTemplate {
 	/**
 	 * Return the environment for the JNDI InitialContext, if any.
 	 */
-	@Nullable
-	public Properties getEnvironment() {
+	public @Nullable Properties getEnvironment() {
 		return this.environment;
 	}
 
@@ -85,8 +83,7 @@ public class JndiTemplate {
 	 * @throws NamingException thrown by the callback implementation
 	 * @see #createInitialContext
 	 */
-	@Nullable
-	public <T> T execute(JndiCallback<T> contextCallback) throws NamingException {
+	public <T> @Nullable T execute(JndiCallback<T> contextCallback) throws NamingException {
 		Context ctx = getContext();
 		try {
 			return contextCallback.doInContext(ctx);
@@ -127,7 +124,7 @@ public class JndiTemplate {
 	/**
 	 * Create a new JNDI initial context. Invoked by {@link #getContext}.
 	 * <p>The default implementation use this template's environment settings.
-	 * Can be subclassed for custom contexts, e.g. for testing.
+	 * Can be subclassed for custom contexts, for example, for testing.
 	 * @return the initial Context instance
 	 * @throws NamingException in case of initialization errors
 	 */

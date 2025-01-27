@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.StringJoiner;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.asm.Label;
 import org.springframework.asm.MethodVisitor;
 import org.springframework.core.convert.TypeDescriptor;
@@ -41,7 +43,6 @@ import org.springframework.expression.spel.SpelEvaluationException;
 import org.springframework.expression.spel.SpelMessage;
 import org.springframework.expression.spel.support.ReflectiveMethodExecutor;
 import org.springframework.expression.spel.support.ReflectiveMethodResolver;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
@@ -50,19 +51,18 @@ import org.springframework.util.ObjectUtils;
  *
  * @author Andy Clement
  * @author Juergen Hoeller
+ * @author Sam Brannen
  * @since 3.0
  */
 public class MethodReference extends SpelNodeImpl {
 
-	private final String name;
-
 	private final boolean nullSafe;
 
-	@Nullable
-	private String originalPrimitiveExitTypeDescriptor;
+	private final String name;
 
-	@Nullable
-	private volatile CachedMethodExecutor cachedExecutor;
+	private @Nullable Character originalPrimitiveExitTypeDescriptor;
+
+	private volatile @Nullable CachedMethodExecutor cachedExecutor;
 
 
 	public MethodReference(boolean nullSafe, String methodName, int startPos, int endPos, SpelNodeImpl... arguments) {
@@ -72,13 +72,25 @@ public class MethodReference extends SpelNodeImpl {
 	}
 
 
+	/**
+	 * Does this node represent a null-safe method reference?
+	 * @since 6.0.13
+	 */
+	@Override
+	public final boolean isNullSafe() {
+		return this.nullSafe;
+	}
+
+	/**
+	 * Get the name of the referenced method.
+	 */
 	public final String getName() {
 		return this.name;
 	}
 
 	@Override
 	protected ValueRef getValueRef(ExpressionState state) throws EvaluationException {
-		Object[] arguments = getArguments(state);
+		@Nullable Object[] arguments = getArguments(state);
 		if (state.getActiveContextObject().getValue() == null) {
 			throwIfNotNullSafe(getArgumentTypes(arguments));
 			return ValueRef.NullValueRef.INSTANCE;
@@ -91,14 +103,14 @@ public class MethodReference extends SpelNodeImpl {
 		EvaluationContext evaluationContext = state.getEvaluationContext();
 		Object value = state.getActiveContextObject().getValue();
 		TypeDescriptor targetType = state.getActiveContextObject().getTypeDescriptor();
-		Object[] arguments = getArguments(state);
+		@Nullable Object[] arguments = getArguments(state);
 		TypedValue result = getValueInternal(evaluationContext, value, targetType, arguments);
 		updateExitTypeDescriptor();
 		return result;
 	}
 
 	private TypedValue getValueInternal(EvaluationContext evaluationContext,
-			@Nullable Object value, @Nullable TypeDescriptor targetType, Object[] arguments) {
+			@Nullable Object value, @Nullable TypeDescriptor targetType, @Nullable Object[] arguments) {
 
 		List<TypeDescriptor> argumentTypes = getArgumentTypes(arguments);
 		if (value == null) {
@@ -155,8 +167,8 @@ public class MethodReference extends SpelNodeImpl {
 		}
 	}
 
-	private Object[] getArguments(ExpressionState state) {
-		Object[] arguments = new Object[getChildCount()];
+	private @Nullable Object[] getArguments(ExpressionState state) {
+		@Nullable Object[] arguments = new Object[getChildCount()];
 		for (int i = 0; i < arguments.length; i++) {
 			// Make the root object the active context again for evaluating the parameter expressions
 			try {
@@ -170,16 +182,15 @@ public class MethodReference extends SpelNodeImpl {
 		return arguments;
 	}
 
-	private List<TypeDescriptor> getArgumentTypes(Object... arguments) {
-		List<TypeDescriptor> descriptors = new ArrayList<>(arguments.length);
+	private List<TypeDescriptor> getArgumentTypes(@Nullable Object... arguments) {
+		List<@Nullable TypeDescriptor> descriptors = new ArrayList<>(arguments.length);
 		for (Object argument : arguments) {
 			descriptors.add(TypeDescriptor.forObject(argument));
 		}
 		return Collections.unmodifiableList(descriptors);
 	}
 
-	@Nullable
-	private MethodExecutor getCachedExecutor(EvaluationContext evaluationContext, Object value,
+	private @Nullable MethodExecutor getCachedExecutor(EvaluationContext evaluationContext, Object value,
 			@Nullable TypeDescriptor target, List<TypeDescriptor> argumentTypes) {
 
 		List<MethodResolver> methodResolvers = evaluationContext.getMethodResolvers();
@@ -247,8 +258,8 @@ public class MethodReference extends SpelNodeImpl {
 		if (executorToCheck != null && executorToCheck.get() instanceof ReflectiveMethodExecutor reflectiveMethodExecutor) {
 			Method method = reflectiveMethodExecutor.getMethod();
 			String descriptor = CodeFlow.toDescriptor(method.getReturnType());
-			if (this.nullSafe && CodeFlow.isPrimitive(descriptor)) {
-				this.originalPrimitiveExitTypeDescriptor = descriptor;
+			if (this.nullSafe && CodeFlow.isPrimitive(descriptor) && (descriptor.charAt(0) != 'V')) {
+				this.originalPrimitiveExitTypeDescriptor = descriptor.charAt(0);
 				this.exitTypeDescriptor = CodeFlow.toBoxedDescriptor(descriptor);
 			}
 			else {
@@ -287,8 +298,8 @@ public class MethodReference extends SpelNodeImpl {
 			return false;
 		}
 
-		Class<?> clazz = executor.getMethod().getDeclaringClass();
-		return (Modifier.isPublic(clazz.getModifiers()) || executor.getPublicDeclaringClass() != null);
+		Method method = executor.getMethod();
+		return (Modifier.isPublic(method.getModifiers()) && executor.getPublicDeclaringClass() != null);
 	}
 
 	@Override
@@ -297,27 +308,35 @@ public class MethodReference extends SpelNodeImpl {
 		if (executorToCheck == null || !(executorToCheck.get() instanceof ReflectiveMethodExecutor methodExecutor)) {
 			throw new IllegalStateException("No applicable cached executor found: " + executorToCheck);
 		}
-
 		Method method = methodExecutor.getMethod();
-		boolean isStaticMethod = Modifier.isStatic(method.getModifiers());
+
+		Class<?> publicDeclaringClass = methodExecutor.getPublicDeclaringClass();
+		Assert.state(publicDeclaringClass != null,
+				() -> "Failed to find public declaring class for method: " + method);
+
+		String classDesc = publicDeclaringClass.getName().replace('.', '/');
+		boolean isStatic = Modifier.isStatic(method.getModifiers());
 		String descriptor = cf.lastDescriptor();
 
-		Label skipIfNull = null;
-		if (descriptor == null && !isStaticMethod) {
+		if (descriptor == null && !isStatic) {
 			// Nothing on the stack but something is needed
 			cf.loadTarget(mv);
 		}
-		if ((descriptor != null || !isStaticMethod) && this.nullSafe) {
-			mv.visitInsn(DUP);
+
+		Label skipIfNull = null;
+		if (this.nullSafe && (descriptor != null || !isStatic)) {
 			skipIfNull = new Label();
 			Label continueLabel = new Label();
+			mv.visitInsn(DUP);
 			mv.visitJumpInsn(IFNONNULL, continueLabel);
 			CodeFlow.insertCheckCast(mv, this.exitTypeDescriptor);
 			mv.visitJumpInsn(GOTO, skipIfNull);
 			mv.visitLabel(continueLabel);
 		}
-		if (descriptor != null && isStaticMethod) {
-			// Something on the stack when nothing is needed
+
+		if (descriptor != null && isStatic) {
+			// A static method call will not consume what is on the stack, so
+			// it needs to be popped off.
 			mv.visitInsn(POP);
 		}
 
@@ -325,32 +344,29 @@ public class MethodReference extends SpelNodeImpl {
 			CodeFlow.insertBoxIfNecessary(mv, descriptor.charAt(0));
 		}
 
-		String classDesc;
-		if (Modifier.isPublic(method.getDeclaringClass().getModifiers())) {
-			classDesc = method.getDeclaringClass().getName().replace('.', '/');
-		}
-		else {
-			Class<?> publicDeclaringClass = methodExecutor.getPublicDeclaringClass();
-			Assert.state(publicDeclaringClass != null, "No public declaring class");
-			classDesc = publicDeclaringClass.getName().replace('.', '/');
-		}
-
-		if (!isStaticMethod && (descriptor == null || !descriptor.substring(1).equals(classDesc))) {
+		if (!isStatic && (descriptor == null || !descriptor.substring(1).equals(classDesc))) {
 			CodeFlow.insertCheckCast(mv, "L" + classDesc);
 		}
 
 		generateCodeForArguments(mv, cf, method, this.children);
-		mv.visitMethodInsn((isStaticMethod ? INVOKESTATIC : (method.isDefault() ? INVOKEINTERFACE : INVOKEVIRTUAL)),
-				classDesc, method.getName(), CodeFlow.createSignatureDescriptor(method),
-				method.getDeclaringClass().isInterface());
+		boolean isInterface = publicDeclaringClass.isInterface();
+		int opcode = (isStatic ? INVOKESTATIC : isInterface ? INVOKEINTERFACE : INVOKEVIRTUAL);
+		mv.visitMethodInsn(opcode, classDesc, method.getName(), CodeFlow.createSignatureDescriptor(method),
+				isInterface);
 		cf.pushDescriptor(this.exitTypeDescriptor);
 
 		if (this.originalPrimitiveExitTypeDescriptor != null) {
 			// The output of the accessor will be a primitive but from the block above it might be null,
-			// so to have a 'common stack' element at skipIfNull target we need to box the primitive
+			// so to have a 'common stack' element at the skipIfNull target we need to box the primitive.
 			CodeFlow.insertBoxIfNecessary(mv, this.originalPrimitiveExitTypeDescriptor);
 		}
+
 		if (skipIfNull != null) {
+			if ("V".equals(this.exitTypeDescriptor)) {
+				// If the method return type is 'void', we need to push a null object
+				// reference onto the stack to satisfy the needs of the skipIfNull target.
+				mv.visitInsn(ACONST_NULL);
+			}
 			mv.visitLabel(skipIfNull);
 		}
 	}
@@ -360,15 +376,13 @@ public class MethodReference extends SpelNodeImpl {
 
 		private final EvaluationContext evaluationContext;
 
-		@Nullable
-		private final Object value;
+		private final @Nullable Object value;
 
-		@Nullable
-		private final TypeDescriptor targetType;
+		private final @Nullable TypeDescriptor targetType;
 
-		private final Object[] arguments;
+		private final @Nullable Object[] arguments;
 
-		public MethodValueRef(ExpressionState state, Object[] arguments) {
+		public MethodValueRef(ExpressionState state, @Nullable Object[] arguments) {
 			this.evaluationContext = state.getEvaluationContext();
 			this.value = state.getActiveContextObject().getValue();
 			this.targetType = state.getActiveContextObject().getTypeDescriptor();
@@ -399,11 +413,9 @@ public class MethodReference extends SpelNodeImpl {
 
 		private final MethodExecutor methodExecutor;
 
-		@Nullable
-		private final Class<?> staticClass;
+		private final @Nullable Class<?> staticClass;
 
-		@Nullable
-		private final TypeDescriptor target;
+		private final @Nullable TypeDescriptor target;
 
 		private final List<TypeDescriptor> argumentTypes;
 

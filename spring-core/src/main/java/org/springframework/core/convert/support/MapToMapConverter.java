@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,18 +22,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.CollectionFactory;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.core.convert.converter.ConditionalGenericConverter;
-import org.springframework.lang.Nullable;
 
 /**
  * Converts a Map to another Map.
  *
  * <p>First, creates a new Map of the requested targetType with a size equal to the
  * size of the source Map. Then copies each element in the source map to the target map.
- * Will perform a conversion from the source maps's parameterized K,V types to the target
+ * Will perform a conversion from the source map's parameterized K,V types to the target
  * map's parameterized types K,V if necessary.
  *
  * @author Keith Donald
@@ -61,8 +62,7 @@ final class MapToMapConverter implements ConditionalGenericConverter {
 	}
 
 	@Override
-	@Nullable
-	public Object convert(@Nullable Object source, TypeDescriptor sourceType, TypeDescriptor targetType) {
+	public @Nullable Object convert(@Nullable Object source, TypeDescriptor sourceType, TypeDescriptor targetType) {
 		if (source == null) {
 			return null;
 		}
@@ -114,16 +114,14 @@ final class MapToMapConverter implements ConditionalGenericConverter {
 				targetType.getMapValueTypeDescriptor(), this.conversionService);
 	}
 
-	@Nullable
-	private Object convertKey(Object sourceKey, TypeDescriptor sourceType, @Nullable TypeDescriptor targetType) {
+	private @Nullable Object convertKey(Object sourceKey, TypeDescriptor sourceType, @Nullable TypeDescriptor targetType) {
 		if (targetType == null) {
 			return sourceKey;
 		}
 		return this.conversionService.convert(sourceKey, sourceType.getMapKeyTypeDescriptor(sourceKey), targetType);
 	}
 
-	@Nullable
-	private Object convertValue(Object sourceValue, TypeDescriptor sourceType, @Nullable TypeDescriptor targetType) {
+	private @Nullable Object convertValue(Object sourceValue, TypeDescriptor sourceType, @Nullable TypeDescriptor targetType) {
 		if (targetType == null) {
 			return sourceValue;
 		}
@@ -133,11 +131,9 @@ final class MapToMapConverter implements ConditionalGenericConverter {
 
 	private static class MapEntry {
 
-		@Nullable
-		private final Object key;
+		private final @Nullable Object key;
 
-		@Nullable
-		private final Object value;
+		private final @Nullable Object value;
 
 		public MapEntry(@Nullable Object key, @Nullable Object value) {
 			this.key = key;

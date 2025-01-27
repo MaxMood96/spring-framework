@@ -16,7 +16,8 @@
 
 package org.springframework.messaging.simp.config;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.SubscribableChannel;
 import org.springframework.messaging.simp.stomp.StompBrokerRelayMessageHandler;
@@ -44,28 +45,21 @@ public class StompBrokerRelayRegistration extends AbstractBrokerRegistration {
 
 	private String systemPasscode = "guest";
 
-	@Nullable
-	private Long systemHeartbeatSendInterval;
+	private @Nullable Long systemHeartbeatSendInterval;
 
-	@Nullable
-	private Long systemHeartbeatReceiveInterval;
+	private @Nullable Long systemHeartbeatReceiveInterval;
 
-	@Nullable
-	private String virtualHost;
+	private @Nullable String virtualHost;
 
-	@Nullable
-	private TcpOperations<byte[]> tcpClient;
+	private @Nullable TcpOperations<byte[]> tcpClient;
 
-	@Nullable
-	private TaskScheduler taskScheduler;
+	private @Nullable TaskScheduler taskScheduler;
 
 	private boolean autoStartup = true;
 
-	@Nullable
-	private String userDestinationBroadcast;
+	private @Nullable String userDestinationBroadcast;
 
-	@Nullable
-	private String userRegistryBroadcast;
+	private @Nullable String userRegistryBroadcast;
 
 
 	/**
@@ -123,7 +117,7 @@ public class StompBrokerRelayRegistration extends AbstractBrokerRegistration {
 	/**
 	 * Set the login for the shared "system" connection used to send messages to
 	 * the STOMP broker from within the application, i.e. messages not associated
-	 * with a specific client session (e.g. REST/HTTP request handling method).
+	 * with a specific client session (for example, REST/HTTP request handling method).
 	 * <p>By default this is set to "guest".
 	 */
 	public StompBrokerRelayRegistration setSystemLogin(String login) {
@@ -135,7 +129,7 @@ public class StompBrokerRelayRegistration extends AbstractBrokerRegistration {
 	/**
 	 * Set the passcode for the shared "system" connection used to send messages to
 	 * the STOMP broker from within the application, i.e. messages not associated
-	 * with a specific client session (e.g. REST/HTTP request handling method).
+	 * with a specific client session (for example, REST/HTTP request handling method).
 	 * <p>By default this is set to "guest".
 	 */
 	public StompBrokerRelayRegistration setSystemPasscode(String passcode) {
@@ -194,7 +188,7 @@ public class StompBrokerRelayRegistration extends AbstractBrokerRegistration {
 	}
 
 	/**
-	 * Some STOMP clients (e.g. stomp-js) always send heartbeats at a fixed rate
+	 * Some STOMP clients (for example, stomp-js) always send heartbeats at a fixed rate
 	 * but others (Spring STOMP client) do so only when no other messages are
 	 * sent. However messages with a non-broker {@link #getDestinationPrefixes()
 	 * destination prefix} aren't forwarded and as a result the broker may deem
@@ -228,15 +222,14 @@ public class StompBrokerRelayRegistration extends AbstractBrokerRegistration {
 	 * a chance to try.
 	 * <p>By default this is not set.
 	 * @param destination the destination to broadcast unresolved messages to,
-	 * e.g. "/topic/unresolved-user-destination"
+	 * for example, "/topic/unresolved-user-destination"
 	 */
 	public StompBrokerRelayRegistration setUserDestinationBroadcast(String destination) {
 		this.userDestinationBroadcast = destination;
 		return this;
 	}
 
-	@Nullable
-	protected String getUserDestinationBroadcast() {
+	protected @Nullable String getUserDestinationBroadcast() {
 		return this.userDestinationBroadcast;
 	}
 
@@ -247,15 +240,14 @@ public class StompBrokerRelayRegistration extends AbstractBrokerRegistration {
 	 * users connected to other servers.
 	 * <p>By default this is not set.
 	 * @param destination the destination for broadcasting user registry details,
-	 * e.g. "/topic/simp-user-registry".
+	 * for example, "/topic/simp-user-registry".
 	 */
 	public StompBrokerRelayRegistration setUserRegistryBroadcast(String destination) {
 		this.userRegistryBroadcast = destination;
 		return this;
 	}
 
-	@Nullable
-	protected String getUserRegistryBroadcast() {
+	protected @Nullable String getUserRegistryBroadcast() {
 		return this.userRegistryBroadcast;
 	}
 

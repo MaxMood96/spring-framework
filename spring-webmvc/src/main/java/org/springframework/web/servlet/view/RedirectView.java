@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,11 +29,11 @@ import java.util.regex.Pattern;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
@@ -95,18 +95,15 @@ public class RedirectView extends AbstractUrlBasedView implements SmartView {
 
 	private boolean exposeModelAttributes = true;
 
-	@Nullable
-	private String encodingScheme;
+	private @Nullable String encodingScheme;
 
-	@Nullable
-	private HttpStatusCode statusCode;
+	private @Nullable HttpStatusCode statusCode;
 
 	private boolean expandUriTemplateVariables = true;
 
 	private boolean propagateQueryParams = false;
 
-	@Nullable
-	private String[] hosts;
+	private String @Nullable [] hosts;
 
 
 	/**
@@ -266,7 +263,7 @@ public class RedirectView extends AbstractUrlBasedView implements SmartView {
 	 * @param hosts one or more application hosts
 	 * @since 4.3
 	 */
-	public void setHosts(@Nullable String... hosts) {
+	public void setHosts(String @Nullable ... hosts) {
 		this.hosts = hosts;
 	}
 
@@ -274,8 +271,7 @@ public class RedirectView extends AbstractUrlBasedView implements SmartView {
 	 * Return the configured application hosts.
 	 * @since 4.3
 	 */
-	@Nullable
-	public String[] getHosts() {
+	public String @Nullable [] getHosts() {
 		return this.hosts;
 	}
 
@@ -328,11 +324,11 @@ public class RedirectView extends AbstractUrlBasedView implements SmartView {
 		String url = getUrl();
 		Assert.state(url != null, "'url' not set");
 
-		if (this.contextRelative && getUrl().startsWith("/")) {
+		if (this.contextRelative && url.startsWith("/")) {
 			// Do not apply context path to relative URLs.
 			targetUrl.append(getContextPath(request));
 		}
-		targetUrl.append(getUrl());
+		targetUrl.append(url);
 
 		String enc = this.encodingScheme;
 		if (enc == null) {
@@ -554,7 +550,7 @@ public class RedirectView extends AbstractUrlBasedView implements SmartView {
 	/**
 	 * Determine whether the given model element value is eligible for exposure.
 	 * <p>The default implementation considers primitives, strings, numbers, dates,
-	 * URIs, URLs etc as eligible, according to {@link BeanUtils#isSimpleValueType}.
+	 * URIs, URLs etc. as eligible, according to {@link BeanUtils#isSimpleValueType}.
 	 * This can be overridden in subclasses.
 	 * @param value the model element value
 	 * @return whether the element value is eligible

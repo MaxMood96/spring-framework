@@ -19,8 +19,8 @@ package org.springframework.messaging.simp;
 import java.util.Map;
 
 import org.apache.commons.logging.Log;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.util.Assert;
@@ -28,7 +28,7 @@ import org.springframework.util.StringUtils;
 
 /**
  * A wrapper class for access to attributes associated with a SiMP session
- * (e.g. WebSocket session).
+ * (for example, WebSocket session).
  *
  * @author Rossen Stoyanchev
  * @since 4.1
@@ -71,8 +71,7 @@ public class SimpAttributes {
 	 * @param name the name of the attribute
 	 * @return the current attribute value, or {@code null} if not found
 	 */
-	@Nullable
-	public Object getAttribute(String name) {
+	public @Nullable Object getAttribute(String name) {
 		return this.attributes.get(name);
 	}
 

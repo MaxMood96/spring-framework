@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,9 @@ package org.springframework.web.servlet.mvc.method.annotation;
 
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.MethodParameter;
-import org.springframework.lang.Nullable;
 import org.springframework.ui.Model;
 import org.springframework.ui.ModelMap;
 import org.springframework.util.Assert;
@@ -63,7 +64,7 @@ public class RedirectAttributesMethodArgumentResolver implements HandlerMethodAr
 			redirectAttributes = new RedirectAttributesModelMap(dataBinder);
 		}
 		else {
-			redirectAttributes  = new RedirectAttributesModelMap();
+			redirectAttributes = new RedirectAttributesModelMap();
 		}
 		mavContainer.setRedirectModel(redirectAttributes);
 		return redirectAttributes;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 package org.springframework.beans.factory.aot;
 
 import java.util.function.UnaryOperator;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aot.generate.GenerationContext;
 import org.springframework.util.Assert;
@@ -79,6 +81,32 @@ public interface BeanRegistrationAotContribution {
 			public void applyTo(GenerationContext generationContext,
 					BeanRegistrationCode beanRegistrationCode) {
 			}
+		};
+	}
+
+	/**
+	 * Create a contribution that applies the contribution of the first contribution
+	 * followed by the second contribution. Any contribution can be {@code null} to be
+	 * ignored and the concatenated contribution is {@code null} if both inputs are
+	 * {@code null}.
+	 * @param a the first contribution
+	 * @param b the second contribution
+	 * @return the concatenation of the two contributions, or {@code null} if
+	 * they are both {@code null}.
+	 * @since 6.1
+	 */
+	static @Nullable BeanRegistrationAotContribution concat(@Nullable BeanRegistrationAotContribution a,
+			@Nullable BeanRegistrationAotContribution b) {
+
+		if (a == null) {
+			return b;
+		}
+		if (b == null) {
+			return a;
+		}
+		return (generationContext, beanRegistrationCode) -> {
+			a.applyTo(generationContext, beanRegistrationCode);
+			b.applyTo(generationContext, beanRegistrationCode);
 		};
 	}
 

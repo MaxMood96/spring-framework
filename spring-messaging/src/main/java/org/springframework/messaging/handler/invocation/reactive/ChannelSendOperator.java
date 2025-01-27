@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.springframework.messaging.handler.invocation.reactive;
 
 import java.util.function.Function;
 
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -30,7 +31,6 @@ import reactor.util.context.Context;
 
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -68,9 +68,8 @@ class ChannelSendOperator<T> extends Mono<Void> implements Scannable {
 
 
 	@Override
-	@Nullable
 	@SuppressWarnings("rawtypes")
-	public Object scanUnsafe(Attr key) {
+	public @Nullable Object scanUnsafe(Attr key) {
 		if (key == Attr.PREFETCH) {
 			return Integer.MAX_VALUE;
 		}
@@ -107,7 +106,7 @@ class ChannelSendOperator<T> extends Mono<Void> implements Scannable {
 		 * The write subscriber has subscribed, and cached signals have been
 		 * emitted to it; we're ready to switch to a simple pass-through mode
 		 * for all remaining signals.
-		 **/
+		 */
 		READY_TO_WRITE
 
 	}
@@ -134,16 +133,13 @@ class ChannelSendOperator<T> extends Mono<Void> implements Scannable {
 		private final WriteCompletionBarrier writeCompletionBarrier;
 
 		/* Upstream write source subscription */
-		@Nullable
-		private Subscription subscription;
+		private @Nullable Subscription subscription;
 
 		/** Cached data item before readyToWrite. */
-		@Nullable
-		private T item;
+		private @Nullable T item;
 
 		/** Cached error signal before readyToWrite. */
-		@Nullable
-		private Throwable error;
+		private @Nullable Throwable error;
 
 		/** Cached onComplete signal before readyToWrite. */
 		private boolean completed = false;
@@ -155,8 +151,7 @@ class ChannelSendOperator<T> extends Mono<Void> implements Scannable {
 		private State state = State.NEW;
 
 		/** The actual writeSubscriber from the HTTP server adapter. */
-		@Nullable
-		private Subscriber<? super T> writeSubscriber;
+		private @Nullable Subscriber<? super T> writeSubscriber;
 
 
 		WriteBarrier(CoreSubscriber<? super Void> completionSubscriber) {
@@ -181,7 +176,7 @@ class ChannelSendOperator<T> extends Mono<Void> implements Scannable {
 				requiredWriteSubscriber().onNext(item);
 				return;
 			}
-			//FIXME revisit in case of reentrant sync deadlock
+			// FIXME revisit in case of reentrant sync deadlock
 			synchronized (this) {
 				if (this.state == State.READY_TO_WRITE) {
 					requiredWriteSubscriber().onNext(item);
@@ -281,6 +276,10 @@ class ChannelSendOperator<T> extends Mono<Void> implements Scannable {
 				return;
 			}
 			synchronized (this) {
+				if (this.state == State.READY_TO_WRITE) {
+					s.request(n);
+					return;
+				}
 				if (this.writeSubscriber != null) {
 					if (this.state == State.EMITTING_CACHED_SIGNALS) {
 						this.demandBeforeReadyToWrite = n;
@@ -305,9 +304,10 @@ class ChannelSendOperator<T> extends Mono<Void> implements Scannable {
 		}
 
 		private boolean emitCachedSignals() {
-			if (this.error != null) {
+			Throwable error = this.error;
+			if (error != null) {
 				try {
-					requiredWriteSubscriber().onError(this.error);
+					requiredWriteSubscriber().onError(error);
 				}
 				finally {
 					releaseCachedItem();
@@ -386,8 +386,7 @@ class ChannelSendOperator<T> extends Mono<Void> implements Scannable {
 
 		private final WriteBarrier writeBarrier;
 
-		@Nullable
-		private Subscription subscription;
+		private @Nullable Subscription subscription;
 
 
 		public WriteCompletionBarrier(CoreSubscriber<? super Void> subscriber, WriteBarrier writeBarrier) {

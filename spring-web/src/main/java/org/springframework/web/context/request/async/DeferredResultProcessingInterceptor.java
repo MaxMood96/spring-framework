@@ -16,13 +16,14 @@
 
 package org.springframework.web.context.request.async;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.web.context.request.NativeWebRequest;
 
 /**
  * Intercepts concurrent request handling, where the concurrent result is
  * obtained by waiting for a {@link DeferredResult} to be set from a thread
- * chosen by the application (e.g. in response to some external event).
+ * chosen by the application (for example, in response to some external event).
  *
  * <p>A {@code DeferredResultProcessingInterceptor} is invoked before the start
  * of async processing, after the {@code DeferredResult} is set as well as on

@@ -19,7 +19,7 @@ matches the execution of any method named `transfer`:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim",role="primary"]
+[source,java,indent=0,subs="verbatim"]
 ----
 	@Pointcut("execution(* transfer(..))") // the pointcut expression
 	private void anyOldTransfer() {} // the pointcut signature
@@ -27,7 +27,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim"]
 ----
 	@Pointcut("execution(* transfer(..))") // the pointcut expression
 	private fun anyOldTransfer() {} // the pointcut signature
@@ -36,9 +36,9 @@ Kotlin::
 
 The pointcut expression that forms the value of the `@Pointcut` annotation is a regular
 AspectJ pointcut expression. For a full discussion of AspectJ's pointcut language, see
-the https://www.eclipse.org/aspectj/doc/released/progguide/index.html[AspectJ
+the {aspectj-docs-progguide}/index.html[AspectJ
 Programming Guide] (and, for extensions, the
-https://www.eclipse.org/aspectj/doc/released/adk15notebook/index.html[AspectJ 5
+{aspectj-docs}/adk15notebook/index.html[AspectJ 5
 Developer's Notebook]) or one of the books on AspectJ (such as _Eclipse AspectJ_, by Colyer
 et al., or _AspectJ in Action_, by Ramnivas Laddad).
 
@@ -150,11 +150,10 @@ pointcut expressions by name. The following example shows three pointcut express
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim",role="primary",chomp="-packages"]
+[source,java,indent=0,subs="verbatim",chomp="-packages"]
 ----
 	package com.xyz;
 
-	@Aspect
 	public class Pointcuts {
 
 		@Pointcut("execution(public * *(..))")
@@ -175,11 +174,10 @@ trading module.
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim",role="secondary",chomp="-packages"]
+[source,kotlin,indent=0,subs="verbatim",chomp="-packages"]
 ----
 	package com.xyz
 
-	@Aspect
 	class Pointcuts {
 
 		@Pointcut("execution(public * *(..))")
@@ -211,22 +209,20 @@ pointcut matching.
 
 When working with enterprise applications, developers often have the need to refer to
 modules of the application and particular sets of operations from within several aspects.
-We recommend defining a dedicated aspect that captures commonly used _named pointcut_
-expressions for this purpose. Such an aspect typically resembles the following
-`CommonPointcuts` example (though what you name the aspect is up to you):
+We recommend defining a dedicated class that captures commonly used _named pointcut_
+expressions for this purpose. Such a class typically resembles the following
+`CommonPointcuts` example (though what you name the class is up to you):
 
 [tabs]
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim",role="primary",chomp="-packages",fold="none"]
+[source,java,indent=0,subs="verbatim",chomp="-packages",fold="none"]
 ----
 	package com.xyz;
 
-	import org.aspectj.lang.annotation.Aspect;
 	import org.aspectj.lang.annotation.Pointcut;
 
-	@Aspect
 	public class CommonPointcuts {
 
 		/**
@@ -283,14 +279,12 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim",role="secondary",chomp="-packages",fold="none"]
+[source,kotlin,indent=0,subs="verbatim",chomp="-packages",fold="none"]
 ----
 	package com.xyz
 
-	import org.aspectj.lang.annotation.Aspect
 	import org.aspectj.lang.annotation.Pointcut
 
-	@Aspect
 	class CommonPointcuts {
 
 		/**
@@ -346,9 +340,9 @@ Kotlin::
 ----
 ======
 
-You can refer to the pointcuts defined in such an aspect anywhere you need a pointcut
-expression by referencing the fully-qualified name of the `@Aspect` class combined with
-the `@Pointcut` method's name. For example, to make the service layer transactional, you
+You can refer to the pointcuts defined in such a class anywhere you need a pointcut
+expression by referencing the fully-qualified name of the class combined with the
+`@Pointcut` method's name. For example, to make the service layer transactional, you
 could write the following which references the
 `com.xyz.CommonPointcuts.businessService()` _named pointcut_:
 
@@ -398,7 +392,7 @@ method that takes no parameters, whereas `(..)` matches any number (zero or more
 The `({asterisk})` pattern matches a method that takes one parameter of any type.
 `(*,String)` matches a method that takes two parameters. The first can be of any type, while the
 second must be a `String`. Consult the
-https://www.eclipse.org/aspectj/doc/released/progguide/semantics-pointcuts.html[Language
+{aspectj-docs-progguide}/semantics-pointcuts.html[Language
 Semantics] section of the AspectJ Programming Guide for more information.
 
 The following examples show some common pointcut expressions:

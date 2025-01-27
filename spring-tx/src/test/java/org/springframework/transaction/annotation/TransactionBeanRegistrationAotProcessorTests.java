@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.springframework.transaction.annotation;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.aot.generate.GenerationContext;
@@ -26,7 +27,6 @@ import org.springframework.beans.factory.aot.BeanRegistrationAotContribution;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.RegisteredBean;
 import org.springframework.beans.factory.support.RootBeanDefinition;
-import org.springframework.lang.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -36,7 +36,7 @@ import static org.mockito.Mockito.mock;
  *
  * @author Sebastien Deleuze
  */
-public class TransactionBeanRegistrationAotProcessorTests {
+class TransactionBeanRegistrationAotProcessorTests {
 
 	private final TransactionBeanRegistrationAotProcessor processor = new TransactionBeanRegistrationAotProcessor();
 
@@ -96,8 +96,7 @@ public class TransactionBeanRegistrationAotProcessorTests {
 		}
 	}
 
-	@Nullable
-	private BeanRegistrationAotContribution createContribution(Class<?> beanClass) {
+	private @Nullable BeanRegistrationAotContribution createContribution(Class<?> beanClass) {
 		DefaultListableBeanFactory beanFactory = new DefaultListableBeanFactory();
 		beanFactory.registerBeanDefinition(beanClass.getName(), new RootBeanDefinition(beanClass));
 		return this.processor.processAheadOfTime(RegisteredBean.of(beanFactory, beanClass.getName()));

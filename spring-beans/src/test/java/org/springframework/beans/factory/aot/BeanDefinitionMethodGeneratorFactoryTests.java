@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.springframework.beans.factory.aot;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
@@ -24,17 +25,18 @@ import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.RegisteredBean;
 import org.springframework.core.Ordered;
 import org.springframework.core.test.io.support.MockSpringFactoriesLoader;
-import org.springframework.lang.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.mockito.Mockito.mock;
 
 /**
  * Tests for {@link BeanDefinitionMethodGeneratorFactory}.
  *
  * @author Phillip Webb
+ * @author Stephane Nicoll
  */
 class BeanDefinitionMethodGeneratorFactoryTests {
 
@@ -55,6 +57,40 @@ class BeanDefinitionMethodGeneratorFactoryTests {
 		loader.addInstance(BeanRegistrationExcludeFilter.class, filter);
 		assertThatNoException().isThrownBy(() -> new BeanDefinitionMethodGeneratorFactory(
 				AotServices.factories(loader)));
+	}
+
+	@Test
+	void getBeanDefinitionMethodGeneratorWhenExcludedByBeanDefinitionAttributeReturnsNull() {
+		MockSpringFactoriesLoader springFactoriesLoader = new MockSpringFactoriesLoader();
+		DefaultListableBeanFactory beanFactory = new DefaultListableBeanFactory();
+		RegisteredBean registeredBean = registerTestBean(beanFactory);
+		registeredBean.getMergedBeanDefinition().setAttribute(
+				BeanRegistrationAotProcessor.IGNORE_REGISTRATION_ATTRIBUTE, true);
+		BeanDefinitionMethodGeneratorFactory methodGeneratorFactory = new BeanDefinitionMethodGeneratorFactory(
+				AotServices.factoriesAndBeans(springFactoriesLoader, beanFactory));
+		assertThat(methodGeneratorFactory.getBeanDefinitionMethodGenerator(registeredBean)).isNull();
+	}
+
+	@Test
+	void getBeanDefinitionMethodGeneratorWhenBeanDefinitionAttributeSetToFalseDoesNotFilterBean() {
+		MockSpringFactoriesLoader springFactoriesLoader = new MockSpringFactoriesLoader();
+		DefaultListableBeanFactory beanFactory = new DefaultListableBeanFactory();
+		RegisteredBean registeredBean = registerTestBean(beanFactory);
+		registeredBean.getMergedBeanDefinition().setAttribute(
+				BeanRegistrationAotProcessor.IGNORE_REGISTRATION_ATTRIBUTE, false);
+		BeanDefinitionMethodGeneratorFactory methodGeneratorFactory = new BeanDefinitionMethodGeneratorFactory(
+				AotServices.factoriesAndBeans(springFactoriesLoader, beanFactory));
+		assertThat(methodGeneratorFactory.getBeanDefinitionMethodGenerator(registeredBean)).isNotNull();
+	}
+
+	@Test
+	void getBeanDefinitionMethodGeneratorWhenBeanDefinitionAttributeIsNotSetDoesNotFilterBean() {
+		MockSpringFactoriesLoader springFactoriesLoader = new MockSpringFactoriesLoader();
+		DefaultListableBeanFactory beanFactory = new DefaultListableBeanFactory();
+		RegisteredBean registeredBean = registerTestBean(beanFactory);
+		BeanDefinitionMethodGeneratorFactory methodGeneratorFactory = new BeanDefinitionMethodGeneratorFactory(
+				AotServices.factoriesAndBeans(springFactoriesLoader, beanFactory));
+		assertThat(methodGeneratorFactory.getBeanDefinitionMethodGenerator(registeredBean)).isNotNull();
 	}
 
 	@Test
@@ -123,7 +159,7 @@ class BeanDefinitionMethodGeneratorFactoryTests {
 				AotServices.factoriesAndBeans(springFactoriesLoader, beanFactory));
 		BeanDefinitionMethodGenerator methodGenerator = methodGeneratorFactory
 				.getBeanDefinitionMethodGenerator(registeredBean);
-		assertThat(methodGenerator).extracting("aotContributions").asList()
+		assertThat(methodGenerator).extracting("aotContributions").asInstanceOf(LIST)
 				.containsExactly(beanContribution, loaderContribution);
 	}
 
@@ -169,8 +205,7 @@ class BeanDefinitionMethodGeneratorFactoryTests {
 
 		private final int order;
 
-		@Nullable
-		private RegisteredBean registeredBean;
+		private @Nullable RegisteredBean registeredBean;
 
 		MockBeanRegistrationExcludeFilter(boolean excluded, int order) {
 			this.excluded = excluded;

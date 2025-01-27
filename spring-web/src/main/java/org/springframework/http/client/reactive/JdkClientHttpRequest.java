@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,12 +20,14 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Flow;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import reactor.adapter.JdkFlowAdapter;
 import reactor.core.publisher.Flux;
@@ -37,6 +39,7 @@ import org.springframework.http.HttpCookie;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.util.Assert;
+import org.springframework.util.MultiValueMap;
 
 /**
  * {@link ClientHttpRequest} for the Java {@link HttpClient}.
@@ -56,7 +59,8 @@ class JdkClientHttpRequest extends AbstractClientHttpRequest {
 	private final HttpRequest.Builder builder;
 
 
-	public JdkClientHttpRequest(HttpMethod httpMethod, URI uri, DataBufferFactory bufferFactory) {
+	public JdkClientHttpRequest(HttpMethod httpMethod, URI uri, DataBufferFactory bufferFactory,
+								@Nullable Duration readTimeout) {
 		Assert.notNull(httpMethod, "HttpMethod is required");
 		Assert.notNull(uri, "URI is required");
 		Assert.notNull(bufferFactory, "DataBufferFactory is required");
@@ -65,6 +69,9 @@ class JdkClientHttpRequest extends AbstractClientHttpRequest {
 		this.uri = uri;
 		this.bufferFactory = bufferFactory;
 		this.builder = HttpRequest.newBuilder(uri);
+		if (readTimeout != null) {
+			this.builder.timeout(readTimeout);
+		}
 	}
 
 
@@ -92,7 +99,7 @@ class JdkClientHttpRequest extends AbstractClientHttpRequest {
 
 	@Override
 	protected void applyHeaders() {
-		for (Map.Entry<String, List<String>> entry : getHeaders().entrySet()) {
+		for (Map.Entry<String, List<String>> entry : getHeaders().headerSet()) {
 			if (entry.getKey().equalsIgnoreCase(HttpHeaders.CONTENT_LENGTH)) {
 				// content-length is specified when writing
 				continue;
@@ -101,14 +108,18 @@ class JdkClientHttpRequest extends AbstractClientHttpRequest {
 				this.builder.header(entry.getKey(), value);
 			}
 		}
-		if (!getHeaders().containsKey(HttpHeaders.ACCEPT)) {
+		if (!getHeaders().containsHeader(HttpHeaders.ACCEPT)) {
 			this.builder.header(HttpHeaders.ACCEPT, "*/*");
 		}
 	}
 
 	@Override
 	protected void applyCookies() {
-		this.builder.header(HttpHeaders.COOKIE, getCookies().values().stream()
+		MultiValueMap<String, HttpCookie> cookies = getCookies();
+		if (cookies.isEmpty()) {
+			return;
+		}
+		this.builder.header(HttpHeaders.COOKIE, cookies.values().stream()
 				.flatMap(List::stream).map(HttpCookie::toString).collect(Collectors.joining(";")));
 	}
 

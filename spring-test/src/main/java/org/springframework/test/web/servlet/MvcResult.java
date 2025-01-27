@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package org.springframework.test.web.servlet;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.servlet.FlashMap;
@@ -34,13 +35,13 @@ public interface MvcResult {
 
 	/**
 	 * Return the performed request.
-	 * @return the request, never {@code null}
+	 * @return the request (never {@code null})
 	 */
 	MockHttpServletRequest getRequest();
 
 	/**
 	 * Return the resulting response.
-	 * @return the response, never {@code null}
+	 * @return the response (never {@code null})
 	 */
 	MockHttpServletResponse getResponse();
 
@@ -48,30 +49,26 @@ public interface MvcResult {
 	 * Return the executed handler.
 	 * @return the handler, possibly {@code null} if none were executed
 	 */
-	@Nullable
-	Object getHandler();
+	@Nullable Object getHandler();
 
 	/**
 	 * Return interceptors around the handler.
 	 * @return interceptors, or {@code null} if none were selected
 	 */
-	@Nullable
-	HandlerInterceptor[] getInterceptors();
+	HandlerInterceptor @Nullable [] getInterceptors();
 
 	/**
 	 * Return the {@code ModelAndView} prepared by the handler.
 	 * @return a {@code ModelAndView}, or {@code null} if none
 	 */
-	@Nullable
-	ModelAndView getModelAndView();
+	@Nullable ModelAndView getModelAndView();
 
 	/**
 	 * Return any exception raised by a handler and successfully resolved
 	 * through a {@link HandlerExceptionResolver}.
 	 * @return an exception, or {@code null} if none
 	 */
-	@Nullable
-	Exception getResolvedException();
+	@Nullable Exception getResolvedException();
 
 	/**
 	 * Return the "output" flash attributes saved during request processing.
@@ -88,7 +85,7 @@ public interface MvcResult {
 	 * {@link #getAsyncResult(long)} to specify the amount of time to wait.
 	 * @throws IllegalStateException if the async result was not set
 	 */
-	Object getAsyncResult();
+	@Nullable Object getAsyncResult();
 
 	/**
 	 * Get the result of async execution and wait if necessary.
@@ -99,6 +96,6 @@ public interface MvcResult {
 	 * 	MockAsyncContext#setTimeout} for more details.
 	 * @throws IllegalStateException if the async result was not set
 	 */
-	Object getAsyncResult(long timeToWait);
+	@Nullable Object getAsyncResult(long timeToWait);
 
 }

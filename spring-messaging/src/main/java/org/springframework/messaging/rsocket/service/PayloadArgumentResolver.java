@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,12 @@
 
 package org.springframework.messaging.rsocket.service;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.ReactiveAdapter;
 import org.springframework.core.ReactiveAdapterRegistry;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.util.Assert;
 
@@ -29,6 +30,7 @@ import org.springframework.util.Assert;
  * annotated arguments.
  *
  * @author Rossen Stoyanchev
+ * @author Olga Maciaszek-Sharma
  * @since 6.0
  */
 public class PayloadArgumentResolver implements RSocketServiceArgumentResolver {
@@ -54,25 +56,28 @@ public class PayloadArgumentResolver implements RSocketServiceArgumentResolver {
 			return false;
 		}
 
-		if (argument != null) {
-			ReactiveAdapter reactiveAdapter = this.reactiveAdapterRegistry.getAdapter(parameter.getParameterType());
-			if (reactiveAdapter == null) {
-				requestValues.setPayloadValue(argument);
-			}
-			else {
-				MethodParameter nestedParameter = parameter.nested();
+		if (argument == null) {
+			boolean isOptional = ((annot != null && !annot.required()) || parameter.isOptional());
+			Assert.isTrue(isOptional, () -> "Missing payload");
+			return true;
+		}
 
-				String message = "Async type for @Payload should produce value(s)";
-				Assert.isTrue(nestedParameter.getNestedParameterType() != Void.class, message);
-				Assert.isTrue(!reactiveAdapter.isNoValue(), message);
+		ReactiveAdapter adapter = this.reactiveAdapterRegistry.getAdapter(parameter.getParameterType());
+		if (adapter == null) {
+			requestValues.setPayloadValue(argument);
+		}
+		else {
+			MethodParameter nestedParameter = parameter.nested();
 
-				requestValues.setPayload(
-						reactiveAdapter.toPublisher(argument),
-						ParameterizedTypeReference.forType(nestedParameter.getNestedGenericParameterType()));
-			}
+			String message = "Async type for @Payload should produce value(s)";
+			Assert.isTrue(nestedParameter.getNestedParameterType() != Void.class, message);
+			Assert.isTrue(!adapter.isNoValue(), message);
+
+			requestValues.setPayload(
+					adapter.toPublisher(argument),
+					ParameterizedTypeReference.forType(nestedParameter.getNestedGenericParameterType()));
 		}
 
 		return true;
 	}
-
 }

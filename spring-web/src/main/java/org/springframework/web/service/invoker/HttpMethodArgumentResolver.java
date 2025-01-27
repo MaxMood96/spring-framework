@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,14 @@
 
 package org.springframework.web.service.invoker;
 
+import java.util.Optional;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpMethod;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -41,11 +43,21 @@ public class HttpMethodArgumentResolver implements HttpServiceArgumentResolver {
 	public boolean resolve(
 			@Nullable Object argument, MethodParameter parameter, HttpRequestValues.Builder requestValues) {
 
-		if (!parameter.getParameterType().equals(HttpMethod.class)) {
+		parameter = parameter.nestedIfOptional();
+
+		if (!parameter.getNestedParameterType().equals(HttpMethod.class)) {
 			return false;
 		}
 
-		Assert.notNull(argument, "HttpMethod is required");
+		if (argument instanceof Optional<?> optionalValue) {
+			argument = optionalValue.orElse(null);
+		}
+
+		if (argument == null) {
+			Assert.isTrue(parameter.isOptional(), "HttpMethod is required");
+			return true;
+		}
+
 		HttpMethod httpMethod = (HttpMethod) argument;
 		requestValues.setHttpMethod(httpMethod);
 		if (logger.isTraceEnabled()) {

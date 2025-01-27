@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package org.springframework.web.reactive.function.server;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +29,8 @@ import reactor.test.StepVerifier;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -36,14 +39,15 @@ import org.springframework.web.testfixture.server.MockServerWebExchange;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.web.reactive.function.server.RequestPredicates.HEAD;
+import static org.springframework.web.reactive.function.server.RequestPredicates.path;
 
 /**
  * @author Arjen Poutsma
  */
-public class RouterFunctionBuilderTests {
+class RouterFunctionBuilderTests {
 
 	@Test
-	public void route() {
+	void route() {
 		RouterFunction<ServerResponse> route = RouterFunctions.route()
 				.GET("/foo", request -> ServerResponse.ok().build())
 				.POST("/", RequestPredicates.contentType(MediaType.TEXT_PLAIN), request -> ServerResponse.noContent().build())
@@ -100,7 +104,28 @@ public class RouterFunctionBuilderTests {
 	}
 
 	@Test
-	public void resources() {
+	void resource() {
+		Resource resource = new ClassPathResource("/org/springframework/web/reactive/function/server/response.txt");
+		assertThat(resource.exists()).isTrue();
+
+		RouterFunction<ServerResponse> route = RouterFunctions.route()
+				.resource(path("/test"), resource)
+				.build();
+
+		MockServerHttpRequest mockRequest = MockServerHttpRequest.get("https://localhost/test").build();
+		ServerRequest resourceRequest = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
+
+		Mono<HttpStatusCode> responseMono = route.route(resourceRequest)
+				.flatMap(handlerFunction -> handlerFunction.handle(resourceRequest))
+				.map(ServerResponse::statusCode);
+
+		StepVerifier.create(responseMono)
+				.expectNext(HttpStatus.OK)
+				.verifyComplete();
+	}
+
+	@Test
+	void resources() {
 		Resource resource = new ClassPathResource("/org/springframework/web/reactive/function/server/");
 		assertThat(resource.exists()).isTrue();
 
@@ -131,7 +156,29 @@ public class RouterFunctionBuilderTests {
 	}
 
 	@Test
-	public void nest() {
+	void resourcesCaching() {
+		Resource resource = new ClassPathResource("/org/springframework/web/reactive/function/server/");
+		assertThat(resource.exists()).isTrue();
+
+		RouterFunction<ServerResponse> route = RouterFunctions.route()
+				.resources("/resources/**", resource, (r, headers) -> headers.setCacheControl(CacheControl.maxAge(Duration.ofSeconds(60))))
+				.build();
+
+		MockServerHttpRequest mockRequest = MockServerHttpRequest.get("https://localhost/resources/response.txt").build();
+		ServerRequest resourceRequest = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
+
+		Mono<String> responseMono = route.route(resourceRequest)
+				.flatMap(handlerFunction -> handlerFunction.handle(resourceRequest))
+				.map(ServerResponse::headers)
+				.mapNotNull(HttpHeaders::getCacheControl);
+
+		StepVerifier.create(responseMono)
+				.expectNext("max-age=60")
+				.verifyComplete();
+	}
+
+	@Test
+	void nest() {
 		RouterFunction<?> route = RouterFunctions.route()
 				.path("/foo", builder ->
 						builder.path("/bar",
@@ -153,7 +200,7 @@ public class RouterFunctionBuilderTests {
 	}
 
 	@Test
-	public void filters() {
+	void filters() {
 		AtomicInteger filterCount = new AtomicInteger();
 
 		RouterFunction<?> route = RouterFunctions.route()
@@ -207,7 +254,7 @@ public class RouterFunctionBuilderTests {
 	}
 
 	@Test
-	public void multipleOnErrors() {
+	void multipleOnErrors() {
 		RouterFunction<ServerResponse> route = RouterFunctions.route()
 				.GET("/error", request -> Mono.error(new IOException()))
 				.onError(IOException.class, (t, r) -> ServerResponse.status(200).build())
@@ -228,7 +275,7 @@ public class RouterFunctionBuilderTests {
 	}
 
 	@Test
-	public void attributes() {
+	void attributes() {
 		RouterFunction<ServerResponse> route = RouterFunctions.route()
 				.GET("/atts/1", request -> ServerResponse.ok().build())
 				.withAttribute("foo", "bar")

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,18 +26,24 @@ import org.springframework.aot.hint.annotation.Reflective;
 import org.springframework.core.annotation.AliasFor;
 import org.springframework.http.HttpEntity;
 import org.springframework.web.bind.annotation.Mapping;
+import org.springframework.web.util.UriBuilderFactory;
 
 /**
  * Annotation to declare a method on an HTTP service interface as an HTTP
- * endpoint. The endpoint details are defined statically through attributes of
+ * endpoint. Endpoint details are defined statically through attributes of
  * the annotation, as well as through the input method argument types.
  *
- * <p>Supported at the type level to express common attributes, to be inherited
- * by all methods, such as a base URL path.
+ * <p>An HTTP service interface can be passed to
+ * {@link org.springframework.web.service.invoker.HttpServiceProxyFactory}
+ * to create a client proxy. It can also be implemented by an
+ * {@link org.springframework.stereotype.Controller @Controller} for server
+ * handling. For more details in comparison to {@code @RequestMapping}, see the
+ * <a href="https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-requestmapping.html#mvc-ann-httpexchange-annotation">reference docs</a>.
  *
- * <p>At the method level, it's more common to use one of the following HTTP method
- * specific, shortcut annotations, each of which is itself <em>meta-annotated</em>
- * with {@code HttpExchange}:
+ * <p>Supported at the type level to express common attributes, to be inherited
+ * by all methods, such as a base URL path. At the method level, it's more common
+ * to use one of the following HTTP method specific, shortcut annotations, each
+ * of which is itself <em>meta-annotated</em> with {@code HttpExchange}:
  *
  * <ul>
  * <li>{@link GetExchange}
@@ -59,6 +65,13 @@ import org.springframework.web.bind.annotation.Mapping;
  * <td>Dynamically set the URL for the request, overriding the annotation's
  * {@link #url()} attribute</td>
  * <td>{@link org.springframework.web.service.invoker.UrlArgumentResolver}</td>
+ * </tr>
+ * <tr>
+ * <td>{@link UriBuilderFactory}</td>
+ * <td>Dynamically set the {@code base URI} for the request, overriding the
+ * one from the annotation's {@link #url()} attribute, while keeping the
+ * subsequent path segments as defined there</td>
+ * <td>{@link org.springframework.web.service.invoker.UriBuilderFactoryArgumentResolver}</td>
  * </tr>
  * <tr>
  * <td>{@link org.springframework.http.HttpMethod HttpMethod}</td>
@@ -96,7 +109,7 @@ import org.springframework.web.bind.annotation.Mapping;
  * <td>{@link org.springframework.web.bind.annotation.RequestPart @RequestPart}</td>
  * <td>Add a request part, which may be a String (form field),
  * {@link org.springframework.core.io.Resource} (file part), Object (entity to be
- * encoded, e.g. as JSON), {@link HttpEntity} (part content and headers), a
+ * encoded, for example, as JSON), {@link HttpEntity} (part content and headers), a
  * {@link org.springframework.http.codec.multipart.Part}, or a
  * {@link org.reactivestreams.Publisher} of any of the above.
  * (</td>
@@ -159,5 +172,17 @@ public @interface HttpExchange {
 	 * <p>By default, this is empty.
 	 */
 	String[] accept() default {};
+
+	/**
+	 * The additional headers to use, as an array of {@code name=value} pairs.
+	 * <p>Multiple comma-separated values are accepted, and placeholders are
+	 * supported in these values. However, Accept and Content-Type headers are
+	 * ignored: see {@link #accept()} and {@link #contentType()}.
+	 * <p>Supported at the type level as well as at the method level, in which
+	 * case the method-level values override type-level values.
+	 * <p>By default, this is empty.
+	 * @since 6.2
+	 */
+	String[] headers() default {};
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,20 +30,6 @@ public interface TcpOperations<P> {
 	/**
 	 * Open a new connection.
 	 * @param connectionHandler a handler to manage the connection
-	 * @return a ListenableFuture that can be used to determine when and if the
-	 * connection is successfully established
-	 * @deprecated as of 6.0, in favor of {@link #connectAsync(TcpConnectionHandler)}
-	 */
-	@Deprecated(since = "6.0")
-	default org.springframework.util.concurrent.ListenableFuture<Void> connect(
-			TcpConnectionHandler<P> connectionHandler) {
-		return new org.springframework.util.concurrent.CompletableToListenableFutureAdapter<>(
-				connectAsync(connectionHandler));
-	}
-
-	/**
-	 * Open a new connection.
-	 * @param connectionHandler a handler to manage the connection
 	 * @return a CompletableFuture that can be used to determine when and if the
 	 * connection is successfully established
 	 * @since 6.0
@@ -54,38 +40,11 @@ public interface TcpOperations<P> {
 	 * Open a new connection and a strategy for reconnecting if the connection fails.
 	 * @param connectionHandler a handler to manage the connection
 	 * @param reconnectStrategy a strategy for reconnecting
-	 * @return a ListenableFuture that can be used to determine when and if the
-	 * initial connection is successfully established
-	 * @deprecated as of 6.0, in favor of {@link #connectAsync(TcpConnectionHandler, ReconnectStrategy)}
-	 */
-	@Deprecated(since = "6.0")
-	default org.springframework.util.concurrent.ListenableFuture<Void> connect(
-			TcpConnectionHandler<P> connectionHandler, ReconnectStrategy reconnectStrategy) {
-		return new org.springframework.util.concurrent.CompletableToListenableFutureAdapter<>(
-				connectAsync(connectionHandler, reconnectStrategy));
-	}
-
-	/**
-	 * Open a new connection and a strategy for reconnecting if the connection fails.
-	 * @param connectionHandler a handler to manage the connection
-	 * @param reconnectStrategy a strategy for reconnecting
 	 * @return a CompletableFuture that can be used to determine when and if the
 	 * initial connection is successfully established
 	 * @since 6.0
 	 */
 	CompletableFuture<Void> connectAsync(TcpConnectionHandler<P> connectionHandler, ReconnectStrategy reconnectStrategy);
-
-	/**
-	 * Shut down and close any open connections.
-	 * @return a ListenableFuture that can be used to determine when and if the
-	 * connection is successfully closed
-	 * @deprecated as of 6.0, in favor of {@link #shutdownAsync()}
-	 */
-	@Deprecated(since = "6.0")
-	default org.springframework.util.concurrent.ListenableFuture<Void> shutdown() {
-		return new org.springframework.util.concurrent.CompletableToListenableFutureAdapter<>(
-				shutdownAsync());
-	}
 
 	/**
 	 * Shut down and close any open connections.

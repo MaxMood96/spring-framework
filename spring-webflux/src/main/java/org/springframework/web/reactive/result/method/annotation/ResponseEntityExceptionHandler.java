@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,20 +20,23 @@ import java.util.Locale;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Mono;
 
 import org.springframework.context.MessageSource;
 import org.springframework.context.MessageSourceAware;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.Nullable;
+import org.springframework.validation.method.MethodValidationException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.ErrorResponseException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.support.WebExchangeBindException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.server.MethodNotAllowedException;
 import org.springframework.web.server.MissingRequestValueException;
 import org.springframework.web.server.NotAcceptableStatusException;
@@ -47,7 +50,7 @@ import org.springframework.web.server.UnsupportedMediaTypeStatusException;
 /**
  * A class with an {@code @ExceptionHandler} method that handles all Spring
  * WebFlux raised exceptions by returning a {@link ResponseEntity} with
- * RFC 7807 formatted error details in the body.
+ * RFC 9457 formatted error details in the body.
  *
  * <p>Convenient as a base class of an {@link ControllerAdvice @ControllerAdvice}
  * for global exception handling in an application. Subclasses can override
@@ -66,8 +69,7 @@ public abstract class ResponseEntityExceptionHandler implements MessageSourceAwa
 	 */
 	protected final Log logger = LogFactory.getLog(getClass());
 
-	@Nullable
-	private MessageSource messageSource;
+	private @Nullable MessageSource messageSource;
 
 
 	@Override
@@ -79,8 +81,7 @@ public abstract class ResponseEntityExceptionHandler implements MessageSourceAwa
 	 * Get the {@link MessageSource} that this exception handler uses.
 	 * @since 6.0.3
 	 */
-	@Nullable
-	protected MessageSource getMessageSource() {
+	protected @Nullable MessageSource getMessageSource() {
 		return this.messageSource;
 	}
 
@@ -97,10 +98,12 @@ public abstract class ResponseEntityExceptionHandler implements MessageSourceAwa
 			MissingRequestValueException.class,
 			UnsatisfiedRequestParameterException.class,
 			WebExchangeBindException.class,
+			HandlerMethodValidationException.class,
 			ServerWebInputException.class,
 			ServerErrorException.class,
 			ResponseStatusException.class,
-			ErrorResponseException.class
+			ErrorResponseException.class,
+			MethodValidationException.class
 	})
 	public final Mono<ResponseEntity<Object>> handleException(Exception ex, ServerWebExchange exchange) {
 		if (ex instanceof MethodNotAllowedException theEx) {
@@ -121,6 +124,9 @@ public abstract class ResponseEntityExceptionHandler implements MessageSourceAwa
 		else if (ex instanceof WebExchangeBindException theEx) {
 			return handleWebExchangeBindException(theEx, theEx.getHeaders(), theEx.getStatusCode(), exchange);
 		}
+		else if (ex instanceof HandlerMethodValidationException theEx) {
+			return handleHandlerMethodValidationException(theEx, theEx.getHeaders(), theEx.getStatusCode(), exchange);
+		}
 		else if (ex instanceof ServerWebInputException theEx) {
 			return handleServerWebInputException(theEx, theEx.getHeaders(), theEx.getStatusCode(), exchange);
 		}
@@ -132,6 +138,9 @@ public abstract class ResponseEntityExceptionHandler implements MessageSourceAwa
 		}
 		else if (ex instanceof ErrorResponseException theEx) {
 			return handleErrorResponseException(theEx, theEx.getHeaders(), theEx.getStatusCode(), exchange);
+		}
+		else if (ex instanceof MethodValidationException theEx) {
+			return handleMethodValidationException(theEx, HttpStatus.INTERNAL_SERVER_ERROR, exchange);
 		}
 		else {
 			if (logger.isWarnEnabled()) {
@@ -238,6 +247,23 @@ public abstract class ResponseEntityExceptionHandler implements MessageSourceAwa
 	}
 
 	/**
+	 * Customize the handling of {@link HandlerMethodValidationException}.
+	 * <p>This method delegates to {@link #handleExceptionInternal}.
+	 * @param ex the exception to handle
+	 * @param headers the headers to use for the response
+	 * @param status the status code to use for the response
+	 * @param exchange the current request and response
+	 * @return a {@code Mono} with the {@code ResponseEntity} for the response
+	 * @since 6.1
+	 */
+	protected Mono<ResponseEntity<Object>> handleHandlerMethodValidationException(
+			HandlerMethodValidationException ex, HttpHeaders headers, HttpStatusCode status,
+			ServerWebExchange exchange) {
+
+		return handleExceptionInternal(ex, null, headers, status, exchange);
+	}
+
+	/**
 	 * Customize the handling of {@link ServerWebInputException}.
 	 * <p>This method delegates to {@link #handleExceptionInternal}.
 	 * @param ex the exception to handle
@@ -302,6 +328,22 @@ public abstract class ResponseEntityExceptionHandler implements MessageSourceAwa
 	}
 
 	/**
+	 * Customize the handling of {@link MethodValidationException}.
+	 * <p>This method delegates to {@link #handleExceptionInternal}.
+	 * @param ex the exception to handle
+	 * @param status the status code to use for the response
+	 * @param exchange the current request and response
+	 * @return a {@code Mono} with the {@code ResponseEntity} for the response
+	 * @since 6.1
+	 */
+	protected Mono<ResponseEntity<Object>> handleMethodValidationException(
+			MethodValidationException ex, HttpStatus status, ServerWebExchange exchange) {
+
+		ProblemDetail body = createProblemDetail(ex, status, "Validation failed", null, null, exchange);
+		return handleExceptionInternal(ex, body, null, status, exchange);
+	}
+
+	/**
 	 * Convenience method to create a {@link ProblemDetail} for any exception
 	 * that doesn't implement {@link ErrorResponse}, also performing a
 	 * {@link MessageSource} lookup for the "detail" field.
@@ -309,14 +351,15 @@ public abstract class ResponseEntityExceptionHandler implements MessageSourceAwa
 	 * @param status the status to associate with the exception
 	 * @param defaultDetail default value for the "detail" field
 	 * @param detailMessageCode the code to use to look up the "detail" field
-	 * through a {@code MessageSource}, falling back on
-	 * {@link ErrorResponse#getDefaultDetailMessageCode(Class, String)}
+	 * through a {@code MessageSource}; if {@code null} then
+	 * {@link ErrorResponse#getDefaultDetailMessageCode(Class, String)} is used
+	 * to determine the default message code to use
 	 * @param detailMessageArguments the arguments to go with the detailMessageCode
 	 * @return the created {@code ProblemDetail} instance
 	 */
 	protected ProblemDetail createProblemDetail(
 			Exception ex, HttpStatusCode status, String defaultDetail, @Nullable String detailMessageCode,
-			@Nullable Object[] detailMessageArguments, ServerWebExchange exchange) {
+			Object @Nullable [] detailMessageArguments, ServerWebExchange exchange) {
 
 		ErrorResponse.Builder builder = ErrorResponse.builder(ex, status, defaultDetail);
 		if (detailMessageCode != null) {
@@ -369,7 +412,7 @@ public abstract class ResponseEntityExceptionHandler implements MessageSourceAwa
 	/**
 	 * Create the {@link ResponseEntity} to use from the given body, headers,
 	 * and statusCode. Subclasses can override this method to inspect and possibly
-	 * modify the body, headers, or statusCode, e.g. to re-create an instance of
+	 * modify the body, headers, or statusCode, for example, to re-create an instance of
 	 * {@link ProblemDetail} as an extension of {@link ProblemDetail}.
 	 * @param body the body to use for the response
 	 * @param headers the headers to use for the response

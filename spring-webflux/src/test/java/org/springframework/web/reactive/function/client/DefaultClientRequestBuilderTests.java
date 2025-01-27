@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,8 @@ import static org.springframework.http.HttpMethod.OPTIONS;
 import static org.springframework.http.HttpMethod.POST;
 
 /**
- * Unit tests for {@link DefaultClientRequestBuilder}.
+ * Tests for {@link DefaultClientRequestBuilder}.
+ *
  * @author Arjen Poutsma
  */
 class DefaultClientRequestBuilderTests {
@@ -69,7 +70,7 @@ class DefaultClientRequestBuilderTests {
 
 		assertThat(result.url()).isEqualTo(DEFAULT_URL);
 		assertThat(result.method()).isEqualTo(GET);
-		assertThat(result.headers()).hasSize(1);
+		assertThat(result.headers().size()).isOne();
 		assertThat(result.headers().getFirst("foo")).isEqualTo("baar");
 		assertThat(result.cookies()).hasSize(1);
 		assertThat(result.cookies().getFirst("baz")).isEqualTo("quux");

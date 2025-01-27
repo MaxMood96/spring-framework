@@ -16,6 +16,8 @@
 
 package org.springframework.web.reactive.handler;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -38,7 +40,7 @@ import org.springframework.web.server.handler.ResponseStatusExceptionHandler;
 public class WebFluxResponseStatusExceptionHandler extends ResponseStatusExceptionHandler {
 
 	@Override
-	protected HttpStatusCode determineStatus(Throwable ex) {
+	protected @Nullable HttpStatusCode determineStatus(Throwable ex) {
 		HttpStatusCode statusCode = super.determineStatus(ex);
 		if (statusCode == null) {
 			ResponseStatus ann = AnnotatedElementUtils.findMergedAnnotation(ex.getClass(), ResponseStatus.class);

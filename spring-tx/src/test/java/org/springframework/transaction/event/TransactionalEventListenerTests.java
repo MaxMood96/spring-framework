@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,9 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
+import org.springframework.context.event.SimpleApplicationEventMulticaster;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.annotation.Propagation;
@@ -57,12 +59,13 @@ import static org.springframework.transaction.event.TransactionPhase.BEFORE_COMM
 
 /**
  * Integration tests for {@link TransactionalEventListener} support
+ * with thread-bound transactions.
  *
  * @author Stephane Nicoll
  * @author Sam Brannen
  * @since 4.2
  */
-public class TransactionalEventListenerTests {
+class TransactionalEventListenerTests {
 
 	private ConfigurableApplicationContext context;
 
@@ -72,7 +75,7 @@ public class TransactionalEventListenerTests {
 
 
 	@AfterEach
-	public void closeContext() {
+	void closeContext() {
 		if (this.context != null) {
 			this.context.close();
 		}
@@ -80,21 +83,20 @@ public class TransactionalEventListenerTests {
 
 
 	@Test
-	public void immediately() {
+	void immediately() {
 		load(ImmediateTestListener.class);
 		this.transactionTemplate.execute(status -> {
 			getContext().publishEvent("test");
 			getEventCollector().assertEvents(EventCollector.IMMEDIATELY, "test");
 			getEventCollector().assertTotalEventsCount(1);
 			return null;
-
 		});
 		getEventCollector().assertEvents(EventCollector.IMMEDIATELY, "test");
 		getEventCollector().assertTotalEventsCount(1);
 	}
 
 	@Test
-	public void immediatelyImpactsCurrentTransaction() {
+	void immediatelyImpactsCurrentTransaction() {
 		load(ImmediateTestListener.class, BeforeCommitTestListener.class);
 		assertThatIllegalStateException().isThrownBy(() ->
 				this.transactionTemplate.execute(status -> {
@@ -109,47 +111,44 @@ public class TransactionalEventListenerTests {
 	}
 
 	@Test
-	public void afterCompletionCommit() {
+	void afterCompletionCommit() {
 		load(AfterCompletionTestListener.class);
 		this.transactionTemplate.execute(status -> {
 			getContext().publishEvent("test");
 			getEventCollector().assertNoEventReceived();
 			return null;
-
 		});
 		getEventCollector().assertEvents(EventCollector.AFTER_COMPLETION, "test");
 		getEventCollector().assertTotalEventsCount(1); // After rollback not invoked
 	}
 
 	@Test
-	public void afterCompletionRollback() {
+	void afterCompletionRollback() {
 		load(AfterCompletionTestListener.class);
 		this.transactionTemplate.execute(status -> {
 			getContext().publishEvent("test");
 			getEventCollector().assertNoEventReceived();
 			status.setRollbackOnly();
 			return null;
-
 		});
 		getEventCollector().assertEvents(EventCollector.AFTER_COMPLETION, "test");
 		getEventCollector().assertTotalEventsCount(1); // After rollback not invoked
 	}
 
 	@Test
-	public void afterCommit() {
+	void afterCommit() {
 		load(AfterCompletionExplicitTestListener.class);
 		this.transactionTemplate.execute(status -> {
 			getContext().publishEvent("test");
 			getEventCollector().assertNoEventReceived();
 			return null;
-
 		});
 		getEventCollector().assertEvents(EventCollector.AFTER_COMMIT, "test");
 		getEventCollector().assertTotalEventsCount(1); // After rollback not invoked
 	}
 
 	@Test
-	public void afterCommitWithTransactionalComponentListenerProxiedViaDynamicProxy() {
+	void afterCommitWithTransactionalComponentListenerProxiedViaDynamicProxy() {
 		load(TransactionalComponentTestListener.class);
 		this.transactionTemplate.execute(status -> {
 			getContext().publishEvent("SKIP");
@@ -160,7 +159,18 @@ public class TransactionalEventListenerTests {
 	}
 
 	@Test
-	public void afterRollback() {
+	void afterCommitWithTransactionalComponentListenerWithInterfaceProxy() {
+		load(TransactionalComponentTestListenerWithInterface.class);
+		this.transactionTemplate.execute(status -> {
+			getContext().publishEvent("SKIP");
+			getEventCollector().assertNoEventReceived();
+			return null;
+		});
+		getEventCollector().assertNoEventReceived();
+	}
+
+	@Test
+	void afterRollback() {
 		load(AfterCompletionExplicitTestListener.class);
 		this.transactionTemplate.execute(status -> {
 			getContext().publishEvent("test");
@@ -173,7 +183,20 @@ public class TransactionalEventListenerTests {
 	}
 
 	@Test
-	public void beforeCommit() {
+	void afterRollbackWithCustomExecutor() {
+		load(AfterCompletionExplicitTestListener.class, MulticasterWithCustomExecutor.class);
+		this.transactionTemplate.execute(status -> {
+			getContext().publishEvent("test");
+			getEventCollector().assertNoEventReceived();
+			status.setRollbackOnly();
+			return null;
+		});
+		getEventCollector().assertEvents(EventCollector.AFTER_ROLLBACK, "test");
+		getEventCollector().assertTotalEventsCount(1); // After commit not invoked
+	}
+
+	@Test
+	void beforeCommit() {
 		load(BeforeCommitTestListener.class);
 		this.transactionTemplate.execute(status -> {
 			TransactionSynchronizationManager.registerSynchronization(new EventTransactionSynchronization(10) {
@@ -199,7 +222,7 @@ public class TransactionalEventListenerTests {
 	}
 
 	@Test
-	public void beforeCommitWithException() { // Validates the custom synchronization is invoked
+	void beforeCommitWithException() { // Validates the custom synchronization is invoked
 		load(BeforeCommitTestListener.class);
 		assertThatIllegalStateException().isThrownBy(() ->
 				this.transactionTemplate.execute(status -> {
@@ -218,7 +241,7 @@ public class TransactionalEventListenerTests {
 	}
 
 	@Test
-	public void regularTransaction() {
+	void regularTransaction() {
 		load(ImmediateTestListener.class, BeforeCommitTestListener.class, AfterCompletionExplicitTestListener.class);
 		this.transactionTemplate.execute(status -> {
 			TransactionSynchronizationManager.registerSynchronization(new EventTransactionSynchronization(10) {
@@ -245,29 +268,28 @@ public class TransactionalEventListenerTests {
 	}
 
 	@Test
-	public void noTransaction() {
-		load(BeforeCommitTestListener.class, AfterCompletionTestListener.class,
-				AfterCompletionExplicitTestListener.class);
+	void noTransaction() {
+		load(BeforeCommitTestListener.class, AfterCompletionTestListener.class, AfterCompletionExplicitTestListener.class);
 		this.context.publishEvent("test");
 		getEventCollector().assertTotalEventsCount(0);
 	}
 
 	@Test
-	public void transactionDemarcationWithNotSupportedPropagation() {
+	void transactionDemarcationWithNotSupportedPropagation() {
 		load(BeforeCommitTestListener.class, AfterCompletionTestListener.class);
 		getContext().getBean(TestBean.class).notSupported();
 		getEventCollector().assertTotalEventsCount(0);
 	}
 
 	@Test
-	public void transactionDemarcationWithSupportsPropagationAndNoTransaction() {
+	void transactionDemarcationWithSupportsPropagationAndNoTransaction() {
 		load(BeforeCommitTestListener.class, AfterCompletionTestListener.class);
 		getContext().getBean(TestBean.class).supports();
 		getEventCollector().assertTotalEventsCount(0);
 	}
 
 	@Test
-	public void transactionDemarcationWithSupportsPropagationAndExistingTransaction() {
+	void transactionDemarcationWithSupportsPropagationAndExistingTransaction() {
 		load(BeforeCommitTestListener.class, AfterCompletionTestListener.class);
 		this.transactionTemplate.execute(status -> {
 			getContext().getBean(TestBean.class).supports();
@@ -278,14 +300,14 @@ public class TransactionalEventListenerTests {
 	}
 
 	@Test
-	public void transactionDemarcationWithRequiredPropagation() {
+	void transactionDemarcationWithRequiredPropagation() {
 		load(BeforeCommitTestListener.class, AfterCompletionTestListener.class);
 		getContext().getBean(TestBean.class).required();
 		getEventCollector().assertTotalEventsCount(2);
 	}
 
 	@Test
-	public void noTransactionWithFallbackExecution() {
+	void noTransactionWithFallbackExecution() {
 		load(FallbackExecutionTestListener.class);
 		this.context.publishEvent("test");
 		this.eventCollector.assertEvents(EventCollector.BEFORE_COMMIT, "test");
@@ -296,7 +318,25 @@ public class TransactionalEventListenerTests {
 	}
 
 	@Test
-	public void conditionFoundOnTransactionalEventListener() {
+	void noTransactionManagementWithFallbackExecution() {
+		doLoad(PlainConfiguration.class, FallbackExecutionTestListener.class);
+		this.context.publishEvent("test");
+		this.eventCollector.assertEvents(EventCollector.BEFORE_COMMIT, "test");
+		this.eventCollector.assertEvents(EventCollector.AFTER_COMMIT, "test");
+		this.eventCollector.assertEvents(EventCollector.AFTER_ROLLBACK, "test");
+		this.eventCollector.assertEvents(EventCollector.AFTER_COMPLETION, "test");
+		getEventCollector().assertTotalEventsCount(4);
+	}
+
+	@Test
+	void noTransactionManagementWithoutFallbackExecution() {
+		doLoad(PlainConfiguration.class, BeforeCommitTestListener.class, AfterCommitMetaAnnotationTestListener.class);
+		this.context.publishEvent("test");
+		this.eventCollector.assertNoEventReceived();
+	}
+
+	@Test
+	void conditionFoundOnTransactionalEventListener() {
 		load(ImmediateTestListener.class);
 		this.transactionTemplate.execute(status -> {
 			getContext().publishEvent("SKIP");
@@ -307,26 +347,24 @@ public class TransactionalEventListenerTests {
 	}
 
 	@Test
-	public void afterCommitMetaAnnotation() throws Exception {
+	void afterCommitMetaAnnotation() {
 		load(AfterCommitMetaAnnotationTestListener.class);
 		this.transactionTemplate.execute(status -> {
 			getContext().publishEvent("test");
 			getEventCollector().assertNoEventReceived();
 			return null;
-
 		});
 		getEventCollector().assertEvents(EventCollector.AFTER_COMMIT, "test");
 		getEventCollector().assertTotalEventsCount(1);
 	}
 
 	@Test
-	public void conditionFoundOnMetaAnnotation() {
+	void conditionFoundOnMetaAnnotation() {
 		load(AfterCommitMetaAnnotationTestListener.class);
 		this.transactionTemplate.execute(status -> {
 			getContext().publishEvent("SKIP");
 			getEventCollector().assertNoEventReceived();
 			return null;
-
 		});
 		getEventCollector().assertNoEventReceived();
 	}
@@ -376,6 +414,43 @@ public class TransactionalEventListenerTests {
 		@Bean
 		public TransactionTemplate transactionTemplate() {
 			return new TransactionTemplate(transactionManager());
+		}
+	}
+
+
+	@Configuration
+	static class PlainConfiguration {
+
+		@Bean
+		public EventCollector eventCollector() {
+			return new EventCollector();
+		}
+
+		@Bean
+		public TestBean testBean(ApplicationEventPublisher eventPublisher) {
+			return new TestBean(eventPublisher);
+		}
+
+		@Bean
+		public CallCountingTransactionManager transactionManager() {
+			return new CallCountingTransactionManager();
+		}
+
+		@Bean
+		public TransactionTemplate transactionTemplate() {
+			return new TransactionTemplate(transactionManager());
+		}
+	}
+
+
+	@Configuration
+	static class MulticasterWithCustomExecutor {
+
+		@Bean
+		public SimpleApplicationEventMulticaster applicationEventMulticaster() {
+			SimpleApplicationEventMulticaster multicaster = new SimpleApplicationEventMulticaster();
+			multicaster.setTaskExecutor(new SimpleAsyncTaskExecutor());
+			return multicaster;
 		}
 	}
 
@@ -459,7 +534,7 @@ public class TransactionalEventListenerTests {
 	}
 
 
-	static abstract class BaseTransactionalTestListener {
+	abstract static class BaseTransactionalTestListener {
 
 		static final String FAIL_MSG = "FAIL";
 
@@ -523,6 +598,25 @@ public class TransactionalEventListenerTests {
 	static class TransactionalComponentTestListener extends BaseTransactionalTestListener implements
 			TransactionalComponentTestListenerInterface {
 
+		@Override
+		public void handleAfterCommit(String data) {
+			handleEvent(EventCollector.AFTER_COMMIT, data);
+		}
+	}
+
+
+	interface TransactionalComponentTestInterface {
+
+		void handleAfterCommit(String data);
+	}
+
+
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	@Component
+	static class TransactionalComponentTestListenerWithInterface extends BaseTransactionalTestListener implements
+			TransactionalComponentTestInterface {
+
+		@TransactionalEventListener(condition = "!'SKIP'.equals(#data)")
 		@Override
 		public void handleAfterCommit(String data) {
 			handleEvent(EventCollector.AFTER_COMMIT, data);

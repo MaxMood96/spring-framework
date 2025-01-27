@@ -1,5 +1,6 @@
 [[webflux-cors]]
 = CORS
+
 [.small]#xref:web/webmvc-cors.adoc[See equivalent in the Servlet stack]#
 
 Spring WebFlux lets you handle CORS (Cross-Origin Resource Sharing). This section
@@ -47,7 +48,7 @@ rejected. No CORS headers are added to the responses of simple and actual CORS r
 and, consequently, browsers reject them.
 
 Each `HandlerMapping` can be
-{api-spring-framework}/web/reactive/handler/AbstractHandlerMapping.html#setCorsConfigurations-java.util.Map-[configured]
+{spring-framework-api}/web/reactive/handler/AbstractHandlerMapping.html#setCorsConfigurations-java.util.Map-[configured]
 individually with URL pattern-based `CorsConfiguration` mappings. In most cases, applications
 use the WebFlux Java configuration to declare such mappings, which results in a single,
 global map passed to all `HandlerMapping` implementations.
@@ -60,7 +61,7 @@ class- or method-level `@CrossOrigin` annotations (other handlers can implement
 The rules for combining global and local configuration are generally additive -- for example,
 all global and all local origins. For those attributes where only a single value can be
 accepted, such as `allowCredentials` and `maxAge`, the local overrides the global value. See
-{api-spring-framework}/web/cors/CorsConfiguration.html#combine-org.springframework.web.cors.CorsConfiguration-[`CorsConfiguration#combine(CorsConfiguration)`]
+{spring-framework-api}/web/cors/CorsConfiguration.html#combine-org.springframework.web.cors.CorsConfiguration-[`CorsConfiguration#combine(CorsConfiguration)`]
 for more details.
 
 [TIP]
@@ -75,11 +76,40 @@ To learn more from the source or to make advanced customizations, see:
 
 
 
+[[webflux-cors-credentialed-requests]]
+== Credentialed Requests
+[.small]#xref:web/webmvc-cors.adoc#mvc-cors-credentialed-requests[See equivalent in the Servlet stack]#
+
+Using CORS with credentialed requests requires enabling `allowedCredentials`. Be aware that
+this option establishes a high level of trust with the configured domains and also increases
+the surface of attack of the web application by exposing sensitive user-specific information
+such as cookies and CSRF tokens.
+
+Enabling credentials also impacts how the configured `"*"` CORS wildcards are processed:
+
+* Wildcards are not authorized in `allowOrigins`, but alternatively
+the `allowOriginPatterns` property may be used to match to a dynamic set of origins.
+* When set on `allowedHeaders` or `allowedMethods`, the `Access-Control-Allow-Headers`
+and `Access-Control-Allow-Methods` response headers are handled by copying the related
+headers and method specified in the CORS preflight request.
+* When set on `exposedHeaders`, `Access-Control-Expose-Headers` response header is set
+either to the configured list of headers or to the wildcard character. While the CORS spec
+does not allow the wildcard character when `Access-Control-Allow-Credentials` is set to
+`true`, most browsers support it and the response headers are not all available during the
+CORS processing, so as a consequence the wildcard character is the header value used when
+specified regardless of the value of the `allowCredentials` property.
+
+WARNING: While such wildcard configuration can be handy, it is recommended when possible to configure
+a finite set of values instead to provide a higher level of security.
+
+
+
+
 [[webflux-cors-controller]]
 == `@CrossOrigin`
 [.small]#xref:web/webmvc-cors.adoc#mvc-cors-controller[See equivalent in the Servlet stack]#
 
-The {api-spring-framework}/web/bind/annotation/CrossOrigin.html[`@CrossOrigin`]
+The {spring-framework-api}/web/bind/annotation/CrossOrigin.html[`@CrossOrigin`]
 annotation enables cross-origin requests on annotated controller methods, as the
 following example shows:
 
@@ -88,7 +118,7 @@ following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@RestController
 	@RequestMapping("/account")
@@ -109,7 +139,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@RestController
 	@RequestMapping("/account")
@@ -152,7 +182,7 @@ The following example specifies a certain domain and sets `maxAge` to an hour:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@CrossOrigin(origins = "https://domain2.com", maxAge = 3600)
 	@RestController
@@ -173,7 +203,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@CrossOrigin("https://domain2.com", maxAge = 3600)
 	@RestController
@@ -202,7 +232,7 @@ as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@CrossOrigin(maxAge = 3600) // <1>
 	@RestController
@@ -226,7 +256,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@CrossOrigin(maxAge = 3600) // <1>
 	@RestController
@@ -282,7 +312,7 @@ as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	@EnableWebFlux
@@ -305,7 +335,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	@EnableWebFlux
@@ -334,8 +364,8 @@ Kotlin::
 [.small]#xref:web/webmvc-cors.adoc#mvc-cors-filter[See equivalent in the Servlet stack]#
 
 You can apply CORS support through the built-in
-{api-spring-framework}/web/cors/reactive/CorsWebFilter.html[`CorsWebFilter`], which is a
-good fit with <<webflux-fn, functional endpoints>>.
+{spring-framework-api}/web/cors/reactive/CorsWebFilter.html[`CorsWebFilter`], which is a
+good fit with xref:web/webflux-functional.adoc[functional endpoints].
 
 NOTE: If you try to use the `CorsFilter` with Spring Security, keep in mind that Spring
 Security has {docs-spring-security}/servlet/integrations/cors.html[built-in support] for
@@ -348,7 +378,7 @@ To configure the filter, you can declare a `CorsWebFilter` bean and pass a
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim",role="primary"]
+[source,java,indent=0,subs="verbatim"]
 ----
 	@Bean
 	CorsWebFilter corsFilter() {
@@ -372,7 +402,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim"]
 ----
 	@Bean
 	fun corsFilter(): CorsWebFilter {

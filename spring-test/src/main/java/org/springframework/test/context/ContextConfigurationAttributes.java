@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,13 @@ import java.util.Arrays;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.style.DefaultToStringStyler;
 import org.springframework.core.style.SimpleValueStyler;
 import org.springframework.core.style.ToStringCreator;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -63,8 +63,7 @@ public class ContextConfigurationAttributes {
 
 	private final boolean inheritInitializers;
 
-	@Nullable
-	private final String name;
+	private final @Nullable String name;
 
 	private final Class<? extends ContextLoader> contextLoaderClass;
 
@@ -75,7 +74,7 @@ public class ContextConfigurationAttributes {
 	 * either explicitly or implicitly
 	 * @since 4.3
 	 */
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public ContextConfigurationAttributes(Class<?> declaringClass) {
 		this(declaringClass, EMPTY_LOCATIONS, EMPTY_CLASSES, false, (Class[]) EMPTY_CLASSES, true, ContextLoader.class);
 	}
@@ -305,8 +304,7 @@ public class ContextConfigurationAttributes {
 	 * @since 3.2.2
 	 * @see ContextConfiguration#name()
 	 */
-	@Nullable
-	public String getName() {
+	public @Nullable String getName() {
 		return this.name;
 	}
 
@@ -334,20 +332,15 @@ public class ContextConfigurationAttributes {
 	 */
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof ContextConfigurationAttributes otherAttr)) {
-			return false;
-		}
-		return (ObjectUtils.nullSafeEquals(this.declaringClass, otherAttr.declaringClass) &&
-				Arrays.equals(this.classes, otherAttr.classes)) &&
-				Arrays.equals(this.locations, otherAttr.locations) &&
-				this.inheritLocations == otherAttr.inheritLocations &&
-				Arrays.equals(this.initializers, otherAttr.initializers) &&
-				this.inheritInitializers == otherAttr.inheritInitializers &&
-				ObjectUtils.nullSafeEquals(this.name, otherAttr.name) &&
-				ObjectUtils.nullSafeEquals(this.contextLoaderClass, otherAttr.contextLoaderClass);
+		return (this == other || (other instanceof ContextConfigurationAttributes that &&
+				ObjectUtils.nullSafeEquals(this.declaringClass, that.declaringClass) &&
+				Arrays.equals(this.classes, that.classes)) &&
+				Arrays.equals(this.locations, that.locations) &&
+				this.inheritLocations == that.inheritLocations &&
+				Arrays.equals(this.initializers, that.initializers) &&
+				this.inheritInitializers == that.inheritInitializers &&
+				ObjectUtils.nullSafeEquals(this.name, that.name) &&
+				ObjectUtils.nullSafeEquals(this.contextLoaderClass, that.contextLoaderClass));
 	}
 
 	/**

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,8 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ReflectionUtils;
 
@@ -36,6 +37,7 @@ import org.springframework.util.ReflectionUtils;
  *
  * @author Juergen Hoeller
  * @author Rossen Stoyanchev
+ * @author Sam Brannen
  * @since 4.2.3
  */
 public final class MethodIntrospector {
@@ -74,7 +76,9 @@ public final class MethodIntrospector {
 				T result = metadataLookup.inspect(specificMethod);
 				if (result != null) {
 					Method bridgedMethod = BridgeMethodResolver.findBridgedMethod(specificMethod);
-					if (bridgedMethod == specificMethod || metadataLookup.inspect(bridgedMethod) == null) {
+					if (bridgedMethod == specificMethod || bridgedMethod == method ||
+							bridgedMethod.equals(specificMethod) || bridgedMethod.equals(method) ||
+							metadataLookup.inspect(bridgedMethod) == null) {
 						methodMap.put(specificMethod, result);
 					}
 				}
@@ -152,8 +156,7 @@ public final class MethodIntrospector {
 		 * @return non-null metadata to be associated with a method if there is a match,
 		 * or {@code null} for no match
 		 */
-		@Nullable
-		T inspect(Method method);
+		@Nullable T inspect(Method method);
 	}
 
 }

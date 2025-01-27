@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,23 +23,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiPredicate;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Mono;
 
 import org.springframework.beans.BeansException;
 import org.springframework.http.server.PathContainer;
 import org.springframework.http.server.reactive.observation.ServerRequestObservationContext;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
-import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.pattern.PathPattern;
+import org.springframework.web.util.pattern.PathPatternParser;
 
 /**
  * Abstract base class for URL-mapped
  * {@link org.springframework.web.reactive.HandlerMapping} implementations.
  *
- * <p>Supports direct matches, e.g. a registered "/test" matches "/test", and
- * various path pattern matches, e.g. a registered "/t*" pattern matches
+ * <p>Supports direct matches, for example, a registered "/test" matches "/test", and
+ * various path pattern matches, for example, a registered "/t*" pattern matches
  * both "/test" and "/team", "/test/*" matches all paths under "/test",
  * "/test/**" matches all paths below "/test". For details, see the
  * {@link org.springframework.web.util.pattern.PathPattern} javadoc.
@@ -59,8 +59,7 @@ public abstract class AbstractUrlHandlerMapping extends AbstractHandlerMapping {
 
 	private final Map<PathPattern, Object> handlerMap = new LinkedHashMap<>();
 
-	@Nullable
-	private BiPredicate<Object, ServerWebExchange> handlerPredicate;
+	private @Nullable BiPredicate<Object, ServerWebExchange> handlerPredicate;
 
 
 	/**
@@ -119,17 +118,16 @@ public abstract class AbstractUrlHandlerMapping extends AbstractHandlerMapping {
 
 	/**
 	 * Look up a handler instance for the given URL lookup path.
-	 * <p>Supports direct matches, e.g. a registered "/test" matches "/test",
-	 * and various path pattern matches, e.g. a registered "/t*" matches
+	 * <p>Supports direct matches, for example, a registered "/test" matches "/test",
+	 * and various path pattern matches, for example, a registered "/t*" matches
 	 * both "/test" and "/team". For details, see the PathPattern class.
 	 * @param lookupPath the URL the handler is mapped to
 	 * @param exchange the current exchange
 	 * @return the associated handler instance, or {@code null} if not found
 	 * @see org.springframework.web.util.pattern.PathPattern
 	 */
-	@Nullable
 	@SuppressWarnings("removal")
-	protected Object lookupHandler(PathContainer lookupPath, ServerWebExchange exchange) throws Exception {
+	protected @Nullable Object lookupHandler(PathContainer lookupPath, ServerWebExchange exchange) throws Exception {
 		List<PathPattern> matches = null;
 		for (PathPattern pattern : this.handlerMap.keySet()) {
 			if (pattern.matches(lookupPath)) {
@@ -167,10 +165,7 @@ public abstract class AbstractUrlHandlerMapping extends AbstractHandlerMapping {
 
 		exchange.getAttributes().put(BEST_MATCHING_HANDLER_ATTRIBUTE, handler);
 		exchange.getAttributes().put(BEST_MATCHING_PATTERN_ATTRIBUTE, pattern);
-		org.springframework.web.filter.reactive.ServerHttpObservationFilter
-				.findObservationContext(exchange)
-				.ifPresent(context -> context.setPathPattern(pattern.toString()));
-		ServerRequestObservationContext.findCurrent(exchange)
+		ServerRequestObservationContext.findCurrent(exchange.getAttributes())
 				.ifPresent(context -> context.setPathPattern(pattern.toString()));
 		exchange.getAttributes().put(PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE, pathWithinMapping);
 		exchange.getAttributes().put(URI_TEMPLATE_VARIABLES_ATTRIBUTE, matchInfo.getUriVariables());
@@ -186,7 +181,7 @@ public abstract class AbstractUrlHandlerMapping extends AbstractHandlerMapping {
 	 * @param exchange current exchange
 	 */
 	@SuppressWarnings("UnusedParameters")
-	protected void validateHandler(Object handler, ServerWebExchange exchange) {
+	protected void validateHandler(@Nullable Object handler, ServerWebExchange exchange) {
 	}
 
 	/**
@@ -217,8 +212,9 @@ public abstract class AbstractUrlHandlerMapping extends AbstractHandlerMapping {
 		Object resolvedHandler = handler;
 
 		// Parse path pattern
-		urlPath = prependLeadingSlash(urlPath);
-		PathPattern pattern = getPathPatternParser().parse(urlPath);
+		PathPatternParser parser = getPathPatternParser();
+		urlPath = parser.initFullPathPattern(urlPath);
+		PathPattern pattern = parser.parse(urlPath);
 		if (this.handlerMap.containsKey(pattern)) {
 			Object existingHandler = this.handlerMap.get(pattern);
 			if (existingHandler != null && existingHandler != resolvedHandler) {
@@ -244,16 +240,6 @@ public abstract class AbstractUrlHandlerMapping extends AbstractHandlerMapping {
 
 	private String getHandlerDescription(Object handler) {
 		return (handler instanceof String ? "'" + handler + "'" : handler.toString());
-	}
-
-
-	private static String prependLeadingSlash(String pattern) {
-		if (StringUtils.hasLength(pattern) && !pattern.startsWith("/")) {
-			return "/" + pattern;
-		}
-		else {
-			return pattern;
-		}
 	}
 
 }

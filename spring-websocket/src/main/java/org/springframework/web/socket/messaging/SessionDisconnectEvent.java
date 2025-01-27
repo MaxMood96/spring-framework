@@ -18,14 +18,15 @@ package org.springframework.web.socket.messaging;
 
 import java.security.Principal;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.messaging.Message;
 import org.springframework.util.Assert;
 import org.springframework.web.socket.CloseStatus;
 
 /**
  * Event raised when the session of a WebSocket client using a Simple Messaging
- * Protocol (e.g. STOMP) as the WebSocket sub-protocol is closed.
+ * Protocol (for example, STOMP) as the WebSocket sub-protocol is closed.
  *
  * <p>Note that this event may be raised more than once for a single session and
  * therefore event consumers should be idempotent and ignore a duplicate event.

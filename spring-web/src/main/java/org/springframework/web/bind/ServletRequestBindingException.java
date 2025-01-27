@@ -17,11 +17,11 @@
 package org.springframework.web.bind;
 
 import jakarta.servlet.ServletException;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
-import org.springframework.lang.Nullable;
 import org.springframework.web.ErrorResponse;
 
 /**
@@ -42,15 +42,14 @@ public class ServletRequestBindingException extends ServletException implements 
 
 	private final String messageDetailCode;
 
-	@Nullable
-	private final Object[] messageDetailArguments;
+	private final Object @Nullable [] messageDetailArguments;
 
 
 	/**
 	 * Constructor with a message only.
 	 * @param msg the detail message
 	 */
-	public ServletRequestBindingException(String msg) {
+	public ServletRequestBindingException(@Nullable String msg) {
 		this(msg, null, null);
 	}
 
@@ -59,7 +58,7 @@ public class ServletRequestBindingException extends ServletException implements 
 	 * @param msg the detail message
 	 * @param cause the root cause
 	 */
-	public ServletRequestBindingException(String msg, Throwable cause) {
+	public ServletRequestBindingException(@Nullable String msg, @Nullable Throwable cause) {
 		this(msg, cause, null, null);
 	}
 
@@ -73,7 +72,7 @@ public class ServletRequestBindingException extends ServletException implements 
 	 * @since 6.0
 	 */
 	protected ServletRequestBindingException(
-			String msg, @Nullable String messageDetailCode, @Nullable Object[] messageDetailArguments) {
+			@Nullable String msg, @Nullable String messageDetailCode, Object @Nullable [] messageDetailArguments) {
 
 		this(msg, null, messageDetailCode, messageDetailArguments);
 	}
@@ -88,8 +87,8 @@ public class ServletRequestBindingException extends ServletException implements 
 	 * resolving the problem "detail" through a {@code MessageSource}
 	 * @since 6.0
 	 */
-	protected ServletRequestBindingException(String msg, @Nullable Throwable cause,
-			@Nullable String messageDetailCode, @Nullable Object[] messageDetailArguments) {
+	protected ServletRequestBindingException(@Nullable String msg, @Nullable Throwable cause,
+			@Nullable String messageDetailCode, Object @Nullable [] messageDetailArguments) {
 
 		super(msg, cause);
 		this.messageDetailCode = initMessageDetailCode(messageDetailCode);
@@ -118,7 +117,7 @@ public class ServletRequestBindingException extends ServletException implements 
 	}
 
 	@Override
-	public Object[] getDetailMessageArguments() {
+	public Object @Nullable [] getDetailMessageArguments() {
 		return this.messageDetailArguments;
 	}
 

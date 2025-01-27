@@ -19,7 +19,8 @@ package org.springframework.core.type;
 import java.lang.reflect.Modifier;
 import java.util.LinkedHashSet;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -88,15 +89,13 @@ public class StandardClassMetadata implements ClassMetadata {
 	}
 
 	@Override
-	@Nullable
-	public String getEnclosingClassName() {
+	public @Nullable String getEnclosingClassName() {
 		Class<?> enclosingClass = this.introspectedClass.getEnclosingClass();
 		return (enclosingClass != null ? enclosingClass.getName() : null);
 	}
 
 	@Override
-	@Nullable
-	public String getSuperClassName() {
+	public @Nullable String getSuperClassName() {
 		Class<?> superClass = this.introspectedClass.getSuperclass();
 		return (superClass != null ? superClass.getName() : null);
 	}
@@ -120,9 +119,10 @@ public class StandardClassMetadata implements ClassMetadata {
 		return StringUtils.toStringArray(memberClassNames);
 	}
 
+
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return (this == obj || (obj instanceof StandardClassMetadata that &&
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof StandardClassMetadata that &&
 				getIntrospectedClass().equals(that.getIntrospectedClass())));
 	}
 

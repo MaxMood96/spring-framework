@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,11 @@ package org.springframework.web.client;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
 
 /**
  * Raised when no suitable
@@ -36,8 +37,8 @@ public class UnknownContentTypeException extends RestClientException {
 
 	private static final long serialVersionUID = 2759516676367274084L;
 
-	@SuppressWarnings("serial")
-	private final Type targetType;
+
+	private final transient Type targetType;
 
 	private final MediaType contentType;
 
@@ -112,15 +113,6 @@ public class UnknownContentTypeException extends RestClientException {
 	}
 
 	/**
-	 * Return the raw HTTP status code value.
-	 * @deprecated as of 6.0, in favor of {@link #getStatusCode()}
-	 */
-	@Deprecated(since = "6.0")
-	public int getRawStatusCode() {
-		return this.statusCode.value();
-	}
-
-	/**
 	 * Return the HTTP status text.
 	 */
 	public String getStatusText() {
@@ -130,8 +122,7 @@ public class UnknownContentTypeException extends RestClientException {
 	/**
 	 * Return the HTTP response headers.
 	 */
-	@Nullable
-	public HttpHeaders getResponseHeaders() {
+	public @Nullable HttpHeaders getResponseHeaders() {
 		return this.responseHeaders;
 	}
 

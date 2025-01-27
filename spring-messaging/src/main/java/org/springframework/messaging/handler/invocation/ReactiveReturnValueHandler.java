@@ -18,6 +18,7 @@ package org.springframework.messaging.handler.invocation;
 
 import java.util.concurrent.CompletableFuture;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Mono;
 
 import org.springframework.core.MethodParameter;
@@ -57,7 +58,7 @@ public class ReactiveReturnValueHandler extends AbstractAsyncReturnValueHandler 
 	}
 
 	@Override
-	public CompletableFuture<?> toCompletableFuture(Object returnValue, MethodParameter returnType) {
+	public @Nullable CompletableFuture<?> toCompletableFuture(Object returnValue, MethodParameter returnType) {
 		ReactiveAdapter adapter = this.adapterRegistry.getAdapter(returnType.getParameterType(), returnValue);
 		if (adapter != null) {
 			return Mono.from(adapter.toPublisher(returnValue)).toFuture();

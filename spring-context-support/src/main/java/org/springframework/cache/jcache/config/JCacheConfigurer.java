@@ -16,9 +16,10 @@
 
 package org.springframework.cache.jcache.config;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.cache.annotation.CachingConfigurer;
 import org.springframework.cache.interceptor.CacheResolver;
-import org.springframework.lang.Nullable;
 
 /**
  * Extension of {@link CachingConfigurer} for the JSR-107 implementation.
@@ -42,7 +43,7 @@ public interface JCacheConfigurer extends CachingConfigurer {
 	/**
 	 * Return the {@link CacheResolver} bean to use to resolve exception caches for
 	 * annotation-driven cache management. Implementations must explicitly declare
-	 * {@link org.springframework.context.annotation.Bean @Bean}, e.g.
+	 * {@link org.springframework.context.annotation.Bean @Bean}, for example,
 	 * <pre class="code">
 	 * &#064;Configuration
 	 * &#064;EnableCaching
@@ -57,8 +58,7 @@ public interface JCacheConfigurer extends CachingConfigurer {
 	 * </pre>
 	 * See {@link org.springframework.cache.annotation.EnableCaching} for more complete examples.
 	 */
-	@Nullable
-	default CacheResolver exceptionCacheResolver() {
+	default @Nullable CacheResolver exceptionCacheResolver() {
 		return null;
 	}
 

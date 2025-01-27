@@ -32,12 +32,11 @@ import jakarta.mail.NoSuchProviderException;
 import jakarta.mail.Session;
 import jakarta.mail.Transport;
 import jakarta.mail.internet.MimeMessage;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.MailException;
 import org.springframework.mail.MailParseException;
-import org.springframework.mail.MailPreparationException;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.util.Assert;
@@ -81,28 +80,21 @@ public class JavaMailSenderImpl implements JavaMailSender {
 
 	private Properties javaMailProperties = new Properties();
 
-	@Nullable
-	private Session session;
+	private @Nullable Session session;
 
-	@Nullable
-	private String protocol;
+	private @Nullable String protocol;
 
-	@Nullable
-	private String host;
+	private @Nullable String host;
 
 	private int port = DEFAULT_PORT;
 
-	@Nullable
-	private String username;
+	private @Nullable String username;
 
-	@Nullable
-	private String password;
+	private @Nullable String password;
 
-	@Nullable
-	private String defaultEncoding;
+	private @Nullable String defaultEncoding;
 
-	@Nullable
-	private FileTypeMap defaultFileTypeMap;
+	private @Nullable FileTypeMap defaultFileTypeMap;
 
 
 	/**
@@ -175,8 +167,7 @@ public class JavaMailSenderImpl implements JavaMailSender {
 	/**
 	 * Return the mail protocol.
 	 */
-	@Nullable
-	public String getProtocol() {
+	public @Nullable String getProtocol() {
 		return this.protocol;
 	}
 
@@ -191,8 +182,7 @@ public class JavaMailSenderImpl implements JavaMailSender {
 	/**
 	 * Return the mail server host.
 	 */
-	@Nullable
-	public String getHost() {
+	public @Nullable String getHost() {
 		return this.host;
 	}
 
@@ -230,8 +220,7 @@ public class JavaMailSenderImpl implements JavaMailSender {
 	/**
 	 * Return the username for the account at the mail host.
 	 */
-	@Nullable
-	public String getUsername() {
+	public @Nullable String getUsername() {
 		return this.username;
 	}
 
@@ -253,8 +242,7 @@ public class JavaMailSenderImpl implements JavaMailSender {
 	/**
 	 * Return the password for the account at the mail host.
 	 */
-	@Nullable
-	public String getPassword() {
+	public @Nullable String getPassword() {
 		return this.password;
 	}
 
@@ -271,8 +259,7 @@ public class JavaMailSenderImpl implements JavaMailSender {
 	 * Return the default encoding for {@link MimeMessage MimeMessages},
 	 * or {@code null} if none.
 	 */
-	@Nullable
-	public String getDefaultEncoding() {
+	public @Nullable String getDefaultEncoding() {
 		return this.defaultEncoding;
 	}
 
@@ -297,8 +284,7 @@ public class JavaMailSenderImpl implements JavaMailSender {
 	 * Return the default Java Activation {@link FileTypeMap} for
 	 * {@link MimeMessage MimeMessages}, or {@code null} if none.
 	 */
-	@Nullable
-	public FileTypeMap getDefaultFileTypeMap() {
+	public @Nullable FileTypeMap getDefaultFileTypeMap() {
 		return this.defaultFileTypeMap;
 	}
 
@@ -306,11 +292,6 @@ public class JavaMailSenderImpl implements JavaMailSender {
 	//---------------------------------------------------------------------
 	// Implementation of MailSender
 	//---------------------------------------------------------------------
-
-	@Override
-	public void send(SimpleMailMessage simpleMessage) throws MailException {
-		send(new SimpleMailMessage[] {simpleMessage});
-	}
 
 	@Override
 	public void send(SimpleMailMessage... simpleMessages) throws MailException {
@@ -352,40 +333,8 @@ public class JavaMailSenderImpl implements JavaMailSender {
 	}
 
 	@Override
-	public void send(MimeMessage mimeMessage) throws MailException {
-		send(new MimeMessage[] {mimeMessage});
-	}
-
-	@Override
 	public void send(MimeMessage... mimeMessages) throws MailException {
 		doSend(mimeMessages, null);
-	}
-
-	@Override
-	public void send(MimeMessagePreparator mimeMessagePreparator) throws MailException {
-		send(new MimeMessagePreparator[] {mimeMessagePreparator});
-	}
-
-	@Override
-	public void send(MimeMessagePreparator... mimeMessagePreparators) throws MailException {
-		try {
-			List<MimeMessage> mimeMessages = new ArrayList<>(mimeMessagePreparators.length);
-			for (MimeMessagePreparator preparator : mimeMessagePreparators) {
-				MimeMessage mimeMessage = createMimeMessage();
-				preparator.prepare(mimeMessage);
-				mimeMessages.add(mimeMessage);
-			}
-			send(mimeMessages.toArray(new MimeMessage[0]));
-		}
-		catch (MailException ex) {
-			throw ex;
-		}
-		catch (MessagingException ex) {
-			throw new MailParseException(ex);
-		}
-		catch (Exception ex) {
-			throw new MailPreparationException(ex);
-		}
 	}
 
 	/**
@@ -415,7 +364,7 @@ public class JavaMailSenderImpl implements JavaMailSender {
 	 * @throws org.springframework.mail.MailSendException
 	 * in case of failure when sending a message
 	 */
-	protected void doSend(MimeMessage[] mimeMessages, @Nullable Object[] originalMessages) throws MailException {
+	protected void doSend(MimeMessage[] mimeMessages, Object @Nullable [] originalMessages) throws MailException {
 		Map<Object, Exception> failedMessages = new LinkedHashMap<>();
 		Transport transport = null;
 
@@ -522,13 +471,13 @@ public class JavaMailSenderImpl implements JavaMailSender {
 	/**
 	 * Obtain a Transport object from the given JavaMail Session,
 	 * using the configured protocol.
-	 * <p>Can be overridden in subclasses, e.g. to return a mock Transport object.
+	 * <p>Can be overridden in subclasses, for example, to return a mock Transport object.
 	 * @see jakarta.mail.Session#getTransport(String)
 	 * @see #getSession()
 	 * @see #getProtocol()
 	 */
 	protected Transport getTransport(Session session) throws NoSuchProviderException {
-		String protocol	= getProtocol();
+		String protocol = getProtocol();
 		if (protocol == null) {
 			protocol = session.getProperty("mail.transport.protocol");
 			if (protocol == null) {

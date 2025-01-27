@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package org.springframework.web.context.request.async;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -46,24 +47,24 @@ import static org.mockito.Mockito.verify;
  */
 class WebAsyncManagerTests {
 
-	private AsyncWebRequest asyncWebRequest = mock();
+	private final AsyncWebRequest asyncWebRequest = mock();
 
-	private MockHttpServletRequest servletRequest = new MockHttpServletRequest();
+	private final MockHttpServletRequest servletRequest = new MockHttpServletRequest();
 
-	private WebAsyncManager asyncManager = WebAsyncUtils.getAsyncManager(servletRequest);
+	private final WebAsyncManager asyncManager = WebAsyncUtils.getAsyncManager(servletRequest);
 
 
 	@BeforeEach
 	void setup() {
 		this.asyncManager.setTaskExecutor(new SyncTaskExecutor());
 		this.asyncManager.setAsyncWebRequest(this.asyncWebRequest);
-		verify(this.asyncWebRequest).addCompletionHandler((Runnable) notNull());
+		verify(this.asyncWebRequest).addCompletionHandler(notNull());
 		reset(this.asyncWebRequest);
 	}
 
 
 	@Test
-	void startAsyncProcessingWithoutAsyncWebRequest() throws Exception {
+	void startAsyncProcessingWithoutAsyncWebRequest() {
 		WebAsyncManager manager = WebAsyncUtils.getAsyncManager(new MockHttpServletRequest());
 
 		assertThatIllegalStateException()
@@ -71,7 +72,7 @@ class WebAsyncManagerTests {
 			.withMessage("AsyncWebRequest must not be null");
 
 		assertThatIllegalStateException()
-			.isThrownBy(() -> manager.startDeferredResultProcessing(new DeferredResult<String>()))
+			.isThrownBy(() -> manager.startDeferredResultProcessing(new DeferredResult<>()))
 			.withMessage("AsyncWebRequest must not be null");
 	}
 
@@ -133,6 +134,26 @@ class WebAsyncManagerTests {
 		verify(interceptor).beforeConcurrentHandling(this.asyncWebRequest, task);
 		verify(interceptor).preProcess(this.asyncWebRequest, task);
 		verify(interceptor).postProcess(this.asyncWebRequest, task, concurrentResult);
+	}
+
+	@Test // gh-30232
+	void startCallableProcessingSubmitException() throws Exception {
+		RuntimeException ex = new RuntimeException();
+
+		setupDefaultAsyncScenario();
+
+		this.asyncManager.setTaskExecutor(new SimpleAsyncTaskExecutor() {
+			@Override
+			public Future<?> submit(Runnable task) {
+				throw ex;
+			}
+		});
+		this.asyncManager.startCallableProcessing(() -> "not used");
+
+		assertThat(this.asyncManager.hasConcurrentResult()).isTrue();
+		assertThat(this.asyncManager.getConcurrentResult()).isEqualTo(ex);
+
+		verifyDefaultAsyncScenario();
 	}
 
 	@Test
@@ -240,7 +261,7 @@ class WebAsyncManagerTests {
 	}
 
 	@Test
-	void startCallableProcessingNullInput() throws Exception {
+	void startCallableProcessingNullInput() {
 		assertThatIllegalArgumentException()
 			.isThrownBy(() -> this.asyncManager.startCallableProcessing((Callable<?>) null))
 			.withMessage("Callable must not be null");
@@ -331,7 +352,7 @@ class WebAsyncManagerTests {
 	}
 
 	@Test
-	void startDeferredResultProcessingNullInput() throws Exception {
+	void startDeferredResultProcessingNullInput() {
 		assertThatIllegalArgumentException()
 			.isThrownBy(() -> this.asyncManager.startDeferredResultProcessing(null))
 			.withMessage("DeferredResult must not be null");
@@ -351,9 +372,9 @@ class WebAsyncManagerTests {
 	}
 
 
-	private final class StubCallable implements Callable<Object> {
+	private static final class StubCallable implements Callable<Object> {
 
-		private Object value;
+		private final Object value;
 
 		StubCallable(Object value) {
 			this.value = value;

@@ -16,11 +16,12 @@
 
 package org.springframework.core.io;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.ResourceUtils;
 
 /**
- * Strategy interface for loading resources (e.g., class path or file system
+ * Strategy interface for loading resources (for example, class path or file system
  * resources). An {@link org.springframework.context.ApplicationContext}
  * is required to provide this functionality plus extended
  * {@link org.springframework.core.io.support.ResourcePatternResolver} support.
@@ -50,9 +51,9 @@ public interface ResourceLoader {
 	 * <p>The handle should always be a reusable resource descriptor,
 	 * allowing for multiple {@link Resource#getInputStream()} calls.
 	 * <p><ul>
-	 * <li>Must support fully qualified URLs, e.g. "file:C:/test.dat".
-	 * <li>Must support classpath pseudo-URLs, e.g. "classpath:test.dat".
-	 * <li>Should support relative file paths, e.g. "WEB-INF/test.dat".
+	 * <li>Must support fully qualified URLs, for example, "file:C:/test.dat".
+	 * <li>Must support classpath pseudo-URLs, for example, "classpath:test.dat".
+	 * <li>Should support relative file paths, for example, "WEB-INF/test.dat".
 	 * (This will be implementation-specific, typically provided by an
 	 * ApplicationContext implementation.)
 	 * </ul>
@@ -76,7 +77,6 @@ public interface ResourceLoader {
 	 * @see org.springframework.util.ClassUtils#getDefaultClassLoader()
 	 * @see org.springframework.util.ClassUtils#forName(String, ClassLoader)
 	 */
-	@Nullable
-	ClassLoader getClassLoader();
+	@Nullable ClassLoader getClassLoader();
 
 }

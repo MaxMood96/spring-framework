@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.BeanDefinitionStoreException;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
@@ -36,10 +37,10 @@ import org.springframework.beans.factory.groovy.GroovyBeanDefinitionReader;
 import org.springframework.beans.factory.parsing.SourceExtractor;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.beans.factory.support.AbstractBeanDefinitionReader;
+import org.springframework.beans.factory.support.BeanDefinitionOverrideException;
 import org.springframework.beans.factory.support.BeanDefinitionReader;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.BeanNameGenerator;
-import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.beans.factory.xml.XmlBeanDefinitionReader;
 import org.springframework.context.annotation.ConfigurationCondition.ConfigurationPhase;
@@ -51,8 +52,8 @@ import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.core.type.MethodMetadata;
 import org.springframework.core.type.StandardAnnotationMetadata;
 import org.springframework.core.type.StandardMethodMetadata;
-import org.springframework.lang.NonNull;
 import org.springframework.util.Assert;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -200,7 +201,7 @@ class ConfigurationClassBeanDefinitionReader {
 			this.registry.registerAlias(beanName, alias);
 		}
 
-		// Has this effectively been overridden before (e.g. via XML)?
+		// Has this effectively been overridden before (for example, via XML)?
 		if (isOverriddenByExistingDefinition(beanMethod, beanName)) {
 			if (beanName.equals(beanMethod.getConfigurationClass().getBeanName())) {
 				throw new BeanDefinitionStoreException(beanMethod.getConfigurationClass().getResource().getDescription(),
@@ -229,8 +230,12 @@ class ConfigurationClassBeanDefinitionReader {
 			beanDef.setUniqueFactoryMethodName(methodName);
 		}
 
-		if (metadata instanceof StandardMethodMetadata sam) {
-			beanDef.setResolvedFactoryMethod(sam.getIntrospectedMethod());
+		if (metadata instanceof StandardMethodMetadata smm &&
+				configClass.getMetadata() instanceof StandardAnnotationMetadata sam) {
+			Method method = ClassUtils.getMostSpecificMethod(smm.getIntrospectedMethod(), sam.getIntrospectedClass());
+			if (method == smm.getIntrospectedMethod()) {
+				beanDef.setResolvedFactoryMethod(method);
+			}
 		}
 
 		beanDef.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR);
@@ -239,6 +244,16 @@ class ConfigurationClassBeanDefinitionReader {
 		boolean autowireCandidate = bean.getBoolean("autowireCandidate");
 		if (!autowireCandidate) {
 			beanDef.setAutowireCandidate(false);
+		}
+
+		boolean defaultCandidate = bean.getBoolean("defaultCandidate");
+		if (!defaultCandidate) {
+			beanDef.setDefaultCandidate(false);
+		}
+
+		Bean.Bootstrap instantiation = bean.getEnum("bootstrap");
+		if (instantiation == Bean.Bootstrap.BACKGROUND) {
+			beanDef.setBackgroundInit(true);
 		}
 
 		String initMethodName = bean.getString("initMethod");
@@ -277,32 +292,43 @@ class ConfigurationClassBeanDefinitionReader {
 		this.registry.registerBeanDefinition(beanName, beanDefToRegister);
 	}
 
+	@SuppressWarnings("NullAway") // Reflection
 	protected boolean isOverriddenByExistingDefinition(BeanMethod beanMethod, String beanName) {
 		if (!this.registry.containsBeanDefinition(beanName)) {
 			return false;
 		}
 		BeanDefinition existingBeanDef = this.registry.getBeanDefinition(beanName);
+		ConfigurationClass configClass = beanMethod.getConfigurationClass();
 
-		// Is the existing bean definition one that was created from a configuration class?
-		// -> allow the current bean method to override, since both are at second-pass level.
-		// However, if the bean method is an overloaded case on the same configuration class,
-		// preserve the existing bean definition.
+		// If the bean method is an overloaded case on the same configuration class,
+		// preserve the existing bean definition and mark it as overloaded.
 		if (existingBeanDef instanceof ConfigurationClassBeanDefinition ccbd) {
-			if (ccbd.getMetadata().getClassName().equals(
-					beanMethod.getConfigurationClass().getMetadata().getClassName())) {
-				if (ccbd.getFactoryMethodMetadata().getMethodName().equals(ccbd.getFactoryMethodName())) {
-					ccbd.setNonUniqueFactoryMethodName(ccbd.getFactoryMethodMetadata().getMethodName());
-				}
-				return true;
-			}
-			else {
+			if (!ccbd.getMetadata().getClassName().equals(configClass.getMetadata().getClassName())) {
 				return false;
 			}
+			if (ccbd.getFactoryMethodMetadata().getMethodName().equals(beanMethod.getMetadata().getMethodName())) {
+				ccbd.setNonUniqueFactoryMethodName(ccbd.getFactoryMethodMetadata().getMethodName());
+				return true;
+			}
+			Map<String, @Nullable Object> attributes =
+					configClass.getMetadata().getAnnotationAttributes(Configuration.class.getName());
+			if ((attributes != null && (Boolean) attributes.get("enforceUniqueMethods")) ||
+					!this.registry.isBeanDefinitionOverridable(beanName)) {
+				throw new BeanDefinitionOverrideException(beanName,
+						new ConfigurationClassBeanDefinition(configClass, beanMethod.getMetadata(), beanName),
+						existingBeanDef,
+						"@Bean method override with same bean name but different method name: " + existingBeanDef);
+			}
+			return true;
 		}
 
 		// A bean definition resulting from a component scan can be silently overridden
-		// by an @Bean method, as of 4.2...
-		if (existingBeanDef instanceof ScannedGenericBeanDefinition) {
+		// by an @Bean method - and as of 6.1, even when general overriding is disabled
+		// as long as the bean class is the same.
+		if (existingBeanDef instanceof ScannedGenericBeanDefinition scannedBeanDef) {
+			if (beanMethod.getMetadata().getReturnTypeName().equals(scannedBeanDef.getBeanClassName())) {
+				this.registry.removeBeanDefinition(beanName);
+			}
 			return false;
 		}
 
@@ -314,10 +340,11 @@ class ConfigurationClassBeanDefinitionReader {
 
 		// At this point, it's a top-level override (probably XML), just having been parsed
 		// before configuration class processing kicks in...
-		if (this.registry instanceof DefaultListableBeanFactory dlbf &&
-				!dlbf.isAllowBeanDefinitionOverriding()) {
-			throw new BeanDefinitionStoreException(beanMethod.getConfigurationClass().getResource().getDescription(),
-					beanName, "@Bean definition illegally overridden by existing bean definition: " + existingBeanDef);
+		if (!this.registry.isBeanDefinitionOverridable(beanName)) {
+			throw new BeanDefinitionOverrideException(beanName,
+					new ConfigurationClassBeanDefinition(configClass, beanMethod.getMetadata(), beanName),
+					existingBeanDef,
+					"@Bean definition illegally overridden by existing bean definition: " + existingBeanDef);
 		}
 		if (logger.isDebugEnabled()) {
 			logger.debug(String.format("Skipping bean definition for %s: a definition for bean '%s' " +
@@ -401,6 +428,7 @@ class ConfigurationClassBeanDefinitionReader {
 
 		public ConfigurationClassBeanDefinition(RootBeanDefinition original,
 				ConfigurationClass configClass, MethodMetadata beanMethodMetadata, String derivedBeanName) {
+
 			super(original);
 			this.annotationMetadata = configClass.getMetadata();
 			this.factoryMethodMetadata = beanMethodMetadata;
@@ -420,7 +448,6 @@ class ConfigurationClassBeanDefinitionReader {
 		}
 
 		@Override
-		@NonNull
 		public MethodMetadata getFactoryMethodMetadata() {
 			return this.factoryMethodMetadata;
 		}

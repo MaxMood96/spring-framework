@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,8 @@
 package org.springframework.aot;
 
 import org.springframework.core.NativeDetector;
+import org.springframework.core.NativeDetector.Context;
 import org.springframework.core.SpringProperties;
-
-import static org.springframework.core.NativeDetector.Context;
 
 /**
  * Utility for determining if AOT-processed optimizations must be used rather
@@ -39,7 +38,8 @@ public abstract class AotDetector {
 	 */
 	public static final String AOT_ENABLED = "spring.aot.enabled";
 
-	private static final boolean inNativeImage = NativeDetector.inNativeImage(Context.RUNTIME, Context.BUILD_TIME);
+	private static final boolean inNativeImage = NativeDetector.inNativeImage(Context.RUN, Context.BUILD);
+
 
 	/**
 	 * Determine whether AOT optimizations must be considered at runtime. This

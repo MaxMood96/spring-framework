@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 /**
- * Unit tests for {@link StompBrokerRelayMessageHandler}.
+ * Tests for {@link StompBrokerRelayMessageHandler}.
  *
  * @author Rossen Stoyanchev
  */
@@ -54,11 +54,11 @@ class StompBrokerRelayMessageHandlerTests {
 
 	private StompBrokerRelayMessageHandler brokerRelay;
 
-	private StubMessageChannel outboundChannel = new StubMessageChannel();
+	private final StubMessageChannel outboundChannel = new StubMessageChannel();
 
-	private StubTcpOperations tcpClient = new StubTcpOperations();
+	private final StubTcpOperations tcpClient = new StubTcpOperations();
 
-	private ArgumentCaptor<Runnable> messageCountTaskCaptor = ArgumentCaptor.forClass(Runnable.class);
+	private final ArgumentCaptor<Runnable> messageCountTaskCaptor = ArgumentCaptor.forClass(Runnable.class);
 
 
 	@BeforeEach

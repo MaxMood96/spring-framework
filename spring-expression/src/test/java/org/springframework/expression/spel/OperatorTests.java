@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.springframework.expression.spel;
 
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
@@ -24,10 +25,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.expression.Expression;
 import org.springframework.expression.spel.ast.Operator;
 import org.springframework.expression.spel.standard.SpelExpression;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.StandardEvaluationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.expression.spel.SpelMessage.MAX_CONCATENATED_STRING_LENGTH_EXCEEDED;
 import static org.springframework.expression.spel.SpelMessage.MAX_REPEATED_TEXT_SIZE_EXCEEDED;
+import static org.springframework.expression.spel.SpelMessage.NEGATIVE_REPEATED_TEXT_COUNT;
 
 /**
  * Tests the evaluation of expressions using various operators.
@@ -579,6 +583,19 @@ class OperatorTests extends AbstractExpressionTests {
 
 		// 4 is the position of the '*' (repeat operator)
 		evaluateAndCheckError("'a' * 257", String.class, MAX_REPEATED_TEXT_SIZE_EXCEEDED, 4);
+
+		// Integer overflow: 2 * ((Integer.MAX_VALUE / 2) + 1) --> integer overflow
+		int repeatCount = (Integer.MAX_VALUE / 2) + 1;
+		assertThat(2 * repeatCount).isNegative();
+		// 5 is the position of the '*' (repeat operator)
+		evaluateAndCheckError("'ab' * " + repeatCount, String.class, MAX_REPEATED_TEXT_SIZE_EXCEEDED, 5);
+	}
+
+	@Test
+	void stringRepeatWithNegativeRepeatCount() {
+		// 4 is the position of the '*' (repeat operator)
+		// -1 is the negative repeat count
+		evaluateAndCheckError("'a' * -1", String.class, NEGATIVE_REPEATED_TEXT_COUNT, 4, -1);
 	}
 
 	@Test
@@ -654,6 +671,18 @@ class OperatorTests extends AbstractExpressionTests {
 		evaluate("5 % new java.math.BigInteger('3')", new BigInteger("2"), BigInteger.class);
 		evaluate("new java.math.BigInteger('5') % 3", new BigInteger("2"), BigInteger.class);
 		evaluate("new java.math.BigInteger('5') ^ 3", new BigInteger("125"), BigInteger.class);
+	}
+
+	@Test
+	void bigIntFunction() throws Exception {
+		SpelExpressionParser parser = new SpelExpressionParser();
+		StandardEvaluationContext context = new StandardEvaluationContext();
+		Method method = BigInteger.class.getMethod("valueOf", long.class);
+		context.registerFunction("bigInt", method);
+
+		Expression expression = parser.parseExpression("3 + #bigInt(5)");
+		BigInteger result = expression.getValue(context, BigInteger.class);
+		assertThat(result).isEqualTo(BigInteger.valueOf(8));
 	}
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,6 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.testfixture.cache.CacheTestUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ReflectionUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -72,7 +72,7 @@ class CacheResolverCustomizationTests {
 	}
 
 	@AfterEach
-	void tearDown() {
+	void closeContext() {
 		this.context.close();
 	}
 
@@ -142,16 +142,17 @@ class CacheResolverCustomizationTests {
 	@Test
 	void noCacheResolved() {
 		Method method = ReflectionUtils.findMethod(SimpleService.class, "noCacheResolved", Object.class);
-		assertThatIllegalStateException().isThrownBy(() ->
-				this.simpleService.noCacheResolved(new Object()))
-			.withMessageContaining(method.toString());
+
+		assertThatIllegalStateException()
+				.isThrownBy(() -> this.simpleService.noCacheResolved(new Object()))
+				.withMessageContaining(method.toString());
 	}
 
 	@Test
 	void unknownCacheResolver() {
-		assertThatExceptionOfType(NoSuchBeanDefinitionException.class).isThrownBy(() ->
-				this.simpleService.unknownCacheResolver(new Object()))
-			.satisfies(ex -> assertThat(ex.getBeanName()).isEqualTo("unknownCacheResolver"));
+		assertThatExceptionOfType(NoSuchBeanDefinitionException.class)
+				.isThrownBy(() -> this.simpleService.unknownCacheResolver(new Object()))
+				.satisfies(ex -> assertThat(ex.getBeanName()).isEqualTo("unknownCacheResolver"));
 	}
 
 
@@ -259,8 +260,7 @@ class CacheResolverCustomizationTests {
 		}
 
 		@Override
-		@Nullable
-		protected Collection<String> getCacheNames(CacheOperationInvocationContext<?> context) {
+		protected @Nullable Collection<String> getCacheNames(CacheOperationInvocationContext<?> context) {
 			String cacheName = (String) context.getArgs()[1];
 			return Collections.singleton(cacheName);
 		}
@@ -274,8 +274,7 @@ class CacheResolverCustomizationTests {
 		}
 
 		@Override
-		@Nullable
-		protected Collection<String> getCacheNames(CacheOperationInvocationContext<?> context) {
+		protected @Nullable Collection<String> getCacheNames(CacheOperationInvocationContext<?> context) {
 			return null;
 		}
 	}

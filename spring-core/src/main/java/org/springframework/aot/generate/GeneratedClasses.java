@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,9 +23,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.javapoet.ClassName;
 import org.springframework.javapoet.TypeSpec;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -199,8 +200,15 @@ public class GeneratedClasses {
 		}
 	}
 
-	GeneratedClasses withFeatureNamePrefix(String name) {
-		return new GeneratedClasses(this.classNameGenerator.withFeatureNamePrefix(name),
+	/**
+	 * Create a new {@link GeneratedClasses} instance using the specified feature
+	 * name prefix to qualify generated class names for a dedicated round of code
+	 * generation.
+	 * @param featureNamePrefix the feature name prefix to use
+	 * @return a new instance for the specified feature name prefix
+	 */
+	GeneratedClasses withFeatureNamePrefix(String featureNamePrefix) {
+		return new GeneratedClasses(this.classNameGenerator.withFeatureNamePrefix(featureNamePrefix),
 				this.classes, this.classesByOwner);
 	}
 

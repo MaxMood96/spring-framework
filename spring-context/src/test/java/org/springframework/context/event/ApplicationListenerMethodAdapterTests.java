@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.ResolvableTypeProvider;
 import org.springframework.core.annotation.Order;
+import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.util.ReflectionUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,8 +48,10 @@ import static org.mockito.Mockito.verify;
 
 /**
  * @author Stephane Nicoll
+ * @author Juergen Hoeller
+ * @author Simon Baslé
  */
-public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEventListenerTests {
+class ApplicationListenerMethodAdapterTests extends AbstractApplicationEventListenerTests {
 
 	private final SampleEvents sampleEvents = spy(new SampleEvents());
 
@@ -56,110 +59,117 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 
 
 	@Test
-	public void rawListener() {
+	void rawListener() {
 		Method method = ReflectionUtils.findMethod(SampleEvents.class, "handleRaw", ApplicationEvent.class);
 		supportsEventType(true, method, ResolvableType.forClass(ApplicationEvent.class));
 	}
 
 	@Test
-	public void rawListenerWithGenericEvent() {
+	void rawListenerWithGenericEvent() {
 		Method method = ReflectionUtils.findMethod(SampleEvents.class, "handleRaw", ApplicationEvent.class);
 		supportsEventType(true, method, ResolvableType.forClassWithGenerics(GenericTestEvent.class, String.class));
 	}
 
 	@Test
-	public void genericListener() {
+	void genericListener() {
 		Method method = ReflectionUtils.findMethod(
 				SampleEvents.class, "handleGenericString", GenericTestEvent.class);
 		supportsEventType(true, method, ResolvableType.forClassWithGenerics(GenericTestEvent.class, String.class));
 	}
 
 	@Test
-	public void genericListenerWrongParameterizedType() {
+	void genericListenerWrongParameterizedType() {
 		Method method = ReflectionUtils.findMethod(
 				SampleEvents.class, "handleGenericString", GenericTestEvent.class);
 		supportsEventType(false, method, ResolvableType.forClassWithGenerics(GenericTestEvent.class, Long.class));
 	}
 
 	@Test
-	public void listenerWithPayloadAndGenericInformation() {
-		Method method = ReflectionUtils.findMethod(SampleEvents.class, "handleString", String.class);
-		supportsEventType(true, method, createGenericEventType(String.class));
+	void genericListenerWithUnresolvedGenerics() {
+		Method method = ReflectionUtils.findMethod(
+				SampleEvents.class, "handleGenericString", GenericTestEvent.class);
+		supportsEventType(true, method, ResolvableType.forClass(GenericTestEvent.class));
 	}
 
 	@Test
-	public void listenerWithInvalidPayloadAndGenericInformation() {
+	void listenerWithPayloadAndGenericInformation() {
 		Method method = ReflectionUtils.findMethod(SampleEvents.class, "handleString", String.class);
-		supportsEventType(false, method, createGenericEventType(Integer.class));
+		supportsEventType(true, method, createPayloadEventType(String.class));
 	}
 
 	@Test
-	public void listenerWithPayloadTypeErasure() {  // Always accept such event when the type is unknown
+	void listenerWithInvalidPayloadAndGenericInformation() {
+		Method method = ReflectionUtils.findMethod(SampleEvents.class, "handleString", String.class);
+		supportsEventType(false, method, createPayloadEventType(Integer.class));
+	}
+
+	@Test
+	void listenerWithPayloadTypeErasure() {  // Always accept such event when the type is unknown
 		Method method = ReflectionUtils.findMethod(SampleEvents.class, "handleString", String.class);
 		supportsEventType(true, method, ResolvableType.forClass(PayloadApplicationEvent.class));
 	}
 
 	@Test
-	public void listenerWithSubTypeSeveralGenerics() {
+	void listenerWithSubTypeSeveralGenerics() {
 		Method method = ReflectionUtils.findMethod(SampleEvents.class, "handleString", String.class);
 		supportsEventType(true, method, ResolvableType.forClass(PayloadTestEvent.class));
 	}
 
 	@Test
-	public void listenerWithSubTypeSeveralGenericsResolved() {
+	void listenerWithSubTypeSeveralGenericsResolved() {
 		Method method = ReflectionUtils.findMethod(SampleEvents.class, "handleString", String.class);
 		supportsEventType(true, method, ResolvableType.forClass(PayloadStringTestEvent.class));
 	}
 
 	@Test
-	public void listenerWithAnnotationValue() {
+	void listenerWithAnnotationValue() {
 		Method method = ReflectionUtils.findMethod(SampleEvents.class, "handleStringAnnotationValue");
-		supportsEventType(true, method, createGenericEventType(String.class));
+		supportsEventType(true, method, createPayloadEventType(String.class));
 	}
 
 	@Test
-	public void listenerWithAnnotationClasses() {
+	void listenerWithAnnotationClasses() {
 		Method method = ReflectionUtils.findMethod(SampleEvents.class, "handleStringAnnotationClasses");
-		supportsEventType(true, method, createGenericEventType(String.class));
+		supportsEventType(true, method, createPayloadEventType(String.class));
 	}
 
 	@Test
-	public void listenerWithAnnotationValueAndParameter() {
+	void listenerWithAnnotationValueAndParameter() {
 		Method method = ReflectionUtils.findMethod(
 				SampleEvents.class, "handleStringAnnotationValueAndParameter", String.class);
-		supportsEventType(true, method, createGenericEventType(String.class));
+		supportsEventType(true, method, createPayloadEventType(String.class));
 	}
 
 	@Test
-	public void listenerWithSeveralTypes() {
+	void listenerWithSeveralTypes() {
 		Method method = ReflectionUtils.findMethod(SampleEvents.class, "handleStringOrInteger");
-		supportsEventType(true, method, createGenericEventType(String.class));
-		supportsEventType(true, method, createGenericEventType(Integer.class));
-		supportsEventType(false, method, createGenericEventType(Double.class));
+		supportsEventType(true, method, createPayloadEventType(String.class));
+		supportsEventType(true, method, createPayloadEventType(Integer.class));
+		supportsEventType(false, method, createPayloadEventType(Double.class));
 	}
 
 	@Test
-	public void listenerWithTooManyParameters() {
+	void listenerWithTooManyParameters() {
 		Method method = ReflectionUtils.findMethod(
 				SampleEvents.class, "tooManyParameters", String.class, String.class);
 		assertThatIllegalStateException().isThrownBy(() -> createTestInstance(method));
 	}
 
 	@Test
-	public void listenerWithNoParameter() {
+	void listenerWithNoParameter() {
 		Method method = ReflectionUtils.findMethod(SampleEvents.class, "noParameter");
 		assertThatIllegalStateException().isThrownBy(() -> createTestInstance(method));
 	}
 
 	@Test
-	public void listenerWithMoreThanOneParameter() {
+	void listenerWithMoreThanOneParameter() {
 		Method method = ReflectionUtils.findMethod(
 				SampleEvents.class, "moreThanOneParameter", String.class, Integer.class);
 		assertThatIllegalStateException().isThrownBy(() -> createTestInstance(method));
 	}
 
 	@Test
-	public void defaultOrder() {
+	void defaultOrder() {
 		Method method = ReflectionUtils.findMethod(
 				SampleEvents.class, "handleGenericString", GenericTestEvent.class);
 		ApplicationListenerMethodAdapter adapter = createTestInstance(method);
@@ -167,7 +177,7 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 	}
 
 	@Test
-	public void specifiedOrder() {
+	void specifiedOrder() {
 		Method method = ReflectionUtils.findMethod(
 				SampleEvents.class, "handleRaw", ApplicationEvent.class);
 		ApplicationListenerMethodAdapter adapter = createTestInstance(method);
@@ -175,7 +185,7 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 	}
 
 	@Test
-	public void invokeListener() {
+	void invokeListener() {
 		Method method = ReflectionUtils.findMethod(
 				SampleEvents.class, "handleGenericString", GenericTestEvent.class);
 		GenericTestEvent<String> event = createGenericTestEvent("test");
@@ -184,7 +194,7 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 	}
 
 	@Test
-	public void invokeListenerWithGenericEvent() {
+	void invokeListenerWithGenericEvent() {
 		Method method = ReflectionUtils.findMethod(
 				SampleEvents.class, "handleGenericString", GenericTestEvent.class);
 		GenericTestEvent<String> event = new SmartGenericTestEvent<>(this, "test");
@@ -193,7 +203,7 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 	}
 
 	@Test
-	public void invokeListenerWithGenericPayload() {
+	void invokeListenerWithGenericPayload() {
 		Method method = ReflectionUtils.findMethod(
 				SampleEvents.class, "handleGenericStringPayload", EntityWrapper.class);
 		EntityWrapper<String> payload = new EntityWrapper<>("test");
@@ -202,16 +212,16 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 	}
 
 	@Test
-	public void invokeListenerWithWrongGenericPayload() {
-		Method method = ReflectionUtils.findMethod
-				(SampleEvents.class, "handleGenericStringPayload", EntityWrapper.class);
+	void invokeListenerWithWrongGenericPayload() {
+		Method method = ReflectionUtils.findMethod(
+				SampleEvents.class, "handleGenericStringPayload", EntityWrapper.class);
 		EntityWrapper<Integer> payload = new EntityWrapper<>(123);
 		invokeListener(method, new PayloadApplicationEvent<>(this, payload));
 		verify(this.sampleEvents, times(0)).handleGenericStringPayload(any());
 	}
 
 	@Test
-	public void invokeListenerWithAnyGenericPayload() {
+	void invokeListenerWithAnyGenericPayload() {
 		Method method = ReflectionUtils.findMethod(
 				SampleEvents.class, "handleGenericAnyPayload", EntityWrapper.class);
 		EntityWrapper<String> payload = new EntityWrapper<>("test");
@@ -220,7 +230,7 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 	}
 
 	@Test
-	public void invokeListenerRuntimeException() {
+	void invokeListenerRuntimeException() {
 		Method method = ReflectionUtils.findMethod(
 				SampleEvents.class, "generateRuntimeException", GenericTestEvent.class);
 		GenericTestEvent<String> event = createGenericTestEvent("fail");
@@ -232,7 +242,7 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 	}
 
 	@Test
-	public void invokeListenerCheckedException() {
+	void invokeListenerCheckedException() {
 		Method method = ReflectionUtils.findMethod(
 				SampleEvents.class, "generateCheckedException", GenericTestEvent.class);
 		GenericTestEvent<String> event = createGenericTestEvent("fail");
@@ -243,7 +253,7 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 	}
 
 	@Test
-	public void invokeListenerInvalidProxy() {
+	void invokeListenerInvalidProxy() {
 		Object target = new InvalidProxyTestBean();
 		ProxyFactory proxyFactory = new ProxyFactory();
 		proxyFactory.setTarget(target);
@@ -260,7 +270,7 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 	}
 
 	@Test
-	public void invokeListenerWithPayload() {
+	void invokeListenerWithPayload() {
 		Method method = ReflectionUtils.findMethod(SampleEvents.class, "handleString", String.class);
 		PayloadApplicationEvent<String> event = new PayloadApplicationEvent<>(this, "test");
 		invokeListener(method, event);
@@ -268,7 +278,7 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 	}
 
 	@Test
-	public void invokeListenerWithPayloadWrongType() {
+	void invokeListenerWithPayloadWrongType() {
 		Method method = ReflectionUtils.findMethod(SampleEvents.class, "handleString", String.class);
 		PayloadApplicationEvent<Long> event = new PayloadApplicationEvent<>(this, 123L);
 		invokeListener(method, event);
@@ -276,7 +286,7 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 	}
 
 	@Test
-	public void invokeListenerWithAnnotationValue() {
+	void invokeListenerWithAnnotationValue() {
 		Method method = ReflectionUtils.findMethod(SampleEvents.class, "handleStringAnnotationClasses");
 		PayloadApplicationEvent<String> event = new PayloadApplicationEvent<>(this, "test");
 		invokeListener(method, event);
@@ -284,7 +294,7 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 	}
 
 	@Test
-	public void invokeListenerWithAnnotationValueAndParameter() {
+	void invokeListenerWithAnnotationValueAndParameter() {
 		Method method = ReflectionUtils.findMethod(
 				SampleEvents.class, "handleStringAnnotationValueAndParameter", String.class);
 		PayloadApplicationEvent<String> event = new PayloadApplicationEvent<>(this, "test");
@@ -293,7 +303,7 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 	}
 
 	@Test
-	public void invokeListenerWithSeveralTypes() {
+	void invokeListenerWithSeveralTypes() {
 		Method method = ReflectionUtils.findMethod(SampleEvents.class, "handleStringOrInteger");
 		PayloadApplicationEvent<String> event = new PayloadApplicationEvent<>(this, "test");
 		invokeListener(method, event);
@@ -307,13 +317,13 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 	}
 
 	@Test
-	public void beanInstanceRetrievedAtEveryInvocation() {
+	void beanInstanceRetrievedAtEveryInvocation() {
 		Method method = ReflectionUtils.findMethod(
 				SampleEvents.class, "handleGenericString", GenericTestEvent.class);
 		given(this.context.getBean("testBean")).willReturn(this.sampleEvents);
 		ApplicationListenerMethodAdapter listener = new ApplicationListenerMethodAdapter(
 				"testBean", GenericTestEvent.class, method);
-		listener.init(this.context, new EventExpressionEvaluator());
+		listener.init(this.context, new EventExpressionEvaluator(new StandardEvaluationContext()));
 		GenericTestEvent<String> event = createGenericTestEvent("test");
 
 
@@ -326,69 +336,66 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 		verify(this.context, times(2)).getBean("testBean");
 	}
 
-	// see https://github.com/spring-projects/spring-framework/issues/30399
-	@Test
+	@Test  // gh-30399
 	void simplePayloadDoesNotSupportArbitraryGenericEventType() throws Exception {
-		var method = SampleEvents.class.getDeclaredMethod("handleString", String.class);
-		var adapter = new ApplicationListenerMethodAdapter(null, ApplicationListenerMethodAdapterTests.class, method);
+		Method method = SampleEvents.class.getDeclaredMethod("handleString", String.class);
+		ApplicationListenerMethodAdapter adapter = createTestInstance(method);
 
-		assertThat(adapter.supportsEventType(ResolvableType.forClassWithGenerics(EntityWrapper.class, Integer.class)))
+		assertThat(adapter.supportsEventType(createPayloadEventType(ResolvableType.forClassWithGenerics(EntityWrapper.class, Integer.class))))
 				.as("handleString(String) with EntityWrapper<Integer>").isFalse();
-		assertThat(adapter.supportsEventType(ResolvableType.forClass(EntityWrapper.class)))
+		assertThat(adapter.supportsEventType(createPayloadEventType(ResolvableType.forClass(EntityWrapper.class))))
 				.as("handleString(String) with EntityWrapper<?>").isFalse();
-		assertThat(adapter.supportsEventType(ResolvableType.forClass(String.class)))
+		assertThat(adapter.supportsEventType(createPayloadEventType(ResolvableType.forClass(String.class))))
 				.as("handleString(String) with String").isTrue();
 	}
 
-	// see https://github.com/spring-projects/spring-framework/issues/30399
-	@Test
+	@Test  // gh-30399
 	void genericPayloadDoesNotSupportArbitraryGenericEventType() throws Exception {
-		var method = SampleEvents.class.getDeclaredMethod("handleGenericStringPayload", EntityWrapper.class);
-		var adapter = new ApplicationListenerMethodAdapter(null, ApplicationListenerMethodAdapterTests.class, method);
+		Method method = SampleEvents.class.getDeclaredMethod("handleGenericStringPayload", EntityWrapper.class);
+		ApplicationListenerMethodAdapter adapter = createTestInstance(method);
 
-		assertThat(adapter.supportsEventType(ResolvableType.forClass(EntityWrapper.class)))
+		assertThat(adapter.supportsEventType(createPayloadEventType(ResolvableType.forClass(EntityWrapper.class))))
 				.as("handleGenericStringPayload(EntityWrapper<String>) with EntityWrapper<?>").isFalse();
-		assertThat(adapter.supportsEventType(ResolvableType.forClassWithGenerics(EntityWrapper.class, Integer.class)))
+		assertThat(adapter.supportsEventType(createPayloadEventType(ResolvableType.forClassWithGenerics(EntityWrapper.class, Integer.class))))
 				.as("handleGenericStringPayload(EntityWrapper<String>) with EntityWrapper<Integer>").isFalse();
-		assertThat(adapter.supportsEventType(ResolvableType.forClassWithGenerics(EntityWrapper.class, String.class)))
+		assertThat(adapter.supportsEventType(createPayloadEventType(ResolvableType.forClassWithGenerics(EntityWrapper.class, String.class))))
 				.as("handleGenericStringPayload(EntityWrapper<String>) with EntityWrapper<String>").isTrue();
 	}
 
-	// see https://github.com/spring-projects/spring-framework/issues/30399
-	@Test
+	@Test  // gh-30399
 	void rawGenericPayloadDoesNotSupportArbitraryGenericEventType() throws Exception {
-		var method = SampleEvents.class.getDeclaredMethod("handleGenericAnyPayload", EntityWrapper.class);
-		var adapter = new ApplicationListenerMethodAdapter(null, ApplicationListenerMethodAdapterTests.class, method);
+		Method method = SampleEvents.class.getDeclaredMethod("handleGenericAnyPayload", EntityWrapper.class);
+		ApplicationListenerMethodAdapter adapter = createTestInstance(method);
 
-		assertThat(adapter.supportsEventType(ResolvableType.forClass(EntityWrapper.class)))
+		assertThat(adapter.supportsEventType(createPayloadEventType(ResolvableType.forClass(EntityWrapper.class))))
 				.as("handleGenericAnyPayload(EntityWrapper<?>) with EntityWrapper<?>").isTrue();
-		assertThat(adapter.supportsEventType(ResolvableType.forClassWithGenerics(EntityWrapper.class, Integer.class)))
+		assertThat(adapter.supportsEventType(createPayloadEventType(ResolvableType.forClassWithGenerics(EntityWrapper.class, Integer.class))))
 				.as("handleGenericAnyPayload(EntityWrapper<?>) with EntityWrapper<Integer>").isTrue();
-		assertThat(adapter.supportsEventType(ResolvableType.forClassWithGenerics(EntityWrapper.class, String.class)))
+		assertThat(adapter.supportsEventType(createPayloadEventType(ResolvableType.forClassWithGenerics(EntityWrapper.class, String.class))))
 				.as("handleGenericAnyPayload(EntityWrapper<?>) with EntityWrapper<String>").isTrue();
-		assertThat(adapter.supportsEventType(ResolvableType.forClass(List.class)))
+		assertThat(adapter.supportsEventType(createPayloadEventType(ResolvableType.forClass(List.class))))
 				.as("handleGenericAnyPayload(EntityWrapper<?>) with List<?>").isFalse();
-		assertThat(adapter.supportsEventType(ResolvableType.forClassWithGenerics(List.class, String.class)))
+		assertThat(adapter.supportsEventType(createPayloadEventType(ResolvableType.forClassWithGenerics(List.class, String.class))))
 				.as("handleGenericAnyPayload(EntityWrapper<?>) with List<String>").isFalse();
 	}
 
-	@Test
+	@Test  // gh-30399
 	void genericApplicationEventSupportsSpecificType() throws Exception {
-		var method = SampleEvents.class.getDeclaredMethod("handleGenericString", GenericTestEvent.class);
-		var adapter = new ApplicationListenerMethodAdapter(null, ApplicationListenerMethodAdapterTests.class, method);
+		Method method = SampleEvents.class.getDeclaredMethod("handleGenericString", GenericTestEvent.class);
+		ApplicationListenerMethodAdapter adapter = createTestInstance(method);
 
 		assertThat(adapter.supportsEventType(ResolvableType.forClass(GenericTestEvent.class)))
-				.as("handleGenericString(GenericTestEvent<String>) with GenericTestEvent<?>").isFalse();
+				.as("handleGenericString(GenericTestEvent<String>) with GenericTestEvent<?>").isTrue();
 		assertThat(adapter.supportsEventType(ResolvableType.forClassWithGenerics(GenericTestEvent.class, Integer.class)))
 				.as("handleGenericString(GenericTestEvent<String>) with GenericTestEvent<Integer>").isFalse();
 		assertThat(adapter.supportsEventType(ResolvableType.forClassWithGenerics(GenericTestEvent.class, String.class)))
 				.as("handleGenericString(GenericTestEvent<String>) with GenericTestEvent<String>").isTrue();
 	}
 
-	@Test
+	@Test  // gh-30399
 	void genericRawApplicationEventSupportsRawTypeAndAnySpecificType() throws Exception {
-		var method = SampleEvents.class.getDeclaredMethod("handleGenericRaw", GenericTestEvent.class);
-		var adapter = new ApplicationListenerMethodAdapter(null, ApplicationListenerMethodAdapterTests.class, method);
+		Method method = SampleEvents.class.getDeclaredMethod("handleGenericRaw", GenericTestEvent.class);
+		ApplicationListenerMethodAdapter adapter = createTestInstance(method);
 
 		assertThat(adapter.supportsEventType(ResolvableType.forClass(GenericTestEvent.class)))
 				.as("handleGenericRaw(GenericTestEvent<?>) with GenericTestEvent<?>").isTrue();
@@ -397,6 +404,20 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 		assertThat(adapter.supportsEventType(ResolvableType.forClassWithGenerics(GenericTestEvent.class, Integer.class)))
 				.as("handleGenericRaw(GenericTestEvent<?>) with GenericTestEvent<Integer>").isTrue();
 	}
+
+	@Test  // gh-30399
+	void unrelatedApplicationEventDoesNotSupportRawTypeOrAnySpecificType() throws Exception {
+		Method method = SampleEvents.class.getDeclaredMethod("handleUnrelated", ContextRefreshedEvent.class);
+		ApplicationListenerMethodAdapter adapter = createTestInstance(method);
+
+		assertThat(adapter.supportsEventType(ResolvableType.forClass(GenericTestEvent.class)))
+				.as("handleUnrelated(ContextRefreshedEvent) with GenericTestEvent<?>").isFalse();
+		assertThat(adapter.supportsEventType(ResolvableType.forClassWithGenerics(GenericTestEvent.class, String.class)))
+				.as("handleUnrelated(ContextRefreshedEvent) with GenericTestEvent<String>").isFalse();
+		assertThat(adapter.supportsEventType(ResolvableType.forClassWithGenerics(GenericTestEvent.class, Integer.class)))
+				.as("handleUnrelated(ContextRefreshedEvent) with GenericTestEvent<Integer>").isFalse();
+	}
+
 
 	private void supportsEventType(boolean match, Method method, ResolvableType eventType) {
 		ApplicationListenerMethodAdapter adapter = createTestInstance(method);
@@ -413,7 +434,11 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 		return new StaticApplicationListenerMethodAdapter(method, this.sampleEvents);
 	}
 
-	private ResolvableType createGenericEventType(Class<?> payloadType) {
+	private ResolvableType createPayloadEventType(Class<?> payloadType) {
+		return ResolvableType.forClassWithGenerics(PayloadApplicationEvent.class, payloadType);
+	}
+
+	private ResolvableType createPayloadEventType(ResolvableType payloadType) {
 		return ResolvableType.forClassWithGenerics(PayloadApplicationEvent.class, payloadType);
 	}
 
@@ -447,6 +472,10 @@ public class ApplicationListenerMethodAdapterTests extends AbstractApplicationEv
 
 		@EventListener
 		public void handleGenericRaw(GenericTestEvent<?> event) {
+		}
+
+		@EventListener
+		public void handleUnrelated(ContextRefreshedEvent event) {
 		}
 
 		@EventListener

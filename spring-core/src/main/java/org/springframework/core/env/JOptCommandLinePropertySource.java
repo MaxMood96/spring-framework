@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@ import java.util.List;
 
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
@@ -46,7 +46,11 @@ import org.springframework.util.StringUtils;
  *     // ...
  * }</pre>
  *
- * See {@link CommandLinePropertySource} for complete general usage examples.
+ * <p>If an option has several representations, the most descriptive is expected
+ * to be set last, and is used as the property name of the associated
+ * {@link EnumerablePropertySource#getPropertyNames()}.
+ *
+ * <p>See {@link CommandLinePropertySource} for complete general usage examples.
  *
  * <p>Requires JOpt Simple version 4.3 or higher. Tested against JOpt up until 5.0.
  *
@@ -57,7 +61,9 @@ import org.springframework.util.StringUtils;
  * @see CommandLinePropertySource
  * @see joptsimple.OptionParser
  * @see joptsimple.OptionSet
+ * @deprecated since 6.1 with no plans for a replacement
  */
+@Deprecated(since = "6.1")
 public class JOptCommandLinePropertySource extends CommandLinePropertySource<OptionSet> {
 
 	/**
@@ -88,9 +94,9 @@ public class JOptCommandLinePropertySource extends CommandLinePropertySource<Opt
 	public String[] getPropertyNames() {
 		List<String> names = new ArrayList<>();
 		for (OptionSpec<?> spec : this.source.specs()) {
+			// Last option is expected to be the most descriptive.
 			String lastOption = CollectionUtils.lastElement(spec.options());
 			if (lastOption != null) {
-				// Only the longest name is used for enumerating
 				names.add(lastOption);
 			}
 		}
@@ -98,8 +104,7 @@ public class JOptCommandLinePropertySource extends CommandLinePropertySource<Opt
 	}
 
 	@Override
-	@Nullable
-	public List<String> getOptionValues(String name) {
+	public @Nullable List<String> getOptionValues(String name) {
 		List<?> argValues = this.source.valuesOf(name);
 		List<String> stringArgValues = new ArrayList<>();
 		for (Object argValue : argValues) {

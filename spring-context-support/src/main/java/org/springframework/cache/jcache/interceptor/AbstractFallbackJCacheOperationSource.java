@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,17 +23,16 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aop.support.AopUtils;
 import org.springframework.core.MethodClassKey;
-import org.springframework.lang.Nullable;
+import org.springframework.util.ReflectionUtils;
 
 /**
- * Abstract implementation of {@link JCacheOperationSource} that caches attributes
+ * Abstract implementation of {@link JCacheOperationSource} that caches operations
  * for methods and implements a fallback policy: 1. specific target method;
  * 2. declaring method.
- *
- * <p>This implementation caches attributes by method after they are first used.
  *
  * @author Stephane Nicoll
  * @author Juergen Hoeller
@@ -43,24 +42,37 @@ import org.springframework.lang.Nullable;
 public abstract class AbstractFallbackJCacheOperationSource implements JCacheOperationSource {
 
 	/**
-	 * Canonical value held in cache to indicate no caching attribute was
-	 * found for this method and we don't need to look again.
+	 * Canonical value held in cache to indicate no cache operation was
+	 * found for this method, and we don't need to look again.
 	 */
-	private static final Object NULL_CACHING_ATTRIBUTE = new Object();
+	private static final Object NULL_CACHING_MARKER = new Object();
 
 
 	protected final Log logger = LogFactory.getLog(getClass());
 
-	private final Map<MethodClassKey, Object> cache = new ConcurrentHashMap<>(1024);
+	private final Map<MethodClassKey, Object> operationCache = new ConcurrentHashMap<>(1024);
 
 
 	@Override
-	public JCacheOperation<?> getCacheOperation(Method method, @Nullable Class<?> targetClass) {
+	public boolean hasCacheOperation(Method method, @Nullable Class<?> targetClass) {
+		return (getCacheOperation(method, targetClass, false) != null);
+	}
+
+	@Override
+	public @Nullable JCacheOperation<?> getCacheOperation(Method method, @Nullable Class<?> targetClass) {
+		return getCacheOperation(method, targetClass, true);
+	}
+
+	private @Nullable JCacheOperation<?> getCacheOperation(Method method, @Nullable Class<?> targetClass, boolean cacheNull) {
+		if (ReflectionUtils.isObjectMethod(method)) {
+			return null;
+		}
+
 		MethodClassKey cacheKey = new MethodClassKey(method, targetClass);
-		Object cached = this.cache.get(cacheKey);
+		Object cached = this.operationCache.get(cacheKey);
 
 		if (cached != null) {
-			return (cached != NULL_CACHING_ATTRIBUTE ? (JCacheOperation<?>) cached : null);
+			return (cached != NULL_CACHING_MARKER ? (JCacheOperation<?>) cached : null);
 		}
 		else {
 			JCacheOperation<?> operation = computeCacheOperation(method, targetClass);
@@ -68,23 +80,22 @@ public abstract class AbstractFallbackJCacheOperationSource implements JCacheOpe
 				if (logger.isDebugEnabled()) {
 					logger.debug("Adding cacheable method '" + method.getName() + "' with operation: " + operation);
 				}
-				this.cache.put(cacheKey, operation);
+				this.operationCache.put(cacheKey, operation);
 			}
-			else {
-				this.cache.put(cacheKey, NULL_CACHING_ATTRIBUTE);
+			else if (cacheNull) {
+				this.operationCache.put(cacheKey, NULL_CACHING_MARKER);
 			}
 			return operation;
 		}
 	}
 
-	@Nullable
-	private JCacheOperation<?> computeCacheOperation(Method method, @Nullable Class<?> targetClass) {
+	private @Nullable JCacheOperation<?> computeCacheOperation(Method method, @Nullable Class<?> targetClass) {
 		// Don't allow non-public methods, as configured.
 		if (allowPublicMethodsOnly() && !Modifier.isPublic(method.getModifiers())) {
 			return null;
 		}
 
-		// The method may be on an interface, but we need attributes from the target class.
+		// The method may be on an interface, but we need metadata from the target class.
 		// If the target class is null, the method will be unchanged.
 		Method specificMethod = AopUtils.getMostSpecificMethod(method, targetClass);
 
@@ -112,8 +123,7 @@ public abstract class AbstractFallbackJCacheOperationSource implements JCacheOpe
 	 * @return the cache operation associated with this method
 	 * (or {@code null} if none)
 	 */
-	@Nullable
-	protected abstract JCacheOperation<?> findCacheOperation(Method method, @Nullable Class<?> targetType);
+	protected abstract @Nullable JCacheOperation<?> findCacheOperation(Method method, @Nullable Class<?> targetType);
 
 	/**
 	 * Should only public methods be allowed to have caching semantics?

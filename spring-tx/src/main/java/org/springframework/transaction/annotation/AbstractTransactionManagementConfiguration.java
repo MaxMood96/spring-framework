@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package org.springframework.transaction.annotation;
 
 import java.util.Collection;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Bean;
@@ -26,10 +28,11 @@ import org.springframework.context.annotation.ImportAware;
 import org.springframework.context.annotation.Role;
 import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.type.AnnotationMetadata;
-import org.springframework.lang.Nullable;
 import org.springframework.transaction.TransactionManager;
 import org.springframework.transaction.config.TransactionManagementConfigUtils;
 import org.springframework.transaction.event.TransactionalEventListenerFactory;
+import org.springframework.transaction.interceptor.RollbackRuleAttribute;
+import org.springframework.transaction.interceptor.TransactionAttributeSource;
 import org.springframework.util.CollectionUtils;
 
 /**
@@ -38,20 +41,19 @@ import org.springframework.util.CollectionUtils;
  *
  * @author Chris Beams
  * @author Stephane Nicoll
+ * @author Juergen Hoeller
  * @since 3.1
  * @see EnableTransactionManagement
  */
 @Configuration
 public abstract class AbstractTransactionManagementConfiguration implements ImportAware {
 
-	@Nullable
-	protected AnnotationAttributes enableTx;
+	protected @Nullable AnnotationAttributes enableTx;
 
 	/**
 	 * Default transaction manager, as configured through a {@link TransactionManagementConfigurer}.
 	 */
-	@Nullable
-	protected TransactionManager txManager;
+	protected @Nullable TransactionManager txManager;
 
 
 	@Override
@@ -77,10 +79,22 @@ public abstract class AbstractTransactionManagementConfiguration implements Impo
 	}
 
 
+	@Bean
+	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+	public TransactionAttributeSource transactionAttributeSource() {
+		// Accept protected @Transactional methods on CGLIB proxies, as of 6.0
+		AnnotationTransactionAttributeSource tas = new AnnotationTransactionAttributeSource(false);
+		// Apply default rollback rule, as of 6.2
+		if (this.enableTx != null && this.enableTx.getEnum("rollbackOn") == RollbackOn.ALL_EXCEPTIONS) {
+			tas.addDefaultRollbackRule(RollbackRuleAttribute.ROLLBACK_ON_ALL_EXCEPTIONS);
+		}
+		return tas;
+	}
+
 	@Bean(name = TransactionManagementConfigUtils.TRANSACTIONAL_EVENT_LISTENER_FACTORY_BEAN_NAME)
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 	public static TransactionalEventListenerFactory transactionalEventListenerFactory() {
-		return new TransactionalEventListenerFactory();
+		return new RestrictedTransactionalEventListenerFactory();
 	}
 
 }

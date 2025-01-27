@@ -24,13 +24,13 @@ import jakarta.jms.Session;
 import jakarta.jms.Topic;
 import jakarta.resource.spi.ActivationSpec;
 import jakarta.resource.spi.ResourceAdapter;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.PropertyAccessorFactory;
 import org.springframework.jms.support.destination.DestinationResolutionException;
 import org.springframework.jms.support.destination.DestinationResolver;
-import org.springframework.lang.Nullable;
 
 /**
  * Standard implementation of the {@link JmsActivationSpecFactory} interface.
@@ -39,7 +39,7 @@ import org.springframework.lang.Nullable;
  *
  * <p>The 'activationSpecClass' property is required, explicitly defining
  * the fully-qualified class name of the provider's ActivationSpec class
- * (e.g. "org.apache.activemq.ra.ActiveMQActivationSpec").
+ * (for example, "org.apache.activemq.ra.ActiveMQActivationSpec").
  *
  * <p>Check out {@link DefaultJmsActivationSpecFactory} for an extended variant
  * of this class, supporting some further default conventions beyond the plain
@@ -52,19 +52,16 @@ import org.springframework.lang.Nullable;
  */
 public class StandardJmsActivationSpecFactory implements JmsActivationSpecFactory {
 
-	@Nullable
-	private Class<?> activationSpecClass;
+	private @Nullable Class<?> activationSpecClass;
 
-	@Nullable
-	private Map<String, String> defaultProperties;
+	private @Nullable Map<String, String> defaultProperties;
 
-	@Nullable
-	private DestinationResolver destinationResolver;
+	private @Nullable DestinationResolver destinationResolver;
 
 
 	/**
 	 * Specify the fully-qualified ActivationSpec class name for the target
-	 * provider (e.g. "org.apache.activemq.ra.ActiveMQActivationSpec").
+	 * provider (for example, "org.apache.activemq.ra.ActiveMQActivationSpec").
 	 */
 	public void setActivationSpecClass(Class<?> activationSpecClass) {
 		this.activationSpecClass = activationSpecClass;
@@ -86,7 +83,7 @@ public class StandardJmsActivationSpecFactory implements JmsActivationSpecFactor
 	 * <p>If not specified, destination names will simply be passed in as Strings.
 	 * If specified, destination names will be resolved into Destination objects first.
 	 * <p>Note that a DestinationResolver for use with this factory must be
-	 * able to work <i>without</i> an active JMS Session: e.g.
+	 * able to work <i>without</i> an active JMS Session: for example,
 	 * {@link org.springframework.jms.support.destination.JndiDestinationResolver}
 	 * or {@link org.springframework.jms.support.destination.BeanFactoryDestinationResolver}
 	 * but not {@link org.springframework.jms.support.destination.DynamicDestinationResolver}.
@@ -98,8 +95,7 @@ public class StandardJmsActivationSpecFactory implements JmsActivationSpecFactor
 	/**
 	 * Return the {@link DestinationResolver} to use for resolving destinations names.
 	 */
-	@Nullable
-	public DestinationResolver getDestinationResolver() {
+	public @Nullable DestinationResolver getDestinationResolver() {
 		return this.destinationResolver;
 	}
 
@@ -131,8 +127,7 @@ public class StandardJmsActivationSpecFactory implements JmsActivationSpecFactor
 	 * if not determinable
 	 * @see #setActivationSpecClass
 	 */
-	@Nullable
-	protected Class<?> determineActivationSpecClass(ResourceAdapter adapter) {
+	protected @Nullable Class<?> determineActivationSpecClass(ResourceAdapter adapter) {
 		return null;
 	}
 
@@ -213,7 +208,7 @@ public class StandardJmsActivationSpecFactory implements JmsActivationSpecFactor
 					ackMode == Session.DUPS_OK_ACKNOWLEDGE ? "Dups-ok-acknowledge" : "Auto-acknowledge");
 		}
 		else if (ackMode == Session.DUPS_OK_ACKNOWLEDGE) {
-			// Standard JCA 1.5 "acknowledgeMode" apparently not supported (e.g. WebSphere MQ 6.0.2.1)
+			// Standard JCA 1.5 "acknowledgeMode" apparently not supported (for example, WebSphere MQ 6.0.2.1)
 			throw new IllegalArgumentException("Dups-ok-acknowledge not supported by underlying provider");
 		}
 	}

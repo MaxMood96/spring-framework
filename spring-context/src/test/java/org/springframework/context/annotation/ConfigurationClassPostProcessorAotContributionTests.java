@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import java.util.function.Predicate;
 import javax.lang.model.element.Modifier;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -61,10 +62,10 @@ import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.javapoet.CodeBlock;
 import org.springframework.javapoet.MethodSpec;
 import org.springframework.javapoet.ParameterizedTypeName;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.entry;
 
 /**
@@ -72,6 +73,7 @@ import static org.assertj.core.api.Assertions.entry;
  *
  * @author Phillip Webb
  * @author Stephane Nicoll
+ * @author Sam Brannen
  */
 class ConfigurationClassPostProcessorAotContributionTests {
 
@@ -99,8 +101,8 @@ class ConfigurationClassPostProcessorAotContributionTests {
 				initializer.accept(freshBeanFactory);
 				freshContext.refresh();
 				assertThat(freshBeanFactory.getBeanPostProcessors()).filteredOn(ImportAwareAotBeanPostProcessor.class::isInstance)
-						.singleElement().satisfies(postProcessor -> assertPostProcessorEntry(postProcessor, ImportAwareConfiguration.class,
-								ImportConfiguration.class));
+						.singleElement().satisfies(postProcessor ->
+								assertPostProcessorEntry(postProcessor, ImportAwareConfiguration.class, ImportConfiguration.class));
 				freshContext.close();
 			});
 		}
@@ -117,8 +119,8 @@ class ConfigurationClassPostProcessorAotContributionTests {
 				freshContext.refresh();
 				TestAwareCallbackBean bean = freshContext.getBean(TestAwareCallbackBean.class);
 				assertThat(bean.instances).hasSize(2);
-				assertThat(bean.instances.get(0)).isEqualTo(freshContext);
-				assertThat(bean.instances.get(1)).isInstanceOfSatisfying(AnnotationMetadata.class, metadata ->
+				assertThat(bean.instances).element(0).isEqualTo(freshContext);
+				assertThat(bean.instances).element(1).isInstanceOfSatisfying(AnnotationMetadata.class, metadata ->
 						assertThat(metadata.getClassName()).isEqualTo(TestAwareCallbackConfiguration.class.getName()));
 				freshContext.close();
 			});
@@ -221,9 +223,8 @@ class ConfigurationClassPostProcessorAotContributionTests {
 				this.metadata = importMetadata;
 			}
 
-			@Nullable
 			@Override
-			public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+			public @Nullable Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
 				if (beanName.equals("testProcessing")) {
 					return this.metadata;
 				}
@@ -236,12 +237,13 @@ class ConfigurationClassPostProcessorAotContributionTests {
 			}
 
 			@Override
-			public void afterPropertiesSet() throws Exception {
+			public void afterPropertiesSet() {
 				Assert.notNull(this.metadata, "Metadata was not injected");
 			}
 
 		}
 	}
+
 
 	@Nested
 	class PropertySourceTests {
@@ -262,6 +264,42 @@ class ConfigurationClassPostProcessorAotContributionTests {
 				assertThat(environment.getProperty("from.p1")).isEqualTo("p1Value");
 				freshContext.close();
 			});
+		}
+
+		@Test
+		void propertySourceWithClassPathStarLocationPattern() {
+			BeanFactoryInitializationAotContribution contribution =
+					getContribution(PropertySourceWithClassPathStarLocationPatternConfiguration.class);
+
+			// We can effectively only assert that an exception is not thrown; however,
+			// a WARN-level log message similar to the following should be logged.
+			//
+			// Runtime hint registration is not supported for the 'classpath*:' prefix or wildcards
+			// in @PropertySource locations. Please manually register a resource hint for each property
+			// source location represented by 'classpath*:org/springframework/context/annotation/*.properties'.
+			assertThatNoException().isThrownBy(() -> contribution.applyTo(generationContext, beanFactoryInitializationCode));
+
+			// But we can also ensure that a resource hint was not registered.
+			assertThat(resource("org/springframework/context/annotation/p1.properties"))
+					.rejects(generationContext.getRuntimeHints());
+		}
+
+		@Test
+		void propertySourceWithWildcardLocationPattern() {
+			BeanFactoryInitializationAotContribution contribution =
+					getContribution(PropertySourceWithWildcardLocationPatternConfiguration.class);
+
+			// We can effectively only assert that an exception is not thrown; however,
+			// a WARN-level log message similar to the following should be logged.
+			//
+			// Runtime hint registration is not supported for the 'classpath*:' prefix or wildcards
+			// in @PropertySource locations. Please manually register a resource hint for each property
+			// source location represented by 'classpath:org/springframework/context/annotation/p?.properties'.
+			assertThatNoException().isThrownBy(() -> contribution.applyTo(generationContext, beanFactoryInitializationCode));
+
+			// But we can also ensure that a resource hint was not registered.
+			assertThat(resource("org/springframework/context/annotation/p1.properties"))
+					.rejects(generationContext.getRuntimeHints());
 		}
 
 		@Test
@@ -363,7 +401,17 @@ class ConfigurationClassPostProcessorAotContributionTests {
 
 		}
 
+		@Configuration(proxyBeanMethods = false)
+		@PropertySource("classpath*:org/springframework/context/annotation/*.properties")
+		static class PropertySourceWithClassPathStarLocationPatternConfiguration {
+		}
+
+		@Configuration(proxyBeanMethods = false)
+		@PropertySource("classpath:org/springframework/context/annotation/p?.properties")
+		static class PropertySourceWithWildcardLocationPatternConfiguration {
+		}
 	}
+
 
 	@Nested
 	class ConfigurationClassProxyTests {
@@ -384,17 +432,15 @@ class ConfigurationClassPostProcessorAotContributionTests {
 					getRegisteredBean(CglibConfiguration.class))).isNotNull();
 		}
 
-
 		private RegisteredBean getRegisteredBean(Class<?> bean) {
 			this.beanFactory.registerBeanDefinition("test", new RootBeanDefinition(bean));
 			this.processor.postProcessBeanFactory(this.beanFactory);
 			return RegisteredBean.of(this.beanFactory, "test");
 		}
-
 	}
 
-	@Nullable
-	private BeanFactoryInitializationAotContribution getContribution(Class<?>... types) {
+
+	private @Nullable BeanFactoryInitializationAotContribution getContribution(Class<?>... types) {
 		DefaultListableBeanFactory beanFactory = new DefaultListableBeanFactory();
 		for (Class<?> type : types) {
 			beanFactory.registerBeanDefinition(type.getName(), new RootBeanDefinition(type));
@@ -410,8 +456,8 @@ class ConfigurationClassPostProcessorAotContributionTests {
 				.containsExactly(entry(key.getName(), value.getName()));
 	}
 
-	static class CustomPropertySourcesFactory extends DefaultPropertySourceFactory {
 
+	static class CustomPropertySourcesFactory extends DefaultPropertySourceFactory {
 	}
 
 }

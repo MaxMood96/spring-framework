@@ -20,7 +20,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Simple {@link Resource} implementation that holds a resource description
@@ -72,8 +72,8 @@ public class DescriptiveResource extends AbstractResource {
 	 * This implementation compares the underlying description String.
 	 */
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return (this == obj || (obj instanceof DescriptiveResource that &&
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof DescriptiveResource that &&
 				this.description.equals(that.description)));
 	}
 

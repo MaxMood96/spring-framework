@@ -20,11 +20,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.beans.factory.BeanInitializationException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.Ordered;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.reactive.result.view.HttpMessageWriterView;
 import org.springframework.web.reactive.result.view.UrlBasedViewResolver;
@@ -40,7 +41,7 @@ import org.springframework.web.reactive.result.view.script.ScriptTemplateViewRes
  * different template mechanisms.
  *
  * <p>In addition, you can also configure {@link #defaultViews(View...)
- * defaultViews} for rendering according to the requested content type, e.g.
+ * defaultViews} for rendering according to the requested content type, for example,
  * JSON, XML, etc.
  *
  * @author Rossen Stoyanchev
@@ -49,15 +50,13 @@ import org.springframework.web.reactive.result.view.script.ScriptTemplateViewRes
  */
 public class ViewResolverRegistry {
 
-	@Nullable
-	private final ApplicationContext applicationContext;
+	private final @Nullable ApplicationContext applicationContext;
 
 	private final List<ViewResolver> viewResolvers = new ArrayList<>(4);
 
 	private final List<View> defaultViews = new ArrayList<>(4);
 
-	@Nullable
-	private Integer order;
+	private @Nullable Integer order;
 
 
 	public ViewResolverRegistry(@Nullable ApplicationContext applicationContext) {
@@ -123,7 +122,7 @@ public class ViewResolverRegistry {
 	 * best match for the requested content type.
 	 * <p>Use {@link HttpMessageWriterView
 	 * HttpMessageWriterView} to adapt and use any existing
-	 * {@code HttpMessageWriter} (e.g. JSON, XML) as a {@code View}.
+	 * {@code HttpMessageWriter} (for example, JSON, XML) as a {@code View}.
 	 */
 	public void defaultViews(View... defaultViews) {
 		this.defaultViews.addAll(Arrays.asList(defaultViews));

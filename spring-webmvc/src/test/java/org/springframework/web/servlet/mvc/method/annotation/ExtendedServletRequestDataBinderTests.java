@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,20 @@
 
 package org.springframework.web.servlet.mvc.method.annotation;
 
-import java.util.HashMap;
 import java.util.Map;
 
+import jakarta.servlet.ServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
+import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.testfixture.beans.TestBean;
+import org.springframework.core.ResolvableType;
 import org.springframework.web.bind.ServletRequestDataBinder;
-import org.springframework.web.bind.WebDataBinder;
+import org.springframework.web.bind.annotation.BindParam;
+import org.springframework.web.bind.support.BindParamNameResolver;
 import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.testfixture.servlet.MockHttpServletRequest;
 
@@ -35,55 +40,126 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * @author Rossen Stoyanchev
  */
-public class ExtendedServletRequestDataBinderTests {
+class ExtendedServletRequestDataBinderTests {
 
 	private MockHttpServletRequest request;
 
+
 	@BeforeEach
-	public void setup() {
+	void setup() {
 		this.request = new MockHttpServletRequest();
 	}
 
+
 	@Test
-	public void createBinder() throws Exception {
-		Map<String, String> uriTemplateVars = new HashMap<>();
-		uriTemplateVars.put("name", "nameValue");
-		uriTemplateVars.put("age", "25");
-		request.setAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, uriTemplateVars);
+	void createBinderViaSetters() {
+		request.setAttribute(
+				HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE,
+				Map.of("name", "John", "age", "25"));
+
+		request.addHeader("Some-Int-Array", "1");
+		request.addHeader("Some-Int-Array", "2");
 
 		TestBean target = new TestBean();
-		WebDataBinder binder = new ExtendedServletRequestDataBinder(target, "");
-		((ServletRequestDataBinder) binder).bind(request);
+		ServletRequestDataBinder binder = new ExtendedServletRequestDataBinder(target, "");
+		binder.bind(request);
 
-		assertThat(target.getName()).isEqualTo("nameValue");
+		assertThat(target.getName()).isEqualTo("John");
+		assertThat(target.getAge()).isEqualTo(25);
+		assertThat(target.getSomeIntArray()).containsExactly(1, 2);
+	}
+
+	@Test
+	void createBinderViaConstructor() {
+		request.setAttribute(
+				HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE,
+				Map.of("name", "John", "age", "25"));
+
+		request.addHeader("Some-Int-Array", "1");
+		request.addHeader("Some-Int-Array", "2");
+
+		ServletRequestDataBinder binder = new ExtendedServletRequestDataBinder(null);
+		binder.setTargetType(ResolvableType.forClass(DataBean.class));
+		binder.setNameResolver(new BindParamNameResolver());
+		binder.construct(request);
+
+		DataBean bean = (DataBean) binder.getTarget();
+
+		assertThat(bean.name()).isEqualTo("John");
+		assertThat(bean.age()).isEqualTo(25);
+		assertThat(bean.someIntArray()).containsExactly(1, 2);
+	}
+
+	@Test
+	void uriVarsAndHeadersAddedConditionally() {
+		request.addParameter("name", "John");
+		request.addParameter("age", "25");
+
+		request.addHeader("name", "Johnny");
+		request.setAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, Map.of("age", "26"));
+
+		TestBean target = new TestBean();
+		ServletRequestDataBinder binder = new ExtendedServletRequestDataBinder(target, "");
+		binder.bind(request);
+
+		assertThat(target.getName()).isEqualTo("John");
 		assertThat(target.getAge()).isEqualTo(25);
 	}
 
-	@Test
-	public void uriTemplateVarAndRequestParam() throws Exception {
-		request.addParameter("age", "35");
+	@ParameterizedTest
+	@ValueSource(strings = {"Accept", "Authorization", "Connection",
+			"Cookie", "From", "Host", "Origin", "Priority", "Range", "Referer", "Upgrade"})
+	void filteredHeaders(String headerName) {
+		TestBinder binder = new TestBinder();
 
-		Map<String, String> uriTemplateVars = new HashMap<>();
-		uriTemplateVars.put("name", "nameValue");
-		uriTemplateVars.put("age", "25");
-		request.setAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, uriTemplateVars);
+		MutablePropertyValues mpvs = new MutablePropertyValues();
+		request.addHeader(headerName, "u1");
+		binder.addBindValues(mpvs, request);
 
-		TestBean target = new TestBean();
-		WebDataBinder binder = new ExtendedServletRequestDataBinder(target, "");
-		((ServletRequestDataBinder) binder).bind(request);
-
-		assertThat(target.getName()).isEqualTo("nameValue");
-		assertThat(target.getAge()).isEqualTo(35);
+		assertThat(mpvs).isEmpty();
 	}
 
 	@Test
-	public void noUriTemplateVars() throws Exception {
+	void headerPredicate() {
+		TestBinder binder = new TestBinder();
+		binder.addHeaderPredicate(name -> !name.equalsIgnoreCase("Another-Int-Array"));
+
+		MutablePropertyValues mpvs = new MutablePropertyValues();
+		request.addHeader("Priority", "u1");
+		request.addHeader("Some-Int-Array", "1");
+		request.addHeader("Another-Int-Array", "1");
+
+		binder.addBindValues(mpvs, request);
+
+		assertThat(mpvs.size()).isEqualTo(1);
+		assertThat(mpvs.get("someIntArray")).isEqualTo("1");
+	}
+
+	@Test
+	void noUriTemplateVars() {
 		TestBean target = new TestBean();
-		WebDataBinder binder = new ExtendedServletRequestDataBinder(target, "");
-		((ServletRequestDataBinder) binder).bind(request);
+		ServletRequestDataBinder binder = new ExtendedServletRequestDataBinder(target, "");
+		binder.bind(request);
 
 		assertThat(target.getName()).isNull();
 		assertThat(target.getAge()).isEqualTo(0);
+	}
+
+
+	private record DataBean(String name, int age, @BindParam("Some-Int-Array") Integer[] someIntArray) {
+	}
+
+
+	private static class TestBinder extends ExtendedServletRequestDataBinder {
+
+		public TestBinder() {
+			super(null);
+		}
+
+		@Override
+		public void addBindValues(MutablePropertyValues mpvs, ServletRequest request) {
+			super.addBindValues(mpvs, request);
+		}
 	}
 
 }

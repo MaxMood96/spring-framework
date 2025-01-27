@@ -17,11 +17,11 @@
 package org.springframework.core.test.tools;
 
 import java.util.Iterator;
-import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.ClassUtils;
 
 /**
@@ -118,8 +118,7 @@ public final class SourceFiles implements Iterable<SourceFile> {
 	 * @param path the path to find
 	 * @return a {@link SourceFile} instance or {@code null}
 	 */
-	@Nullable
-	public SourceFile get(String path) {
+	public @Nullable SourceFile get(String path) {
 		return this.files.get(path);
 	}
 
@@ -155,19 +154,14 @@ public final class SourceFiles implements Iterable<SourceFile> {
 	 * one file
 	 */
 	public SourceFile getSingleFromPackage(String packageName) {
-		return this.files.getSingle(candidate -> Objects.equals(packageName,
-				ClassUtils.getPackageName(candidate.getClassName())));
+		return this.files.getSingle(candidate ->
+				ClassUtils.getPackageName(candidate.getClassName()).equals(packageName));
 	}
 
+
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		if (this == obj) {
-			return true;
-		}
-		if (obj == null || getClass() != obj.getClass()) {
-			return false;
-		}
-		return this.files.equals(((SourceFiles) obj).files);
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof SourceFiles that && this.files.equals(that.files)));
 	}
 
 	@Override

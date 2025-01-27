@@ -147,11 +147,9 @@ import org.springframework.core.io.support.PropertySourceFactory;
  * ConfigurableEnvironment} and {@link org.springframework.core.env.MutablePropertySources
  * MutablePropertySources} javadocs for details.
  *
- * <p><b>NOTE: This annotation is repeatable according to Java 8 conventions.</b>
- * However, all such {@code @PropertySource} annotations need to be declared at the same
- * level: either directly on the configuration class or as meta-annotations on the
- * same custom annotation. Mixing direct annotations and meta-annotations is not
- * recommended since direct annotations will effectively override meta-annotations.
+ * <p>{@code @PropertySource} can be used as a <em>{@linkplain Repeatable repeatable}</em>
+ * annotation. {@code @PropertySource} may also be used as a <em>meta-annotation</em>
+ * to create custom <em>composed annotations</em> with attribute overrides.
  *
  * @author Chris Beams
  * @author Juergen Hoeller
@@ -171,11 +169,28 @@ import org.springframework.core.io.support.PropertySourceFactory;
 public @interface PropertySource {
 
 	/**
-	 * Indicate the name of this property source. If omitted, the {@link #factory}
-	 * will generate a name based on the underlying resource (in the case of
-	 * {@link org.springframework.core.io.support.DefaultPropertySourceFactory}:
-	 * derived from the resource description through a corresponding name-less
-	 * {@link org.springframework.core.io.support.ResourcePropertySource} constructor).
+	 * Indicate the unique name of this property source.
+	 * <p>If omitted, the {@link #factory} will generate a name based on the
+	 * underlying resource (in the case of
+	 * {@link org.springframework.core.io.support.DefaultPropertySourceFactory
+	 * DefaultPropertySourceFactory}: derived from the resource description through
+	 * a corresponding name-less
+	 * {@link org.springframework.core.io.support.ResourcePropertySource
+	 * ResourcePropertySource} constructor).
+	 * <p>The name of a {@code PropertySource} serves two general purposes.
+	 * <ul>
+	 * <li>Diagnostics: to determine the source of the properties in logging and
+	 * debugging &mdash; for example, in a Spring Boot application via Spring
+	 * Boot's {@code PropertySourceOrigin}.</li>
+	 * <li>Programmatic interaction with
+	 * {@link org.springframework.core.env.MutablePropertySources MutablePropertySources}:
+	 * the name can be used to retrieve properties from a particular property
+	 * source (or to determine if a particular named property source already exists).
+	 * The name can also be used to add a new property source relative to an existing
+	 * property source (see
+	 * {@link org.springframework.core.env.MutablePropertySources#addBefore addBefore()} and
+	 * {@link org.springframework.core.env.MutablePropertySources#addAfter addAfter()}).</li>
+	 * </ul>
 	 * @see org.springframework.core.env.PropertySource#getName()
 	 * @see org.springframework.core.io.Resource#getDescription()
 	 */
@@ -186,13 +201,14 @@ public @interface PropertySource {
 	 * <p>The default {@link #factory() factory} supports both traditional and
 	 * XML-based properties file formats &mdash; for example,
 	 * {@code "classpath:/com/myco/app.properties"} or {@code "file:/path/to/file.xml"}.
-	 * <p>Resource location wildcards (e.g. *&#42;/*.properties) are not permitted;
-	 * each location must evaluate to exactly one resource.
-	 * <p>${...} placeholders will be resolved against property sources already
+	 * <p>As of Spring Framework 6.1, resource location wildcards are also
+	 * supported &mdash; for example, {@code "classpath*:/config/*.properties"}.
+	 * <p>{@code ${...}} placeholders will be resolved against property sources already
 	 * registered with the {@code Environment}. See {@linkplain PropertySource above}
 	 * for examples.
 	 * <p>Each location will be added to the enclosing {@code Environment} as its own
-	 * property source, and in the order declared.
+	 * property source, and in the order declared (or in the order in which resource
+	 * locations are resolved when location wildcards are used).
 	 */
 	String[] value();
 
@@ -206,7 +222,7 @@ public @interface PropertySource {
 	boolean ignoreResourceNotFound() default false;
 
 	/**
-	 * A specific character encoding for the given resources, e.g. "UTF-8".
+	 * A specific character encoding for the given resources, for example, "UTF-8".
 	 * @since 4.3
 	 */
 	String encoding() default "";

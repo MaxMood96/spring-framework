@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,9 +30,10 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -40,7 +41,9 @@ import java.util.function.Consumer;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
@@ -50,8 +53,8 @@ import reactor.core.publisher.SynchronousSink;
 import reactor.util.context.Context;
 
 import org.springframework.core.io.Resource;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
+import org.springframework.util.CollectionUtils;
 
 /**
  * Utility class for working with {@link DataBuffer DataBuffers}.
@@ -62,7 +65,7 @@ import org.springframework.util.Assert;
  */
 public abstract class DataBufferUtils {
 
-	private final static Log logger = LogFactory.getLog(DataBufferUtils.class);
+	private static final Log logger = LogFactory.getLog(DataBufferUtils.class);
 
 	private static final Consumer<DataBuffer> RELEASE_CONSUMER = DataBufferUtils::release;
 
@@ -377,7 +380,7 @@ public abstract class DataBufferUtils {
 
 	private static Set<OpenOption> checkWriteOptions(OpenOption[] options) {
 		int length = options.length;
-		Set<OpenOption> result = new HashSet<>(length + 3);
+		Set<OpenOption> result = CollectionUtils.newHashSet(length > 0 ? length : 2);
 		if (length == 0) {
 			result.add(StandardOpenOption.CREATE);
 			result.add(StandardOpenOption.TRUNCATE_EXISTING);
@@ -402,6 +405,80 @@ public abstract class DataBufferUtils {
 			catch (IOException ignored) {
 			}
 		}
+	}
+
+
+	/**
+	 * Create a new {@code Publisher<DataBuffer>} based on bytes written to a
+	 * {@code OutputStream}.
+	 * <ul>
+	 * <li>The parameter {@code outputStreamConsumer} is invoked once per
+	 * subscription of the returned {@code Publisher}, when the first
+	 * item is
+	 * {@linkplain Subscription#request(long) requested}.</li>
+	 * <li>{@link OutputStream#write(byte[], int, int) OutputStream.write()}
+	 * invocations made by {@code outputStreamConsumer} are buffered until they
+	 * exceed the default chunk size of 1024, or when the stream is
+	 * {@linkplain OutputStream#flush() flushed} and then result in a
+	 * {@linkplain Subscriber#onNext(Object) published} item
+	 * if there is {@linkplain Subscription#request(long) demand}.</li>
+	 * <li>If there is <em>no demand</em>, {@code OutputStream.write()} will block
+	 * until there is.</li>
+	 * <li>If the subscription is {@linkplain Subscription#cancel() cancelled},
+	 * {@code OutputStream.write()} will throw a {@code IOException}.</li>
+	 * <li>The subscription is
+	 * {@linkplain Subscriber#onComplete() completed} when
+	 * {@code outputStreamHandler} completes.</li>
+	 * <li>Any exceptions thrown from {@code outputStreamHandler} will
+	 * be dispatched to the {@linkplain Subscriber#onError(Throwable) Subscriber}.
+	 * </ul>
+	 * @param consumer invoked when the first buffer is requested
+	 * @param executor used to invoke the {@code outputStreamHandler}
+	 * @return a {@code Publisher<DataBuffer>} based on bytes written by
+	 * {@code outputStreamHandler}
+	 * @since 6.1
+	 */
+	public static Publisher<DataBuffer> outputStreamPublisher(
+			Consumer<OutputStream> consumer, DataBufferFactory bufferFactory, Executor executor) {
+
+		return new OutputStreamPublisher<>(
+				consumer::accept, new DataBufferMapper(bufferFactory), executor, null);
+	}
+
+	/**
+	 * Variant of {@link #outputStreamPublisher(Consumer, DataBufferFactory, Executor)}
+	 * providing control over the chunk sizes to be produced by the publisher.
+	 * @since 6.1
+	 */
+	public static Publisher<DataBuffer> outputStreamPublisher(
+			Consumer<OutputStream> consumer, DataBufferFactory bufferFactory, Executor executor, int chunkSize) {
+
+		return new OutputStreamPublisher<>(
+				consumer::accept, new DataBufferMapper(bufferFactory), executor, chunkSize);
+	}
+
+	/**
+	 * Subscribe to given {@link Publisher} of {@code DataBuffer}s, and return an
+	 * {@link InputStream} to consume the byte content with.
+	 * <p>Byte buffers are stored in a queue. The {@code demand} constructor value
+	 * determines the number of buffers requested initially. When storage falls
+	 * below a {@code (demand - (demand >> 2))} limit, a request is made to refill
+	 * the queue.
+	 * <p>The {@code InputStream} terminates after an onError or onComplete signal,
+	 * and stored buffers are read. If the {@code InputStream} is closed,
+	 * the {@link Flow.Subscription} is cancelled, and stored buffers released.
+	 * @param publisher the source of {@code DataBuffer}s
+	 * @param demand the number of buffers to request initially, and buffer
+	 * internally on an ongoing basis.
+	 * @return an {@link InputStream} backed by the {@link Publisher}
+	 */
+	public static <T extends DataBuffer> InputStream subscriberInputStream(Publisher<T> publisher, int demand) {
+		Assert.notNull(publisher, "Publisher must not be null");
+		Assert.isTrue(demand > 0, "maxBufferCount must be > 0");
+
+		SubscriberInputStream subscriber = new SubscriberInputStream(demand);
+		publisher.subscribe(subscriber);
+		return subscriber;
 	}
 
 
@@ -588,7 +665,7 @@ public abstract class DataBufferUtils {
 	 * @throws DataBufferLimitException if maxByteCount is exceeded
 	 * @since 5.1.11
 	 */
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings({"rawtypes", "unchecked"})
 	public static Mono<DataBuffer> join(Publisher<? extends DataBuffer> buffers, int maxByteCount) {
 		Assert.notNull(buffers, "'buffers' must not be null");
 
@@ -745,7 +822,7 @@ public abstract class DataBufferUtils {
 	 */
 	private static class SingleByteMatcher implements NestedMatcher {
 
-		static SingleByteMatcher NEWLINE_MATCHER = new SingleByteMatcher(new byte[] {10});
+		static final SingleByteMatcher NEWLINE_MATCHER = new SingleByteMatcher(new byte[] {10});
 
 		private final byte[] delimiter;
 
@@ -784,7 +861,7 @@ public abstract class DataBufferUtils {
 	/**
 	 * Base class for a {@link NestedMatcher}.
 	 */
-	private static abstract class AbstractNestedMatcher implements NestedMatcher {
+	private abstract static class AbstractNestedMatcher implements NestedMatcher {
 
 		private final byte[] delimiter;
 
@@ -990,7 +1067,7 @@ public abstract class DataBufferUtils {
 			DataBuffer.ByteBufferIterator iterator = dataBuffer.writableByteBuffers();
 			Assert.state(iterator.hasNext(), "No ByteBuffer available");
 			ByteBuffer byteBuffer = iterator.next();
-			Attachment attachment = new Attachment(dataBuffer,  iterator);
+			Attachment attachment = new Attachment(dataBuffer, iterator);
 			this.channel.read(byteBuffer, this.position.get(), attachment, this);
 		}
 
@@ -999,7 +1076,7 @@ public abstract class DataBufferUtils {
 			attachment.iterator().close();
 			DataBuffer dataBuffer = attachment.dataBuffer();
 
-			if (this.state.get().equals(State.DISPOSED)) {
+			if (this.state.get() == State.DISPOSED) {
 				release(dataBuffer);
 				closeChannel(this.channel);
 				return;
@@ -1030,13 +1107,13 @@ public abstract class DataBufferUtils {
 		}
 
 		@Override
-		public void failed(Throwable exc, Attachment attachment) {
+		public void failed(Throwable ex, Attachment attachment) {
 			attachment.iterator().close();
 			release(attachment.dataBuffer());
 
 			closeChannel(this.channel);
 			this.state.set(State.DISPOSED);
-			this.sink.error(exc);
+			this.sink.error(ex);
 		}
 
 		private enum State {
@@ -1095,7 +1172,6 @@ public abstract class DataBufferUtils {
 		public Context currentContext() {
 			return Context.of(this.sink.contextView());
 		}
-
 	}
 
 
@@ -1190,13 +1266,13 @@ public abstract class DataBufferUtils {
 		}
 
 		@Override
-		public void failed(Throwable exc, Attachment attachment) {
+		public void failed(Throwable ex, Attachment attachment) {
 			attachment.iterator().close();
 
 			this.sink.next(attachment.dataBuffer());
 			this.writing.set(false);
 
-			this.sink.error(exc);
+			this.sink.error(ex);
 		}
 
 		@Override
@@ -1205,9 +1281,31 @@ public abstract class DataBufferUtils {
 		}
 
 		private record Attachment(ByteBuffer byteBuffer, DataBuffer dataBuffer, DataBuffer.ByteBufferIterator iterator) {}
-
-
 	}
 
+
+	private static final class DataBufferMapper implements OutputStreamPublisher.ByteMapper<DataBuffer> {
+
+		private final DataBufferFactory bufferFactory;
+
+		private DataBufferMapper(DataBufferFactory bufferFactory) {
+			this.bufferFactory = bufferFactory;
+		}
+
+		@Override
+		public DataBuffer map(int b) {
+			DataBuffer buffer = this.bufferFactory.allocateBuffer(1);
+			buffer.write((byte) b);
+			return buffer;
+		}
+
+		@Override
+		public DataBuffer map(byte[] b, int off, int len) {
+			DataBuffer buffer = this.bufferFactory.allocateBuffer(len);
+			buffer.write(b, off, len);
+			return buffer;
+		}
+
+	}
 
 }

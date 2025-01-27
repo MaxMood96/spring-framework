@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,8 +30,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.spi.mapper.MappingProvider;
 import org.hamcrest.Matcher;
 import org.hamcrest.MatcherAssert;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 
@@ -42,10 +45,11 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.reactive.ClientHttpConnector;
 import org.springframework.http.client.reactive.ClientHttpRequest;
-import org.springframework.lang.Nullable;
+import org.springframework.test.json.JsonAssert;
+import org.springframework.test.json.JsonComparator;
+import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.util.AssertionErrors;
 import org.springframework.test.util.ExceptionCollector;
-import org.springframework.test.util.JsonExpectationsHelper;
 import org.springframework.test.util.XmlExpectationsHelper;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
@@ -57,6 +61,7 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeFunction;
+import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.util.UriBuilder;
 import org.springframework.web.util.UriBuilderFactory;
 
@@ -66,21 +71,22 @@ import org.springframework.web.util.UriBuilderFactory;
  * @author Rossen Stoyanchev
  * @author Sam Brannen
  * @author Michał Rowicki
+ * @author Sebastien Deleuze
  * @since 5.0
  */
 class DefaultWebTestClient implements WebTestClient {
 
 	private final WiretapConnector wiretapConnector;
 
+	private final @Nullable JsonEncoderDecoder jsonEncoderDecoder;
+
 	private final ExchangeFunction exchangeFunction;
 
 	private final UriBuilderFactory uriBuilderFactory;
 
-	@Nullable
-	private final HttpHeaders defaultHeaders;
+	private final @Nullable HttpHeaders defaultHeaders;
 
-	@Nullable
-	private final MultiValueMap<String, String> defaultCookies;
+	private final @Nullable MultiValueMap<String, String> defaultCookies;
 
 	private final Consumer<EntityExchangeResult<?>> entityResultConsumer;
 
@@ -91,13 +97,15 @@ class DefaultWebTestClient implements WebTestClient {
 	private final AtomicLong requestIndex = new AtomicLong();
 
 
-	DefaultWebTestClient(ClientHttpConnector connector,
+	DefaultWebTestClient(ClientHttpConnector connector, ExchangeStrategies exchangeStrategies,
 			Function<ClientHttpConnector, ExchangeFunction> exchangeFactory, UriBuilderFactory uriBuilderFactory,
 			@Nullable HttpHeaders headers, @Nullable MultiValueMap<String, String> cookies,
 			Consumer<EntityExchangeResult<?>> entityResultConsumer,
 			@Nullable Duration responseTimeout, DefaultWebTestClientBuilder clientBuilder) {
 
 		this.wiretapConnector = new WiretapConnector(connector);
+		this.jsonEncoderDecoder = JsonEncoderDecoder.from(
+				exchangeStrategies.messageWriters(), exchangeStrategies.messageReaders());
 		this.exchangeFunction = exchangeFactory.apply(this.wiretapConnector);
 		this.uriBuilderFactory = uriBuilderFactory;
 		this.defaultHeaders = headers;
@@ -172,50 +180,43 @@ class DefaultWebTestClient implements WebTestClient {
 
 		private final HttpMethod httpMethod;
 
-		@Nullable
-		private URI uri;
+		private @Nullable URI uri;
 
 		private final HttpHeaders headers;
 
-		@Nullable
-		private MultiValueMap<String, String> cookies;
+		private @Nullable MultiValueMap<String, String> cookies;
 
-		@Nullable
-		private BodyInserter<?, ? super ClientHttpRequest> inserter;
+		private @Nullable BodyInserter<?, ? super ClientHttpRequest> inserter;
 
 		private final Map<String, Object> attributes = new LinkedHashMap<>(4);
 
-		@Nullable
-		private Consumer<ClientHttpRequest> httpRequestConsumer;
-
-		@Nullable
-		private String uriTemplate;
+		private @Nullable String uriTemplate;
 
 		private final String requestId;
 
 		DefaultRequestBodyUriSpec(HttpMethod httpMethod) {
 			this.httpMethod = httpMethod;
-			this.requestId = String.valueOf(requestIndex.incrementAndGet());
+			this.requestId = String.valueOf(DefaultWebTestClient.this.requestIndex.incrementAndGet());
 			this.headers = new HttpHeaders();
 			this.headers.add(WebTestClient.WEBTESTCLIENT_REQUEST_ID, this.requestId);
 		}
 
 		@Override
-		public RequestBodySpec uri(String uriTemplate, Object... uriVariables) {
+		public RequestBodySpec uri(String uriTemplate, @Nullable Object... uriVariables) {
 			this.uriTemplate = uriTemplate;
-			return uri(uriBuilderFactory.expand(uriTemplate, uriVariables));
+			return uri(DefaultWebTestClient.this.uriBuilderFactory.expand(uriTemplate, uriVariables));
 		}
 
 		@Override
-		public RequestBodySpec uri(String uriTemplate, Map<String, ?> uriVariables) {
+		public RequestBodySpec uri(String uriTemplate, Map<String, ? extends @Nullable Object> uriVariables) {
 			this.uriTemplate = uriTemplate;
-			return uri(uriBuilderFactory.expand(uriTemplate, uriVariables));
+			return uri(DefaultWebTestClient.this.uriBuilderFactory.expand(uriTemplate, uriVariables));
 		}
 
 		@Override
 		public RequestBodySpec uri(Function<UriBuilder, URI> uriFunction) {
 			this.uriTemplate = null;
-			return uri(uriFunction.apply(uriBuilderFactory.builder()));
+			return uri(uriFunction.apply(DefaultWebTestClient.this.uriBuilderFactory.builder()));
 		}
 
 		@Override
@@ -347,56 +348,45 @@ class DefaultWebTestClient implements WebTestClient {
 		}
 
 		@Override
-		@Deprecated
-		public RequestHeadersSpec<?> syncBody(Object body) {
-			return bodyValue(body);
-		}
-
-		@Override
 		public ResponseSpec exchange() {
 			ClientRequest request = (this.inserter != null ?
 					initRequestBuilder().body(this.inserter).build() :
 					initRequestBuilder().build());
 
-			ClientResponse response = exchangeFunction.exchange(request).block(getResponseTimeout());
+			ClientResponse response = DefaultWebTestClient.this.exchangeFunction.exchange(request).block(getResponseTimeout());
 			Assert.state(response != null, "No ClientResponse");
 
-			ExchangeResult result = wiretapConnector.getExchangeResult(
+			ExchangeResult result = DefaultWebTestClient.this.wiretapConnector.getExchangeResult(
 					this.requestId, this.uriTemplate, getResponseTimeout());
 
 			return new DefaultResponseSpec(result, response,
+					DefaultWebTestClient.this.jsonEncoderDecoder,
 					DefaultWebTestClient.this.entityResultConsumer, getResponseTimeout());
 		}
 
 		private ClientRequest.Builder initRequestBuilder() {
-			ClientRequest.Builder builder = ClientRequest.create(this.httpMethod, initUri())
+			return ClientRequest.create(this.httpMethod, initUri())
 					.headers(headersToUse -> {
-						if (!CollectionUtils.isEmpty(defaultHeaders)) {
-							headersToUse.putAll(defaultHeaders);
+						if (!(DefaultWebTestClient.this.defaultHeaders == null || DefaultWebTestClient.this.defaultHeaders.isEmpty())) {
+							headersToUse.putAll(DefaultWebTestClient.this.defaultHeaders);
 						}
-						if (!CollectionUtils.isEmpty(this.headers)) {
+						if (!this.headers.isEmpty()) {
 							headersToUse.putAll(this.headers);
 						}
 					})
 					.cookies(cookiesToUse -> {
-						if (!CollectionUtils.isEmpty(defaultCookies)) {
-							cookiesToUse.putAll(defaultCookies);
+						if (!CollectionUtils.isEmpty(DefaultWebTestClient.this.defaultCookies)) {
+							cookiesToUse.putAll(DefaultWebTestClient.this.defaultCookies);
 						}
 						if (!CollectionUtils.isEmpty(this.cookies)) {
 							cookiesToUse.putAll(this.cookies);
 						}
 					})
 					.attributes(attributes -> attributes.putAll(this.attributes));
-
-			if (this.httpRequestConsumer != null) {
-				builder.httpRequest(this.httpRequestConsumer);
-			}
-
-			return builder;
 		}
 
 		private URI initUri() {
-			return (this.uri != null ? this.uri : uriBuilderFactory.expand(""));
+			return (this.uri != null ? this.uri : DefaultWebTestClient.this.uriBuilderFactory.expand(""));
 		}
 
 	}
@@ -408,6 +398,8 @@ class DefaultWebTestClient implements WebTestClient {
 
 		private final ClientResponse response;
 
+		private final @Nullable JsonEncoderDecoder jsonEncoderDecoder;
+
 		private final Consumer<EntityExchangeResult<?>> entityResultConsumer;
 
 		private final Duration timeout;
@@ -415,11 +407,13 @@ class DefaultWebTestClient implements WebTestClient {
 
 		DefaultResponseSpec(
 				ExchangeResult exchangeResult, ClientResponse response,
+				@Nullable JsonEncoderDecoder jsonEncoderDecoder,
 				Consumer<EntityExchangeResult<?>> entityResultConsumer,
 				Duration timeout) {
 
 			this.exchangeResult = exchangeResult;
 			this.response = response;
+			this.jsonEncoderDecoder = jsonEncoderDecoder;
 			this.entityResultConsumer = entityResultConsumer;
 			this.timeout = timeout;
 		}
@@ -475,10 +469,10 @@ class DefaultWebTestClient implements WebTestClient {
 			ByteArrayResource resource = this.response.bodyToMono(ByteArrayResource.class).block(this.timeout);
 			byte[] body = (resource != null ? resource.getByteArray() : null);
 			EntityExchangeResult<byte[]> entityResult = initEntityExchangeResult(body);
-			return new DefaultBodyContentSpec(entityResult);
+			return new DefaultBodyContentSpec(entityResult, this.jsonEncoderDecoder);
 		}
 
-		private  <B> EntityExchangeResult<B> initEntityExchangeResult(@Nullable B body) {
+		private <B> EntityExchangeResult<B> initEntityExchangeResult(@Nullable B body) {
 			EntityExchangeResult<B> result = new EntityExchangeResult<>(this.exchangeResult, body);
 			result.assertWithDiagnostics(() -> this.entityResultConsumer.accept(result));
 			return result;
@@ -499,7 +493,14 @@ class DefaultWebTestClient implements WebTestClient {
 
 		@Override
 		public <T> FluxExchangeResult<T> returnResult(ParameterizedTypeReference<T> elementTypeRef) {
-			Flux<T> body = this.response.bodyToFlux(elementTypeRef);
+			Flux<T> body;
+			if (elementTypeRef.getType().equals(Void.class)) {
+				this.response.releaseBody().block();
+				body = Flux.empty();
+			}
+			else {
+				body = this.response.bodyToFlux(elementTypeRef);
+			}
 			return new FluxExchangeResult<>(this.exchangeResult, body);
 		}
 
@@ -520,9 +521,7 @@ class DefaultWebTestClient implements WebTestClient {
 				// that is not a RuntimeException, but since ExceptionCollector may
 				// throw a checked Exception, we handle this to appease the compiler
 				// and in case someone uses a "sneaky throws" technique.
-				AssertionError assertionError = new AssertionError(ex.getMessage());
-				assertionError.initCause(ex);
-				throw assertionError;
+				throw new AssertionError(ex.getMessage(), ex);
 			}
 			return this;
 		}
@@ -542,20 +541,21 @@ class DefaultWebTestClient implements WebTestClient {
 		}
 
 		@Override
-		public <T extends S> T isEqualTo(B expected) {
+		public <T extends S> T isEqualTo(@Nullable B expected) {
 			this.result.assertWithDiagnostics(() ->
 					AssertionErrors.assertEquals("Response body", expected, this.result.getResponseBody()));
 			return self();
 		}
 
 		@Override
-		public <T extends S> T value(Matcher<? super B> matcher) {
+		public <T extends S> T value(Matcher<? super @Nullable B> matcher) {
 			this.result.assertWithDiagnostics(() -> MatcherAssert.assertThat(this.result.getResponseBody(), matcher));
 			return self();
 		}
 
 		@Override
-		public <T extends S, R> T value(Function<B, R> bodyMapper, Matcher<? super R> matcher) {
+		@SuppressWarnings("NullAway") // https://github.com/uber/NullAway/issues/1129
+		public <T extends S, R> T value(Function<@Nullable B, @Nullable R> bodyMapper, Matcher<? super @Nullable R> matcher) {
 			this.result.assertWithDiagnostics(() -> {
 				B body = this.result.getResponseBody();
 				MatcherAssert.assertThat(bodyMapper.apply(body), matcher);
@@ -564,7 +564,8 @@ class DefaultWebTestClient implements WebTestClient {
 		}
 
 		@Override
-		public <T extends S> T value(Consumer<B> consumer) {
+		@SuppressWarnings("NullAway") // https://github.com/uber/NullAway/issues/1129
+		public <T extends S> T value(Consumer<@Nullable B> consumer) {
 			this.result.assertWithDiagnostics(() -> consumer.accept(this.result.getResponseBody()));
 			return self();
 		}
@@ -587,7 +588,7 @@ class DefaultWebTestClient implements WebTestClient {
 	}
 
 
-	private static class DefaultListBodySpec<E> extends DefaultBodySpec<List<E>, ListBodySpec<E>>
+	private static class DefaultListBodySpec<E> extends DefaultBodySpec<List<@Nullable E>, ListBodySpec<E>>
 			implements ListBodySpec<E> {
 
 		DefaultListBodySpec(EntityExchangeResult<List<E>> result) {
@@ -596,7 +597,7 @@ class DefaultWebTestClient implements WebTestClient {
 
 		@Override
 		public ListBodySpec<E> hasSize(int size) {
-			List<E> actual = getResult().getResponseBody();
+			List<@Nullable E> actual = getResult().getResponseBody();
 			String message = "Response body does not contain " + size + " elements";
 			getResult().assertWithDiagnostics(() ->
 					AssertionErrors.assertEquals(message, size, (actual != null ? actual.size() : 0)));
@@ -605,9 +606,9 @@ class DefaultWebTestClient implements WebTestClient {
 
 		@Override
 		@SuppressWarnings("unchecked")
-		public ListBodySpec<E> contains(E... elements) {
+		public ListBodySpec<E> contains(@Nullable E... elements) {
 			List<E> expected = Arrays.asList(elements);
-			List<E> actual = getResult().getResponseBody();
+			List<@Nullable E> actual = getResult().getResponseBody();
 			String message = "Response body does not contain " + expected;
 			getResult().assertWithDiagnostics(() ->
 					AssertionErrors.assertTrue(message, (actual != null && actual.containsAll(expected))));
@@ -616,9 +617,9 @@ class DefaultWebTestClient implements WebTestClient {
 
 		@Override
 		@SuppressWarnings("unchecked")
-		public ListBodySpec<E> doesNotContain(E... elements) {
+		public ListBodySpec<E> doesNotContain(@Nullable E... elements) {
 			List<E> expected = Arrays.asList(elements);
-			List<E> actual = getResult().getResponseBody();
+			List<@Nullable E> actual = getResult().getResponseBody();
 			String message = "Response body should not have contained " + expected;
 			getResult().assertWithDiagnostics(() ->
 					AssertionErrors.assertTrue(message, (actual == null || !actual.containsAll(expected))));
@@ -626,7 +627,7 @@ class DefaultWebTestClient implements WebTestClient {
 		}
 
 		@Override
-		public EntityExchangeResult<List<E>> returnResult() {
+		public EntityExchangeResult<List<@Nullable E>> returnResult() {
 			return getResult();
 		}
 	}
@@ -636,10 +637,13 @@ class DefaultWebTestClient implements WebTestClient {
 
 		private final EntityExchangeResult<byte[]> result;
 
+		private final @Nullable JsonEncoderDecoder jsonEncoderDecoder;
+
 		private final boolean isEmpty;
 
-		DefaultBodyContentSpec(EntityExchangeResult<byte[]> result) {
+		DefaultBodyContentSpec(EntityExchangeResult<byte[]> result, @Nullable JsonEncoderDecoder jsonEncoderDecoder) {
 			this.result = result;
+			this.jsonEncoderDecoder = jsonEncoderDecoder;
 			this.isEmpty = (result.getResponseBody() == null || result.getResponseBody().length == 0);
 		}
 
@@ -651,10 +655,22 @@ class DefaultWebTestClient implements WebTestClient {
 		}
 
 		@Override
+		@Deprecated(since = "6.2")
 		public BodyContentSpec json(String json, boolean strict) {
+			JsonCompareMode compareMode = (strict ? JsonCompareMode.STRICT : JsonCompareMode.LENIENT);
+			return json(json, compareMode);
+		}
+
+		@Override
+		public BodyContentSpec json(String expectedJson, JsonCompareMode compareMode) {
+			return json(expectedJson, JsonAssert.comparator(compareMode));
+		}
+
+		@Override
+		public BodyContentSpec json(String expectedJson, JsonComparator comparator) {
 			this.result.assertWithDiagnostics(() -> {
 				try {
-					new JsonExpectationsHelper().assertJsonEqual(json, getBodyAsString(), strict);
+					comparator.assertIsMatch(expectedJson, getBodyAsString());
 				}
 				catch (Exception ex) {
 					throw new AssertionError("JSON parsing error", ex);
@@ -677,8 +693,9 @@ class DefaultWebTestClient implements WebTestClient {
 		}
 
 		@Override
-		public JsonPathAssertions jsonPath(String expression, Object... args) {
-			return new JsonPathAssertions(this, getBodyAsString(), expression, args);
+		public JsonPathAssertions jsonPath(String expression) {
+			return new JsonPathAssertions(this, getBodyAsString(), expression,
+					JsonPathConfigurationProvider.getConfiguration(this.jsonEncoderDecoder));
 		}
 
 		@Override
@@ -705,6 +722,20 @@ class DefaultWebTestClient implements WebTestClient {
 		@Override
 		public EntityExchangeResult<byte[]> returnResult() {
 			return this.result;
+		}
+	}
+
+
+	private static class JsonPathConfigurationProvider {
+
+		static Configuration getConfiguration(@Nullable JsonEncoderDecoder jsonEncoderDecoder) {
+			Configuration jsonPathConfiguration = Configuration.defaultConfiguration();
+			if (jsonEncoderDecoder != null) {
+				MappingProvider mappingProvider = new EncoderDecoderMappingProvider(
+						jsonEncoderDecoder.encoder(), jsonEncoderDecoder.decoder());
+				return jsonPathConfiguration.mappingProvider(mappingProvider);
+			}
+			return jsonPathConfiguration;
 		}
 	}
 

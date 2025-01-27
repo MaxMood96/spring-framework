@@ -18,11 +18,14 @@ package org.springframework.mock.http.client;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.HttpMethod;
 import org.springframework.http.client.ClientHttpRequest;
 import org.springframework.http.client.ClientHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.mock.http.MockHttpOutputMessage;
 import org.springframework.util.Assert;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -41,10 +44,11 @@ public class MockClientHttpRequest extends MockHttpOutputMessage implements Clie
 
 	private URI uri;
 
-	@Nullable
-	private ClientHttpResponse clientHttpResponse;
+	private @Nullable ClientHttpResponse clientHttpResponse;
 
 	private boolean executed = false;
+
+	@Nullable Map<String, Object> attributes;
 
 
 	/**
@@ -113,6 +117,16 @@ public class MockClientHttpRequest extends MockHttpOutputMessage implements Clie
 	 */
 	public boolean isExecuted() {
 		return this.executed;
+	}
+
+	@Override
+	public Map<String, Object> getAttributes() {
+		Map<String, Object> attributes = this.attributes;
+		if (attributes == null) {
+			attributes = new ConcurrentHashMap<>();
+			this.attributes = attributes;
+		}
+		return attributes;
 	}
 
 	/**

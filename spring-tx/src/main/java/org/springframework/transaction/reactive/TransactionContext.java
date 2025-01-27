@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Mutable transaction context that encapsulates transactional synchronizations and
@@ -40,8 +40,7 @@ public class TransactionContext {
 
 	private final Map<Object, Object> resources = new LinkedHashMap<>();
 
-	@Nullable
-	private Set<TransactionSynchronization> synchronizations;
+	private @Nullable Set<TransactionSynchronization> synchronizations;
 
 	private volatile @Nullable String currentTransactionName;
 
@@ -61,8 +60,7 @@ public class TransactionContext {
 	}
 
 
-	@Nullable
-	public TransactionContext getParent() {
+	public @Nullable TransactionContext getParent() {
 		return this.parent;
 	}
 
@@ -74,8 +72,7 @@ public class TransactionContext {
 		this.synchronizations = synchronizations;
 	}
 
-	@Nullable
-	public Set<TransactionSynchronization> getSynchronizations() {
+	public @Nullable Set<TransactionSynchronization> getSynchronizations() {
 		return this.synchronizations;
 	}
 
@@ -83,8 +80,7 @@ public class TransactionContext {
 		this.currentTransactionName = currentTransactionName;
 	}
 
-	@Nullable
-	public String getCurrentTransactionName() {
+	public @Nullable String getCurrentTransactionName() {
 		return this.currentTransactionName;
 	}
 
@@ -100,8 +96,7 @@ public class TransactionContext {
 		this.currentTransactionIsolationLevel = currentTransactionIsolationLevel;
 	}
 
-	@Nullable
-	public Integer getCurrentTransactionIsolationLevel() {
+	public @Nullable Integer getCurrentTransactionIsolationLevel() {
 		return this.currentTransactionIsolationLevel;
 	}
 

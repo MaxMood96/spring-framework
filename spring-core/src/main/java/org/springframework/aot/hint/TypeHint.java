@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,12 +23,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.StringJoiner;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 
 /**
@@ -43,8 +43,7 @@ public final class TypeHint implements ConditionalHint {
 
 	private final TypeReference type;
 
-	@Nullable
-	private final TypeReference reachableType;
+	private final @Nullable TypeReference reachableType;
 
 	private final Set<FieldHint> fields;
 
@@ -75,6 +74,7 @@ public final class TypeHint implements ConditionalHint {
 		return new Builder(type);
 	}
 
+
 	/**
 	 * Return the type that this hint handles.
 	 * @return the type
@@ -83,9 +83,8 @@ public final class TypeHint implements ConditionalHint {
 		return this.type;
 	}
 
-	@Nullable
 	@Override
-	public TypeReference getReachableType() {
+	public @Nullable TypeReference getReachableType() {
 		return this.reachableType;
 	}
 
@@ -123,9 +122,7 @@ public final class TypeHint implements ConditionalHint {
 
 	@Override
 	public String toString() {
-		return new StringJoiner(", ", TypeHint.class.getSimpleName() + "[", "]")
-				.add("type=" + this.type)
-				.toString();
+		return TypeHint.class.getSimpleName() + "[type=" + this.type + "]";
 	}
 
 	/**
@@ -146,8 +143,7 @@ public final class TypeHint implements ConditionalHint {
 
 		private final TypeReference type;
 
-		@Nullable
-		private TypeReference reachableType;
+		private @Nullable TypeReference reachableType;
 
 		private final Set<String> fields = new HashSet<>();
 
@@ -157,16 +153,14 @@ public final class TypeHint implements ConditionalHint {
 
 		private final Set<MemberCategory> memberCategories = new HashSet<>();
 
-
 		Builder(TypeReference type) {
 			this.type = type;
 		}
 
 		/**
-		 * Make this hint conditional on the fact that the specified type
-		 * is in a reachable code path from a static analysis point of view.
-		 * @param reachableType the type that should be reachable for this
-		 * hint to apply
+		 * Make this hint conditional on the fact that the specified type is in a
+		 * reachable code path from a static analysis point of view.
+		 * @param reachableType the type that should be reachable for this hint to apply
 		 * @return {@code this}, to facilitate method chaining
 		 */
 		public Builder onReachableType(TypeReference reachableType) {
@@ -175,10 +169,9 @@ public final class TypeHint implements ConditionalHint {
 		}
 
 		/**
-		 * Make this hint conditional on the fact that the specified type
-		 * is in a reachable code path from a static analysis point of view.
-		 * @param reachableType the type that should be reachable for this
-		 * hint to apply
+		 * Make this hint conditional on the fact that the specified type is in a
+		 * reachable code path from a static analysis point of view.
+		 * @param reachableType the type that should be reachable for this hint to apply
 		 * @return {@code this}, to facilitate method chaining
 		 */
 		public Builder onReachableType(Class<?> reachableType) {
@@ -187,9 +180,11 @@ public final class TypeHint implements ConditionalHint {
 		}
 
 		/**
-		 * Register the need for reflection on the field with the specified name.
+		 * Register the need for reflective access on the field with the specified name.
 		 * @param name the name of the field
 		 * @return {@code this}, to facilitate method chaining
+		 * @see java.lang.reflect.Field#get(Object)
+		 * @see java.lang.reflect.Field#set(Object, Object)
 		 */
 		public Builder withField(String name) {
 			this.fields.add(name);
@@ -215,8 +210,9 @@ public final class TypeHint implements ConditionalHint {
 		 * constructor
 		 * @return {@code this}, to facilitate method chaining
 		 */
-		private Builder withConstructor(List<TypeReference> parameterTypes,
-				Consumer<ExecutableHint.Builder> constructorHint) {
+		private Builder withConstructor(
+				List<TypeReference> parameterTypes, Consumer<ExecutableHint.Builder> constructorHint) {
+
 			ExecutableKey key = new ExecutableKey("<init>", parameterTypes);
 			ExecutableHint.Builder builder = this.constructors.computeIfAbsent(key,
 					k -> ExecutableHint.ofConstructor(parameterTypes));
@@ -271,8 +267,8 @@ public final class TypeHint implements ConditionalHint {
 		TypeHint build() {
 			return new TypeHint(this);
 		}
-
 	}
+
 
 	private static final class ExecutableKey {
 
@@ -280,29 +276,21 @@ public final class TypeHint implements ConditionalHint {
 
 		private final List<String> parameterTypes;
 
-
 		private ExecutableKey(String name, List<TypeReference> parameterTypes) {
 			this.name = name;
 			this.parameterTypes = parameterTypes.stream().map(TypeReference::getCanonicalName).toList();
 		}
 
 		@Override
-		public boolean equals(@Nullable Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			ExecutableKey that = (ExecutableKey) o;
-			return this.name.equals(that.name) && this.parameterTypes.equals(that.parameterTypes);
+		public boolean equals(@Nullable Object other) {
+			return (this == other || (other instanceof ExecutableKey that &&
+					this.name.equals(that.name) && this.parameterTypes.equals(that.parameterTypes)));
 		}
 
 		@Override
 		public int hashCode() {
 			return Objects.hash(this.name, this.parameterTypes);
 		}
-
 	}
 
 }

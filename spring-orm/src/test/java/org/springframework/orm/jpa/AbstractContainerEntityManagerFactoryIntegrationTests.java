@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,10 @@ import jakarta.persistence.Query;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.core.testfixture.io.SerializationTestUtils;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.orm.jpa.domain.DriversLicense;
 import org.springframework.orm.jpa.domain.Person;
+import org.springframework.transaction.TransactionDefinition;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatException;
@@ -46,7 +48,7 @@ public abstract class AbstractContainerEntityManagerFactoryIntegrationTests
 		extends AbstractEntityManagerFactoryIntegrationTests {
 
 	@Test
-	public void testEntityManagerFactoryImplementsEntityManagerFactoryInfo() {
+	protected void testEntityManagerFactoryImplementsEntityManagerFactoryInfo() {
 		boolean condition = entityManagerFactory instanceof EntityManagerFactoryInfo;
 		assertThat(condition).as("Must have introduced config interface").isTrue();
 		EntityManagerFactoryInfo emfi = (EntityManagerFactoryInfo) entityManagerFactory;
@@ -56,33 +58,33 @@ public abstract class AbstractContainerEntityManagerFactoryIntegrationTests
 	}
 
 	@Test
-	public void testStateClean() {
+	void testStateClean() {
 		assertThat(countRowsInTable("person")).as("Should be no people from previous transactions").isEqualTo(0);
 	}
 
 	@Test
-	public void testJdbcTx1_1() {
+	void testJdbcTx1_1() {
 		testJdbcTx2();
 	}
 
 	@Test
-	public void testJdbcTx1_2() {
+	void testJdbcTx1_2() {
 		testJdbcTx2();
 	}
 
 	@Test
-	public void testJdbcTx1_3() {
+	void testJdbcTx1_3() {
 		testJdbcTx2();
 	}
 
 	@Test
-	public void testJdbcTx2() {
+	void testJdbcTx2() {
 		assertThat(countRowsInTable("person")).as("Any previous tx must have been rolled back").isEqualTo(0);
 		executeSqlScript("/org/springframework/orm/jpa/insertPerson.sql");
 	}
 
 	@Test
-	public void testEntityManagerProxyIsProxy() {
+	void testEntityManagerProxyIsProxy() {
 		assertThat(Proxy.isProxyClass(sharedEntityManager.getClass())).isTrue();
 		Query q = sharedEntityManager.createQuery("select p from Person as p");
 		q.getResultList();
@@ -93,7 +95,7 @@ public abstract class AbstractContainerEntityManagerFactoryIntegrationTests
 	}
 
 	@Test
-	public void testBogusQuery() {
+	void testBogusQuery() {
 		assertThatRuntimeException().isThrownBy(() -> {
 			Query query = sharedEntityManager.createQuery("It's raining toads");
 			// required in OpenJPA case
@@ -102,7 +104,7 @@ public abstract class AbstractContainerEntityManagerFactoryIntegrationTests
 	}
 
 	@Test
-	public void testGetReferenceWhenNoRow() {
+	void testGetReferenceWhenNoRow() {
 		assertThatException().isThrownBy(() -> {
 				Person notThere = sharedEntityManager.getReference(Person.class, 666);
 				// We may get here (as with Hibernate). Either behaviour is valid:
@@ -113,24 +115,34 @@ public abstract class AbstractContainerEntityManagerFactoryIntegrationTests
 	}
 
 	@Test
-	public void testLazyLoading() {
+	void testLazyLoading() throws Exception {
 		try {
 			Person tony = new Person();
 			tony.setFirstName("Tony");
 			tony.setLastName("Blair");
 			tony.setDriversLicense(new DriversLicense("8439DK"));
 			sharedEntityManager.persist(tony);
+			assertThat(DataSourceUtils.getConnection(jdbcTemplate.getDataSource()).getTransactionIsolation())
+					.isEqualTo(TransactionDefinition.ISOLATION_READ_COMMITTED);
 			setComplete();
 			endTransaction();
 
+			transactionDefinition.setIsolationLevel(TransactionDefinition.ISOLATION_SERIALIZABLE);
 			startNewTransaction();
+			assertThat(DataSourceUtils.getConnection(jdbcTemplate.getDataSource()).getTransactionIsolation())
+					.isEqualTo(TransactionDefinition.ISOLATION_SERIALIZABLE);
 			sharedEntityManager.clear();
 			Person newTony = entityManagerFactory.createEntityManager().getReference(Person.class, tony.getId());
 			assertThat(tony).isNotSameAs(newTony);
 			endTransaction();
 
-			assertThat(newTony.getDriversLicense()).isNotNull();
+			transactionDefinition.setIsolationLevel(TransactionDefinition.ISOLATION_DEFAULT);
+			startNewTransaction();
+			assertThat(DataSourceUtils.getConnection(jdbcTemplate.getDataSource()).getTransactionIsolation())
+					.isEqualTo(TransactionDefinition.ISOLATION_READ_COMMITTED);
+			endTransaction();
 
+			assertThat(newTony.getDriversLicense()).isNotNull();
 			newTony.getDriversLicense().getSerialNumber();
 		}
 		finally {
@@ -159,13 +171,13 @@ public abstract class AbstractContainerEntityManagerFactoryIntegrationTests
 	}
 
 	@Test
-	public void testEntityManagerProxyRejectsProgrammaticTxManagement() {
+	void testEntityManagerProxyRejectsProgrammaticTxManagement() {
 		assertThatIllegalStateException().as("Should not be able to create transactions on container managed EntityManager").isThrownBy(
 				sharedEntityManager::getTransaction);
 	}
 
 	@Test
-	public void testInstantiateAndSaveWithSharedEmProxy() {
+	void testInstantiateAndSaveWithSharedEmProxy() {
 		testInstantiateAndSave(sharedEntityManager);
 	}
 
@@ -234,7 +246,7 @@ public abstract class AbstractContainerEntityManagerFactoryIntegrationTests
 	}
 
 	@Test
-	public void testCanSerializeProxies() throws Exception {
+	void testCanSerializeProxies() throws Exception {
 		assertThat(SerializationTestUtils.serializeAndDeserialize(entityManagerFactory)).isNotNull();
 		assertThat(SerializationTestUtils.serializeAndDeserialize(sharedEntityManager)).isNotNull();
 	}

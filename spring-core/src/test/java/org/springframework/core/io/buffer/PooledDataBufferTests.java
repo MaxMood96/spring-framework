@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ class PooledDataBufferTests {
 		}
 	}
 
+
 	@Nested
 	class UnpooledByteBufAllocatorWithPreferDirectFalseTests implements PooledDataBufferTestingTrait {
 
@@ -47,6 +48,7 @@ class PooledDataBufferTests {
 			return new NettyDataBufferFactory(new UnpooledByteBufAllocator(true));
 		}
 	}
+
 
 	@Nested
 	class PooledByteBufAllocatorWithPreferDirectTrueTests implements PooledDataBufferTestingTrait {
@@ -57,6 +59,7 @@ class PooledDataBufferTests {
 		}
 	}
 
+
 	@Nested
 	class PooledByteBufAllocatorWithPreferDirectFalseTests implements PooledDataBufferTestingTrait {
 
@@ -65,6 +68,16 @@ class PooledDataBufferTests {
 			return new NettyDataBufferFactory(new PooledByteBufAllocator(true));
 		}
 	}
+
+	@Nested
+	class Jetty implements PooledDataBufferTestingTrait {
+
+		@Override
+		public DataBufferFactory createDataBufferFactory() {
+			return new JettyDataBufferFactory();
+		}
+	}
+
 
 	interface PooledDataBufferTestingTrait {
 
@@ -78,10 +91,14 @@ class PooledDataBufferTests {
 		default void retainAndRelease() {
 			PooledDataBuffer buffer = createDataBuffer(1);
 			buffer.write((byte) 'a');
+			assertThat(buffer.isAllocated()).isTrue();
 
 			buffer.retain();
+			assertThat(buffer.isAllocated()).isTrue();
 			assertThat(buffer.release()).isFalse();
+			assertThat(buffer.isAllocated()).isTrue();
 			assertThat(buffer.release()).isTrue();
+			assertThat(buffer.isAllocated()).isFalse();
 		}
 
 		@Test
@@ -92,7 +109,6 @@ class PooledDataBufferTests {
 			buffer.release();
 			assertThatIllegalStateException().isThrownBy(buffer::release);
 		}
-
 	}
 
 }

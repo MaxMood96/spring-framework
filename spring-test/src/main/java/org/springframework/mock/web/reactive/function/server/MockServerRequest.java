@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -43,11 +45,11 @@ import org.springframework.http.codec.HttpMessageReader;
 import org.springframework.http.codec.multipart.Part;
 import org.springframework.http.server.RequestPath;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.reactive.function.BodyExtractor;
 import org.springframework.web.reactive.function.server.HandlerStrategies;
 import org.springframework.web.reactive.function.server.ServerRequest;
@@ -74,8 +76,7 @@ public final class MockServerRequest implements ServerRequest {
 
 	private final MultiValueMap<String, HttpCookie> cookies;
 
-	@Nullable
-	private final Object body;
+	private final @Nullable Object body;
 
 	private final Map<String, Object> attributes;
 
@@ -83,22 +84,17 @@ public final class MockServerRequest implements ServerRequest {
 
 	private final Map<String, String> pathVariables;
 
-	@Nullable
-	private final WebSession session;
+	private final @Nullable WebSession session;
 
-	@Nullable
-	private final Principal principal;
+	private final @Nullable Principal principal;
 
-	@Nullable
-	private final InetSocketAddress remoteAddress;
+	private final @Nullable InetSocketAddress remoteAddress;
 
-	@Nullable
-	private final InetSocketAddress localAddress;
+	private final @Nullable InetSocketAddress localAddress;
 
 	private final List<HttpMessageReader<?>> messageReaders;
 
-	@Nullable
-	private final ServerWebExchange exchange;
+	private final @Nullable ServerWebExchange exchange;
 
 
 	private MockServerRequest(HttpMethod method, URI uri, String contextPath, MockHeaders headers,
@@ -129,12 +125,6 @@ public final class MockServerRequest implements ServerRequest {
 	@Override
 	public HttpMethod method() {
 		return this.method;
-	}
-
-	@Override
-	@Deprecated
-	public String methodName() {
-		return this.method.name();
 	}
 
 	@Override
@@ -217,6 +207,20 @@ public final class MockServerRequest implements ServerRequest {
 	public <S> Flux<S> bodyToFlux(ParameterizedTypeReference<S> typeReference) {
 		Assert.state(this.body != null, "No body");
 		return (Flux<S>) this.body;
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public <T> Mono<T> bind(Class<T> bindType) {
+		Assert.state(this.body != null, "No body");
+		return (Mono<T>) this.body;
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public <T> Mono<T> bind(Class<T> bindType, Consumer<WebDataBinder> dataBinderCustomizer) {
+		Assert.state(this.body != null, "No body");
+		return (Mono<T>) this.body;
 	}
 
 	@Override
@@ -329,8 +333,7 @@ public final class MockServerRequest implements ServerRequest {
 
 		private MultiValueMap<String, HttpCookie> cookies = new LinkedMultiValueMap<>();
 
-		@Nullable
-		private Object body;
+		private @Nullable Object body;
 
 		private Map<String, Object> attributes = new ConcurrentHashMap<>();
 
@@ -338,22 +341,17 @@ public final class MockServerRequest implements ServerRequest {
 
 		private Map<String, String> pathVariables = new LinkedHashMap<>();
 
-		@Nullable
-		private WebSession session;
+		private @Nullable WebSession session;
 
-		@Nullable
-		private Principal principal;
+		private @Nullable Principal principal;
 
-		@Nullable
-		private InetSocketAddress remoteAddress;
+		private @Nullable InetSocketAddress remoteAddress;
 
-		@Nullable
-		private InetSocketAddress localAddress;
+		private @Nullable InetSocketAddress localAddress;
 
 		private List<HttpMessageReader<?>> messageReaders = HandlerStrategies.withDefaults().messageReaders();
 
-		@Nullable
-		private ServerWebExchange exchange;
+		private @Nullable ServerWebExchange exchange;
 
 		@Override
 		public Builder method(HttpMethod method) {
@@ -553,7 +551,7 @@ public final class MockServerRequest implements ServerRequest {
 		}
 
 		@Override
-		public InetSocketAddress host() {
+		public @Nullable InetSocketAddress host() {
 			return delegate().getHost();
 		}
 

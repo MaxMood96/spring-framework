@@ -16,8 +16,9 @@
 
 package org.springframework.orm;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.dao.OptimisticLockingFailureException;
-import org.springframework.lang.Nullable;
 
 /**
  * Exception thrown on an optimistic locking violation for a mapped object.
@@ -29,11 +30,9 @@ import org.springframework.lang.Nullable;
 @SuppressWarnings("serial")
 public class ObjectOptimisticLockingFailureException extends OptimisticLockingFailureException {
 
-	@Nullable
-	private final Object persistentClass;
+	private final @Nullable Object persistentClass;
 
-	@Nullable
-	private final Object identifier;
+	private final @Nullable Object identifier;
 
 
 	/**
@@ -42,7 +41,7 @@ public class ObjectOptimisticLockingFailureException extends OptimisticLockingFa
 	 * @param msg the detail message
 	 * @param cause the source exception
 	 */
-	public ObjectOptimisticLockingFailureException(String msg, Throwable cause) {
+	public ObjectOptimisticLockingFailureException(@Nullable String msg, @Nullable Throwable cause) {
 		super(msg, cause);
 		this.persistentClass = null;
 		this.identifier = null;
@@ -123,7 +122,7 @@ public class ObjectOptimisticLockingFailureException extends OptimisticLockingFa
 	 * @param cause the source exception
 	 */
 	public ObjectOptimisticLockingFailureException(
-			String persistentClassName, @Nullable Object identifier, String msg, @Nullable Throwable cause) {
+			String persistentClassName, @Nullable Object identifier, @Nullable String msg, @Nullable Throwable cause) {
 
 		super(msg, cause);
 		this.persistentClass = persistentClassName;
@@ -135,8 +134,7 @@ public class ObjectOptimisticLockingFailureException extends OptimisticLockingFa
 	 * Return the persistent class of the object for which the locking failed.
 	 * If no Class was specified, this method returns null.
 	 */
-	@Nullable
-	public Class<?> getPersistentClass() {
+	public @Nullable Class<?> getPersistentClass() {
 		return (this.persistentClass instanceof Class<?> clazz ? clazz : null);
 	}
 
@@ -144,8 +142,7 @@ public class ObjectOptimisticLockingFailureException extends OptimisticLockingFa
 	 * Return the name of the persistent class of the object for which the locking failed.
 	 * Will work for both Class objects and String names.
 	 */
-	@Nullable
-	public String getPersistentClassName() {
+	public @Nullable String getPersistentClassName() {
 		if (this.persistentClass instanceof Class<?> clazz) {
 			return clazz.getName();
 		}
@@ -155,8 +152,7 @@ public class ObjectOptimisticLockingFailureException extends OptimisticLockingFa
 	/**
 	 * Return the identifier of the object for which the locking failed.
 	 */
-	@Nullable
-	public Object getIdentifier() {
+	public @Nullable Object getIdentifier() {
 		return this.identifier;
 	}
 

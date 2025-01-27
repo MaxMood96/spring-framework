@@ -32,6 +32,7 @@ import java.util.function.Supplier;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.cglib.core.SpringNamingPolicy;
 import org.springframework.cglib.proxy.Callback;
@@ -47,7 +48,6 @@ import org.springframework.core.ResolvableType;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.annotation.SynthesizingMethodParameter;
-import org.springframework.lang.Nullable;
 import org.springframework.objenesis.ObjenesisException;
 import org.springframework.objenesis.SpringObjenesis;
 import org.springframework.util.Assert;
@@ -617,11 +617,10 @@ public class ResolvableMethod {
 
 	private static class MethodInvocationInterceptor implements MethodInterceptor, InvocationHandler {
 
-		private Method invokedMethod;
+		private @Nullable Method invokedMethod;
 
 		@Override
-		@Nullable
-		public Object intercept(Object object, Method method, Object[] args, MethodProxy proxy) {
+		public @Nullable Object intercept(Object object, Method method, Object @Nullable [] args, @Nullable MethodProxy proxy) {
 			if (ReflectionUtils.isObjectMethod(method)) {
 				return ReflectionUtils.invokeMethod(method, object, args);
 			}
@@ -632,12 +631,11 @@ public class ResolvableMethod {
 		}
 
 		@Override
-		@Nullable
-		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+		public @Nullable Object invoke(Object proxy, Method method, Object @Nullable [] args) {
 			return intercept(proxy, method, args, null);
 		}
 
-		Method getInvokedMethod() {
+		@Nullable Method getInvokedMethod() {
 			return this.invokedMethod;
 		}
 	}

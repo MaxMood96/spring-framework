@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,10 @@
 
 package org.springframework.beans.factory.support;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.config.DependencyDescriptor;
-import org.springframework.lang.Nullable;
 
 /**
  * {@link AutowireCandidateResolver} implementation to use when no annotation
@@ -53,20 +54,22 @@ public class SimpleAutowireCandidateResolver implements AutowireCandidateResolve
 	}
 
 	@Override
-	@Nullable
-	public Object getSuggestedValue(DependencyDescriptor descriptor) {
+	public @Nullable String getSuggestedName(DependencyDescriptor descriptor) {
 		return null;
 	}
 
 	@Override
-	@Nullable
-	public Object getLazyResolutionProxyIfNecessary(DependencyDescriptor descriptor, @Nullable String beanName) {
+	public @Nullable Object getSuggestedValue(DependencyDescriptor descriptor) {
 		return null;
 	}
 
 	@Override
-	@Nullable
-	public Class<?> getLazyResolutionProxyClass(DependencyDescriptor descriptor, @Nullable String beanName) {
+	public @Nullable Object getLazyResolutionProxyIfNecessary(DependencyDescriptor descriptor, @Nullable String beanName) {
+		return null;
+	}
+
+	@Override
+	public @Nullable Class<?> getLazyResolutionProxyClass(DependencyDescriptor descriptor, @Nullable String beanName) {
 		return null;
 	}
 

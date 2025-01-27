@@ -28,7 +28,7 @@ The following example shows a `@ModelAttribute` method:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@ModelAttribute
 	public void populateModel(@RequestParam String number, Model model) {
@@ -39,7 +39,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@ModelAttribute
 	fun populateModel(@RequestParam number: String, model: Model) {
@@ -55,7 +55,7 @@ The following example adds only one attribute:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@ModelAttribute
 	public Account addAccount(@RequestParam String number) {
@@ -65,7 +65,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@ModelAttribute
 	fun addAccount(@RequestParam number: String): Account {
@@ -76,7 +76,7 @@ Kotlin::
 
 
 NOTE: When a name is not explicitly specified, a default name is chosen based on the `Object`
-type, as explained in the javadoc for {api-spring-framework}/core/Conventions.html[`Conventions`].
+type, as explained in the javadoc for {spring-framework-api}/core/Conventions.html[`Conventions`].
 You can always assign an explicit name by using the overloaded `addAttribute` method or
 through the `name` attribute on `@ModelAttribute` (for a return value).
 
@@ -90,7 +90,7 @@ unless the return value is a `String` that would otherwise be interpreted as a v
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@GetMapping("/accounts/{id}")
 	@ModelAttribute("myAccount")
@@ -102,7 +102,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@GetMapping("/accounts/{id}")
 	@ModelAttribute("myAccount")

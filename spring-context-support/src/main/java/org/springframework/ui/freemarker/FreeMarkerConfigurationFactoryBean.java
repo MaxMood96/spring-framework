@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,29 +20,32 @@ import java.io.IOException;
 
 import freemarker.template.Configuration;
 import freemarker.template.TemplateException;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ResourceLoaderAware;
-import org.springframework.lang.Nullable;
 
 /**
- * Factory bean that creates a FreeMarker Configuration and provides it as
- * bean reference. This bean is intended for any kind of usage of FreeMarker
- * in application code, e.g. for generating email content. For web views,
- * FreeMarkerConfigurer is used to set up a FreeMarkerConfigurationFactory.
+ * Factory bean that creates a FreeMarker {@link Configuration} and provides it
+ * as a bean reference.
  *
- * The simplest way to use this class is to specify just a "templateLoaderPath";
+ * <p>This bean is intended for any kind of usage of FreeMarker in application
+ * code &mdash; for example, for generating email content. For web views,
+ * {@code FreeMarkerConfigurer} is used to set up a {@link FreeMarkerConfigurationFactory}.
+ *
+ * <p>The simplest way to use this class is to specify just a "templateLoaderPath";
  * you do not need any further configuration then. For example, in a web
  * application context:
  *
  * <pre class="code"> &lt;bean id="freemarkerConfiguration" class="org.springframework.ui.freemarker.FreeMarkerConfigurationFactoryBean"&gt;
  *   &lt;property name="templateLoaderPath" value="/WEB-INF/freemarker/"/&gt;
  * &lt;/bean&gt;</pre>
-
- * See the base class FreeMarkerConfigurationFactory for configuration details.
  *
- * <p>Note: Spring's FreeMarker support requires FreeMarker 2.3 or higher.
+ * <p>See the {@link FreeMarkerConfigurationFactory} base class for configuration
+ * details.
+ *
+ * <p>Note: Spring's FreeMarker support requires FreeMarker 2.3.33 or higher.
  *
  * @author Darren Davison
  * @since 03.03.2004
@@ -54,8 +57,7 @@ import org.springframework.lang.Nullable;
 public class FreeMarkerConfigurationFactoryBean extends FreeMarkerConfigurationFactory
 		implements FactoryBean<Configuration>, InitializingBean, ResourceLoaderAware {
 
-	@Nullable
-	private Configuration configuration;
+	private @Nullable Configuration configuration;
 
 
 	@Override
@@ -65,8 +67,7 @@ public class FreeMarkerConfigurationFactoryBean extends FreeMarkerConfigurationF
 
 
 	@Override
-	@Nullable
-	public Configuration getObject() {
+	public @Nullable Configuration getObject() {
 		return this.configuration;
 	}
 

@@ -21,6 +21,7 @@ import java.util.concurrent.Callable;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hibernate.SessionFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.orm.hibernate5.SessionFactoryUtils;
 import org.springframework.orm.hibernate5.SessionHolder;
@@ -72,7 +73,7 @@ class AsyncRequestInterceptor implements CallableProcessingInterceptor, Deferred
 	}
 
 	@Override
-	public <T> void postProcess(NativeWebRequest request, Callable<T> task, Object concurrentResult) {
+	public <T> void postProcess(NativeWebRequest request, Callable<T> task, @Nullable Object concurrentResult) {
 		TransactionSynchronizationManager.unbindResource(this.sessionFactory);
 	}
 

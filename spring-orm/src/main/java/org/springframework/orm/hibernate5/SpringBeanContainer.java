@@ -24,12 +24,13 @@ import org.apache.commons.logging.LogFactory;
 import org.hibernate.resource.beans.container.spi.BeanContainer;
 import org.hibernate.resource.beans.container.spi.ContainedBean;
 import org.hibernate.resource.beans.spi.BeanInstanceProducer;
+import org.hibernate.type.spi.TypeBootstrapContext;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ConcurrentReferenceHashMap;
 
@@ -40,7 +41,7 @@ import org.springframework.util.ConcurrentReferenceHashMap;
  * <p>Auto-configured by {@link LocalSessionFactoryBean#setBeanFactory},
  * programmatically supported via {@link LocalSessionFactoryBuilder#setBeanContainer},
  * and manually configurable through a "hibernate.resource.beans.container" entry
- * in JPA properties, e.g.:
+ * in JPA properties, for example:
  *
  * <pre class="code">
  * &lt;bean id="entityManagerFactory" class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean"&gt;
@@ -180,14 +181,37 @@ public final class SpringBeanContainer implements BeanContainer {
 
 		try {
 			if (lifecycleOptions.useJpaCompliantCreation()) {
-				Object bean = this.beanFactory.autowire(beanType, AutowireCapableBeanFactory.AUTOWIRE_CONSTRUCTOR, false);
-				this.beanFactory.autowireBeanProperties(bean, AutowireCapableBeanFactory.AUTOWIRE_NO, false);
-				this.beanFactory.applyBeanPropertyValues(bean, name);
-				bean = this.beanFactory.initializeBean(bean, name);
-				return new SpringContainedBean<>(bean, beanInstance -> this.beanFactory.destroyBean(name, beanInstance));
+				Object bean = null;
+				if (fallbackProducer instanceof TypeBootstrapContext) {
+					// Special Hibernate type construction rules, including TypeBootstrapContext resolution.
+					bean = fallbackProducer.produceBeanInstance(name, beanType);
+				}
+				if (this.beanFactory.containsBean(name)) {
+					if (bean == null) {
+						bean = this.beanFactory.autowire(beanType, AutowireCapableBeanFactory.AUTOWIRE_CONSTRUCTOR, false);
+					}
+					this.beanFactory.autowireBeanProperties(bean, AutowireCapableBeanFactory.AUTOWIRE_NO, false);
+					this.beanFactory.applyBeanPropertyValues(bean, name);
+					bean = this.beanFactory.initializeBean(bean, name);
+					return new SpringContainedBean<>(bean, beanInstance -> this.beanFactory.destroyBean(name, beanInstance));
+				}
+				else if (bean != null) {
+					// No bean found by name but constructed with TypeBootstrapContext rules
+					this.beanFactory.autowireBeanProperties(bean, AutowireCapableBeanFactory.AUTOWIRE_NO, false);
+					bean = this.beanFactory.initializeBean(bean, name);
+					return new SpringContainedBean<>(bean, this.beanFactory::destroyBean);
+				}
+				else {
+					// No bean found by name -> construct by type using createBean
+					return new SpringContainedBean<>(
+							this.beanFactory.createBean(beanType),
+							this.beanFactory::destroyBean);
+				}
 			}
 			else {
-				return new SpringContainedBean<>(this.beanFactory.getBean(name, beanType));
+				return (this.beanFactory.containsBean(name) ?
+						new SpringContainedBean<>(this.beanFactory.getBean(name, beanType)) :
+						new SpringContainedBean<>(this.beanFactory.getBean(beanType)));
 			}
 		}
 		catch (BeansException ex) {
@@ -219,8 +243,7 @@ public final class SpringBeanContainer implements BeanContainer {
 
 		private final B beanInstance;
 
-		@Nullable
-		private Consumer<B> destructionCallback;
+		private @Nullable Consumer<B> destructionCallback;
 
 		public SpringContainedBean(B beanInstance) {
 			this.beanInstance = beanInstance;

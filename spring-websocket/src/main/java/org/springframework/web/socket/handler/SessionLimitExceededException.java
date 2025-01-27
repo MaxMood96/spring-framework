@@ -16,12 +16,13 @@
 
 package org.springframework.web.socket.handler;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.web.socket.CloseStatus;
 
 /**
  * Raised when a WebSocket session has exceeded limits it has been configured
- * for, e.g. timeout, buffer size, etc.
+ * for, for example, timeout, buffer size, etc.
  *
  * @author Rossen Stoyanchev
  * @since 4.0.3

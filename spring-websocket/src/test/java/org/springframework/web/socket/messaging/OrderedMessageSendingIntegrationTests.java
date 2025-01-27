@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,11 +28,11 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.MessagingException;
@@ -70,7 +70,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * @author Rossen Stoyanchev
  */
-public class OrderedMessageSendingIntegrationTests {
+class OrderedMessageSendingIntegrationTests {
 
 	private static final Log logger = LogFactory.getLog(OrderedMessageSendingIntegrationTests.class);
 
@@ -79,16 +79,16 @@ public class OrderedMessageSendingIntegrationTests {
 
 	private BlockingWebSocketSession blockingSession;
 
-	private ExecutorSubscribableChannel subscribableChannel;
+	private ExecutorSubscribableChannel clientOutChannel;
 
-	private OrderedMessageChannelDecorator orderedMessageChannel;
+	private OrderedMessageChannelDecorator orderedClientOutChannel;
 
 	private ThreadPoolTaskExecutor executor;
 
 
 
 	@BeforeEach
-	public void setup() {
+	void setup() {
 		this.blockingSession = new BlockingWebSocketSession();
 		this.blockingSession.setId("1");
 		this.blockingSession.setOpen(true);
@@ -98,14 +98,14 @@ public class OrderedMessageSendingIntegrationTests {
 		this.executor.setAllowCoreThreadTimeOut(true);
 		this.executor.afterPropertiesSet();
 
-		this.subscribableChannel = new ExecutorSubscribableChannel(this.executor);
-		OrderedMessageChannelDecorator.configureInterceptor(this.subscribableChannel, true);
+		this.clientOutChannel = new ExecutorSubscribableChannel(this.executor);
+		OrderedMessageChannelDecorator.configureInterceptor(this.clientOutChannel, true);
 
-		this.orderedMessageChannel = new OrderedMessageChannelDecorator(this.subscribableChannel, logger);
+		this.orderedClientOutChannel = new OrderedMessageChannelDecorator(this.clientOutChannel, logger);
 	}
 
 	@AfterEach
-	public void tearDown() {
+	void tearDown() {
 		this.executor.shutdown();
 	}
 
@@ -119,14 +119,14 @@ public class OrderedMessageSendingIntegrationTests {
 						this.blockingSession, 60 * 1000, messageCount * MESSAGE_SIZE);
 
 		TestMessageHandler handler = new TestMessageHandler(concurrentSessionDecorator);
-		subscribableChannel.subscribe(handler);
+		this.clientOutChannel.subscribe(handler);
 
 		List<Message<?>> expectedMessages = new ArrayList<>(messageCount);
 
 		// Send one to block
 		Message<byte[]> message = createMessage(0);
 		expectedMessages.add(message);
-		this.orderedMessageChannel.send(message);
+		this.orderedClientOutChannel.send(message);
 
 		CountDownLatch latch = new CountDownLatch(messageCount);
 		handler.setMessageLatch(latch);
@@ -134,10 +134,10 @@ public class OrderedMessageSendingIntegrationTests {
 		for (int i = 1; i <= messageCount; i++) {
 			message = createMessage(i);
 			expectedMessages.add(message);
-			this.orderedMessageChannel.send(message);
+			this.orderedClientOutChannel.send(message);
 		}
 
-		latch.await(5, TimeUnit.SECONDS);
+		assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
 
 		assertThat(concurrentSessionDecorator.getTimeSinceSendStarted()).isGreaterThan(0);
 		assertThat(concurrentSessionDecorator.getBufferSize()).isEqualTo((messageCount * MESSAGE_SIZE));
@@ -152,22 +152,21 @@ public class OrderedMessageSendingIntegrationTests {
 				new ConcurrentWebSocketSessionDecorator(this.blockingSession, 100, 1024);
 
 		TestMessageHandler messageHandler = new TestMessageHandler(concurrentSessionDecorator);
-		subscribableChannel.subscribe(messageHandler);
+		this.clientOutChannel.subscribe(messageHandler);
 
 		// Send one to block
-		this.orderedMessageChannel.send(createMessage(0));
+		this.orderedClientOutChannel.send(createMessage(0));
 
-		// Exceed send time..
+		// Exceed send time
 		Thread.sleep(200);
 
 		CountDownLatch messageLatch = new CountDownLatch(1);
 		messageHandler.setMessageLatch(messageLatch);
 
 		// Send one more
-		this.orderedMessageChannel.send(createMessage(1));
+		this.orderedClientOutChannel.send(createMessage(1));
 
-		messageLatch.await(5, TimeUnit.SECONDS);
-
+		assertThat(messageLatch.await(5, TimeUnit.SECONDS)).isTrue();
 		assertThat(messageHandler.getSavedException()).hasMessageMatching(
 				"Send time [\\d]+ \\(ms\\) for session '1' exceeded the allowed limit 100");
 	}
@@ -179,23 +178,23 @@ public class OrderedMessageSendingIntegrationTests {
 				new ConcurrentWebSocketSessionDecorator(this.blockingSession, 60 * 1000, 2 * MESSAGE_SIZE);
 
 		TestMessageHandler messageHandler = new TestMessageHandler(concurrentSessionDecorator);
-		subscribableChannel.subscribe(messageHandler);
+		this.clientOutChannel.subscribe(messageHandler);
 
 		// Send one to block
-		this.orderedMessageChannel.send(createMessage(0));
+		this.orderedClientOutChannel.send(createMessage(0));
 
 		int messageCount = 3;
 		CountDownLatch messageLatch = new CountDownLatch(messageCount);
 		messageHandler.setMessageLatch(messageLatch);
 
 		for (int i = 1; i <= messageCount; i++) {
-			this.orderedMessageChannel.send(createMessage(i));
+			this.orderedClientOutChannel.send(createMessage(i));
 		}
 
-		messageLatch.await(5, TimeUnit.SECONDS);
-
+		assertThat(messageLatch.await(5, TimeUnit.SECONDS)).isTrue();
 		assertThat(messageHandler.getSavedException()).hasMessage(
-				"Buffer size " + 3 * MESSAGE_SIZE + " bytes for session '1' exceeds the allowed limit " + 2 * MESSAGE_SIZE);
+				"Buffer size " + 3 * MESSAGE_SIZE + " bytes for session '1' " +
+						"exceeds the allowed limit " + 2 * MESSAGE_SIZE);
 	}
 
 	private static Message<byte[]> createMessage(int index) {
@@ -215,12 +214,11 @@ public class OrderedMessageSendingIntegrationTests {
 
 		private final WebSocketSession session;
 
-		@Nullable
-		private CountDownLatch messageLatch;
+		private @Nullable CountDownLatch messageLatch;
 
-		private Queue<Message<?>> messages = new LinkedBlockingQueue<>();
+		private final Queue<Message<?>> messages = new LinkedBlockingQueue<>();
 
-		private AtomicReference<Exception> exception = new AtomicReference<>();
+		private final AtomicReference<Exception> exception = new AtomicReference<>();
 
 
 		public TestMessageHandler(WebSocketSession session) {

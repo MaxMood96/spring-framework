@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.springframework.messaging.simp.user;
 
 import java.nio.charset.StandardCharsets;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -40,7 +41,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.springframework.messaging.simp.SimpMessageHeaderAccessor.ORIGINAL_DESTINATION;
 
 /**
- * Unit tests for {@link UserDestinationMessageHandler}.
+ * Tests for {@link UserDestinationMessageHandler}.
  */
 class UserDestinationMessageHandlerTests {
 
@@ -50,7 +51,8 @@ class UserDestinationMessageHandlerTests {
 
 	private final SubscribableChannel brokerChannel = mock();
 
-	private final UserDestinationMessageHandler handler = new UserDestinationMessageHandler(new StubMessageChannel(), this.brokerChannel, new DefaultUserDestinationResolver(this.registry));
+	private final UserDestinationMessageHandler handler = new UserDestinationMessageHandler(
+			new StubMessageChannel(), this.brokerChannel, new DefaultUserDestinationResolver(this.registry));
 
 
 	@Test
@@ -184,7 +186,9 @@ class UserDestinationMessageHandlerTests {
 	}
 
 
-	private Message<?> createWith(SimpMessageType type, String user, String sessionId, String destination) {
+	private Message<?> createWith(
+			SimpMessageType type, @Nullable String user, @Nullable String sessionId, @Nullable String destination) {
+
 		SimpMessageHeaderAccessor headers = SimpMessageHeaderAccessor.create(type);
 		if (destination != null) {
 			headers.setDestination(destination);

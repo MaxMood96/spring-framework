@@ -36,6 +36,7 @@ import io.rsocket.transport.ClientTransport;
 import io.rsocket.transport.netty.client.TcpClientTransport;
 import io.rsocket.transport.netty.client.WebsocketClientTransport;
 import io.rsocket.util.DefaultPayload;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
@@ -47,7 +48,6 @@ import org.springframework.core.codec.StringDecoder;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.NettyDataBufferFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.MimeType;
@@ -69,26 +69,19 @@ final class DefaultRSocketRequesterBuilder implements RSocketRequester.Builder {
 	private static final Payload EMPTY_SETUP_PAYLOAD = DefaultPayload.create(EMPTY_BYTE_ARRAY);
 
 
-	@Nullable
-	private MimeType dataMimeType;
+	private @Nullable MimeType dataMimeType;
 
-	@Nullable
-	private MimeType metadataMimeType;
+	private @Nullable MimeType metadataMimeType;
 
-	@Nullable
-	private Object setupData;
+	private @Nullable Object setupData;
 
-	@Nullable
-	private String setupRoute;
+	private @Nullable String setupRoute;
 
-	@Nullable
-	private Object[] setupRouteVars;
+	private Object @Nullable [] setupRouteVars;
 
-	@Nullable
-	private Map<Object, MimeType> setupMetadata;
+	private @Nullable Map<Object, MimeType> setupMetadata;
 
-	@Nullable
-	private RSocketStrategies strategies;
+	private @Nullable RSocketStrategies strategies;
 
 	private final List<Consumer<RSocketStrategies.Builder>> strategiesConfigurers = new ArrayList<>();
 
@@ -245,13 +238,13 @@ final class DefaultRSocketRequesterBuilder implements RSocketRequester.Builder {
 		if (this.dataMimeType != null) {
 			return this.dataMimeType;
 		}
-		// First non-basic Decoder (e.g. CBOR, Protobuf)
+		// First non-basic Decoder (for example, CBOR, Protobuf)
 		for (Decoder<?> candidate : strategies.decoders()) {
 			if (!isCoreCodec(candidate) && !candidate.getDecodableMimeTypes().isEmpty()) {
 				return getMimeType(candidate);
 			}
 		}
-		// First core decoder (e.g. String)
+		// First core decoder (for example, String)
 		for (Decoder<?> decoder : strategies.decoders()) {
 			if (!decoder.getDecodableMimeTypes().isEmpty()) {
 				return getMimeType(decoder);

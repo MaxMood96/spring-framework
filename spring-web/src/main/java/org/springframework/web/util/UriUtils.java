@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -34,7 +35,7 @@ import org.springframework.util.StringUtils;
  *
  * <p>There are two types of encode methods:
  * <ul>
- * <li>{@code "encodeXyz"} -- these encode a specific URI component (e.g. path,
+ * <li>{@code "encodeXyz"} -- these encode a specific URI component (for example, path,
  * query) by percent encoding illegal characters, which includes non-US-ASCII
  * characters, and also characters that are otherwise illegal within the given
  * URI component type, as defined in RFC 3986. The effect of this method, with
@@ -307,7 +308,7 @@ public abstract class UriUtils {
 	 * meaning, anywhere within a URI, as defined in
 	 * <a href="https://tools.ietf.org/html/rfc3986">RFC 3986</a>.
 	 * This is useful to ensure that the given String will be preserved as-is
-	 * and will not have any o impact on the structure or meaning of the URI.
+	 * and will not have any impact on the structure or meaning of the URI.
 	 * @param source the String to be encoded
 	 * @param charset the character encoding to encode to
 	 * @return the encoded String
@@ -324,7 +325,7 @@ public abstract class UriUtils {
 	 * @return the encoded String
 	 * @since 5.0
 	 */
-	public static Map<String, String> encodeUriVariables(Map<String, ?> uriVariables) {
+	public static Map<String, String> encodeUriVariables(Map<String, ? extends @Nullable Object> uriVariables) {
 		Map<String, String> result = CollectionUtils.newLinkedHashMap(uriVariables.size());
 		uriVariables.forEach((key, value) -> {
 			String stringValue = (value != null ? value.toString() : "");
@@ -340,7 +341,7 @@ public abstract class UriUtils {
 	 * @return the encoded String
 	 * @since 5.0
 	 */
-	public static Object[] encodeUriVariables(Object... uriVariables) {
+	public static Object[] encodeUriVariables(@Nullable Object... uriVariables) {
 		return Arrays.stream(uriVariables)
 				.map(value -> {
 					String stringValue = (value != null ? value.toString() : "");
@@ -389,12 +390,11 @@ public abstract class UriUtils {
 
 	/**
 	 * Extract the file extension from the given URI path.
-	 * @param path the URI path (e.g. "/products/index.html")
-	 * @return the extracted file extension (e.g. "html")
+	 * @param path the URI path (for example, "/products/index.html")
+	 * @return the extracted file extension (for example, "html")
 	 * @since 4.3.2
 	 */
-	@Nullable
-	public static String extractFileExtension(String path) {
+	public static @Nullable String extractFileExtension(String path) {
 		int end = path.indexOf('?');
 		int fragmentIndex = path.indexOf('#');
 		if (fragmentIndex != -1 && (end == -1 || fragmentIndex < end)) {

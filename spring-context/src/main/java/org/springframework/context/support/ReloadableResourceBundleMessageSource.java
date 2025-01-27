@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,19 +21,24 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.ResourceLoaderAware;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
-import org.springframework.lang.Nullable;
+import org.springframework.util.Assert;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.DefaultPropertiesPersister;
 import org.springframework.util.PropertiesPersister;
 import org.springframework.util.StringUtils;
@@ -59,7 +64,7 @@ import org.springframework.util.StringUtils;
  * other than "-1" (caching forever) might not work reliably in this case.
  *
  * <p>For a typical web application, message files could be placed in {@code WEB-INF}:
- * e.g. a "WEB-INF/messages" basename would find a "WEB-INF/messages.properties",
+ * for example, a "WEB-INF/messages" basename would find a "WEB-INF/messages.properties",
  * "WEB-INF/messages_en.properties" etc arrangement as well as "WEB-INF/messages.xml",
  * "WEB-INF/messages_en.xml" etc. Note that message definitions in a <i>previous</i>
  * resource bundle will override ones in a later bundle, due to sequential lookup.
@@ -74,6 +79,7 @@ import org.springframework.util.StringUtils;
  * this message source!
  *
  * @author Juergen Hoeller
+ * @author Sebastien Deleuze
  * @see #setCacheSeconds
  * @see #setBasenames
  * @see #setDefaultEncoding
@@ -87,13 +93,12 @@ import org.springframework.util.StringUtils;
 public class ReloadableResourceBundleMessageSource extends AbstractResourceBasedMessageSource
 		implements ResourceLoaderAware {
 
-	private static final String PROPERTIES_SUFFIX = ".properties";
-
-	private static final String XML_SUFFIX = ".xml";
+	private static final String XML_EXTENSION = ".xml";
 
 
-	@Nullable
-	private Properties fileEncodings;
+	private List<String> fileExtensions = List.of(".properties", XML_EXTENSION);
+
+	private @Nullable Properties fileEncodings;
 
 	private boolean concurrentRefresh = true;
 
@@ -112,11 +117,27 @@ public class ReloadableResourceBundleMessageSource extends AbstractResourceBased
 
 
 	/**
+	 * Set the list of supported file extensions.
+	 * <p>The default is a list containing {@code .properties} and {@code .xml}.
+	 * @param fileExtensions the file extensions (starts with a dot)
+	 * @since 6.1
+	 */
+	public void setFileExtensions(List<String> fileExtensions) {
+		Assert.isTrue(!CollectionUtils.isEmpty(fileExtensions), "At least one file extension is required");
+		for (String extension : fileExtensions) {
+			if (!extension.startsWith(".")) {
+				throw new IllegalArgumentException("File extension '" + extension + "' should start with '.'");
+			}
+		}
+		this.fileExtensions = Collections.unmodifiableList(fileExtensions);
+	}
+
+	/**
 	 * Set per-file charsets to use for parsing properties files.
 	 * <p>Only applies to classic properties files, not to XML files.
 	 * @param fileEncodings a Properties with filenames as keys and charset
 	 * names as values. Filenames have to match the basename syntax,
-	 * with optional locale-specific components: e.g. "WEB-INF/messages"
+	 * with optional locale-specific components: for example, "WEB-INF/messages"
 	 * or "WEB-INF/messages_en".
 	 * @see #setBasenames
 	 * @see org.springframework.util.PropertiesPersister#load
@@ -170,7 +191,7 @@ public class ReloadableResourceBundleMessageSource extends AbstractResourceBased
 	 * returning the value found in the bundle as-is (without MessageFormat parsing).
 	 */
 	@Override
-	protected String resolveCodeWithoutArguments(String code, Locale locale) {
+	protected @Nullable String resolveCodeWithoutArguments(String code, Locale locale) {
 		if (getCacheMillis() < 0) {
 			PropertiesHolder propHolder = getMergedProperties(locale);
 			String result = propHolder.getProperty(code);
@@ -198,8 +219,7 @@ public class ReloadableResourceBundleMessageSource extends AbstractResourceBased
 	 * using a cached MessageFormat instance per message code.
 	 */
 	@Override
-	@Nullable
-	protected MessageFormat resolveCode(String code, Locale locale) {
+	protected @Nullable MessageFormat resolveCode(String code, Locale locale) {
 		if (getCacheMillis() < 0) {
 			PropertiesHolder propHolder = getMergedProperties(locale);
 			MessageFormat result = propHolder.getMessageFormat(code, locale);
@@ -230,36 +250,66 @@ public class ReloadableResourceBundleMessageSource extends AbstractResourceBased
 	 * <p>Only used when caching resource bundle contents forever, i.e.
 	 * with cacheSeconds &lt; 0. Therefore, merged properties are always
 	 * cached forever.
+	 * @see #collectPropertiesToMerge
+	 * @see #mergeProperties
 	 */
 	protected PropertiesHolder getMergedProperties(Locale locale) {
 		PropertiesHolder mergedHolder = this.cachedMergedProperties.get(locale);
 		if (mergedHolder != null) {
 			return mergedHolder;
 		}
+		mergedHolder = mergeProperties(collectPropertiesToMerge(locale));
+		PropertiesHolder existing = this.cachedMergedProperties.putIfAbsent(locale, mergedHolder);
+		if (existing != null) {
+			mergedHolder = existing;
+		}
+		return mergedHolder;
+	}
 
-		Properties mergedProps = newProperties();
-		long latestTimestamp = -1;
+	/**
+	 * Determine the properties to merge based on the specified basenames.
+	 * @param locale the locale
+	 * @return the list of properties holders
+	 * @since 6.1.4
+	 * @see #getBasenameSet()
+	 * @see #calculateAllFilenames
+	 * @see #mergeProperties
+	 */
+	protected List<PropertiesHolder> collectPropertiesToMerge(Locale locale) {
 		String[] basenames = StringUtils.toStringArray(getBasenameSet());
+		List<PropertiesHolder> holders = new ArrayList<>(basenames.length);
 		for (int i = basenames.length - 1; i >= 0; i--) {
 			List<String> filenames = calculateAllFilenames(basenames[i], locale);
 			for (int j = filenames.size() - 1; j >= 0; j--) {
 				String filename = filenames.get(j);
 				PropertiesHolder propHolder = getProperties(filename);
 				if (propHolder.getProperties() != null) {
-					mergedProps.putAll(propHolder.getProperties());
-					if (propHolder.getFileTimestamp() > latestTimestamp) {
-						latestTimestamp = propHolder.getFileTimestamp();
-					}
+					holders.add(propHolder);
 				}
 			}
 		}
+		return holders;
+	}
 
-		mergedHolder = new PropertiesHolder(mergedProps, latestTimestamp);
-		PropertiesHolder existing = this.cachedMergedProperties.putIfAbsent(locale, mergedHolder);
-		if (existing != null) {
-			mergedHolder = existing;
+	/**
+	 * Merge the given properties holders into a single holder.
+	 * @param holders the list of properties holders
+	 * @return a single merged properties holder
+	 * @since 6.1.4
+	 * @see #newProperties()
+	 * @see #getMergedProperties
+	 * @see #collectPropertiesToMerge
+	 */
+	protected PropertiesHolder mergeProperties(List<PropertiesHolder> holders) {
+		Properties mergedProps = newProperties();
+		long latestTimestamp = -1;
+		for (PropertiesHolder holder : holders) {
+			mergedProps.putAll(holder.getProperties());
+			if (holder.getFileTimestamp() > latestTimestamp) {
+				latestTimestamp = holder.getFileTimestamp();
+			}
 		}
-		return mergedHolder;
+		return new PropertiesHolder(mergedProps, latestTimestamp);
 	}
 
 	/**
@@ -410,7 +460,7 @@ public class ReloadableResourceBundleMessageSource extends AbstractResourceBased
 		long refreshTimestamp = (getCacheMillis() < 0 ? -1 : System.currentTimeMillis());
 
 		Resource resource = resolveResource(filename);
-		if (resource.exists()) {
+		if (resource != null) {
 			long fileTimestamp = -1;
 			if (getCacheMillis() >= 0) {
 				// Last-modified timestamp of file will just be read if caching with timeout.
@@ -471,9 +521,9 @@ public class ReloadableResourceBundleMessageSource extends AbstractResourceBased
 	 * JSON.
 	 * <p>The default implementation delegates to the configured
 	 * {@link #setResourceLoader(ResourceLoader) ResourceLoader} to resolve
-	 * resources, first checking for an existing {@code Resource} with a
-	 * {@code .properties} extension, and otherwise returning a {@code Resource}
-	 * with a {@code .xml} extension.
+	 * resources, checking in order for existing {@code Resource} with extensions defined
+	 * by {@link #setFileExtensions(List)} ({@code .properties} and {@code .xml}
+	 * by default).
 	 * <p>When overriding this method, {@link #loadProperties(Resource, String)}
 	 * <strong>must</strong> be capable of loading properties from any type of
 	 * {@code Resource} returned by this method. As a consequence, implementors
@@ -487,15 +537,17 @@ public class ReloadableResourceBundleMessageSource extends AbstractResourceBased
 	 * {@link PropertiesPersister#load(Properties, InputStream) load} methods
 	 * for other types of resources.
 	 * @param filename the bundle filename (basename + Locale)
-	 * @return the {@code Resource} to use
+	 * @return the {@code Resource} to use, or {@code null} if none found
 	 * @since 6.1
 	 */
-	protected Resource resolveResource(String filename) {
-		Resource propertiesResource = this.resourceLoader.getResource(filename + PROPERTIES_SUFFIX);
-		if (propertiesResource.exists()) {
-			return propertiesResource;
+	protected @Nullable Resource resolveResource(String filename) {
+		for (String fileExtension : this.fileExtensions) {
+			Resource resource = this.resourceLoader.getResource(filename + fileExtension);
+			if (resource.exists()) {
+				return resource;
+			}
 		}
-		return this.resourceLoader.getResource(filename + XML_SUFFIX);
+		return null;
 	}
 
 	/**
@@ -509,7 +561,7 @@ public class ReloadableResourceBundleMessageSource extends AbstractResourceBased
 		Properties props = newProperties();
 		try (InputStream is = resource.getInputStream()) {
 			String resourceFilename = resource.getFilename();
-			if (resourceFilename != null && resourceFilename.endsWith(XML_SUFFIX)) {
+			if (resourceFilename != null && resourceFilename.endsWith(XML_EXTENSION)) {
 				if (logger.isDebugEnabled()) {
 					logger.debug("Loading properties [" + resource.getFilename() + "]");
 				}
@@ -590,14 +642,13 @@ public class ReloadableResourceBundleMessageSource extends AbstractResourceBased
 	 */
 	protected class PropertiesHolder {
 
-		@Nullable
-		private final Properties properties;
+		private final @Nullable Properties properties;
 
 		private final long fileTimestamp;
 
 		private volatile long refreshTimestamp = -2;
 
-		private final ReentrantLock refreshLock = new ReentrantLock();
+		private final Lock refreshLock = new ReentrantLock();
 
 		/** Cache to hold already generated MessageFormats per message code. */
 		private final ConcurrentMap<String, Map<Locale, MessageFormat>> cachedMessageFormats =
@@ -613,8 +664,7 @@ public class ReloadableResourceBundleMessageSource extends AbstractResourceBased
 			this.fileTimestamp = fileTimestamp;
 		}
 
-		@Nullable
-		public Properties getProperties() {
+		public @Nullable Properties getProperties() {
 			return this.properties;
 		}
 
@@ -630,16 +680,14 @@ public class ReloadableResourceBundleMessageSource extends AbstractResourceBased
 			return this.refreshTimestamp;
 		}
 
-		@Nullable
-		public String getProperty(String code) {
+		public @Nullable String getProperty(String code) {
 			if (this.properties == null) {
 				return null;
 			}
 			return this.properties.getProperty(code);
 		}
 
-		@Nullable
-		public MessageFormat getMessageFormat(String code, Locale locale) {
+		public @Nullable MessageFormat getMessageFormat(String code, Locale locale) {
 			if (this.properties == null) {
 				return null;
 			}

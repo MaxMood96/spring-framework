@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,14 @@
 
 package org.springframework.context.annotation;
 
+import java.util.Map;
+
+import org.jspecify.annotations.Nullable;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.parsing.Problem;
 import org.springframework.beans.factory.parsing.ProblemReporter;
 import org.springframework.core.type.MethodMetadata;
-import org.springframework.lang.Nullable;
 
 /**
  * Represents a {@link Configuration @Configuration} class method annotated with
@@ -39,36 +43,77 @@ final class BeanMethod extends ConfigurationMethod {
 		super(metadata, configurationClass);
 	}
 
+
 	@Override
+	@SuppressWarnings("NullAway") // Reflection
 	public void validate(ProblemReporter problemReporter) {
+		if (getMetadata().getAnnotationAttributes(Autowired.class.getName()) != null) {
+			// declared as @Autowired: semantic mismatch since @Bean method arguments are autowired
+			// in any case whereas @Autowired methods are setter-like methods on the containing class
+			problemReporter.error(new AutowiredDeclaredMethodError());
+		}
+
+		if ("void".equals(getMetadata().getReturnTypeName())) {
+			// declared as void: potential misuse of @Bean, maybe meant as init method instead?
+			problemReporter.error(new VoidDeclaredMethodError());
+		}
+
 		if (getMetadata().isStatic()) {
-			// static @Bean methods have no constraints to validate -> return immediately
+			// static @Bean methods have no further constraints to validate -> return immediately
 			return;
 		}
 
-		if (this.configurationClass.getMetadata().isAnnotated(Configuration.class.getName())) {
-			if (!getMetadata().isOverridable()) {
-				// instance @Bean methods within @Configuration classes must be overridable to accommodate CGLIB
-				problemReporter.error(new NonOverridableMethodError());
-			}
+		Map<String, @Nullable Object> attributes =
+				getConfigurationClass().getMetadata().getAnnotationAttributes(Configuration.class.getName());
+		if (attributes != null && (Boolean) attributes.get("proxyBeanMethods") && !getMetadata().isOverridable()) {
+			// instance @Bean methods within @Configuration classes must be overridable to accommodate CGLIB
+			problemReporter.error(new NonOverridableMethodError());
 		}
 	}
 
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return (this == obj ||
-				(obj instanceof BeanMethod that && this.metadata.equals(that.metadata)));
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof BeanMethod that &&
+				this.configurationClass.equals(that.configurationClass) &&
+				getLocalMethodIdentifier(this.metadata).equals(getLocalMethodIdentifier(that.metadata))));
 	}
 
 	@Override
 	public int hashCode() {
-		return this.metadata.hashCode();
+		return this.configurationClass.hashCode() * 31 + getLocalMethodIdentifier(this.metadata).hashCode();
 	}
 
 	@Override
 	public String toString() {
 		return "BeanMethod: " + this.metadata;
 	}
+
+
+	private static String getLocalMethodIdentifier(MethodMetadata metadata) {
+		String metadataString = metadata.toString();
+		int index = metadataString.indexOf(metadata.getDeclaringClassName());
+		return (index >= 0 ? metadataString.substring(index + metadata.getDeclaringClassName().length()) :
+				metadataString);
+	}
+
+
+	private class AutowiredDeclaredMethodError extends Problem {
+
+		AutowiredDeclaredMethodError() {
+			super("@Bean method '%s' must not be declared as autowired; remove the method-level @Autowired annotation."
+					.formatted(getMetadata().getMethodName()), getResourceLocation());
+		}
+	}
+
+
+	private class VoidDeclaredMethodError extends Problem {
+
+		VoidDeclaredMethodError() {
+			super("@Bean method '%s' must not be declared as void; change the method's return type or its annotation."
+					.formatted(getMetadata().getMethodName()), getResourceLocation());
+		}
+	}
+
 
 	private class NonOverridableMethodError extends Problem {
 

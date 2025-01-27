@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,8 +28,10 @@ import java.util.Set;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.cglib.core.SpringNamingPolicy;
 import org.springframework.cglib.proxy.Callback;
 import org.springframework.cglib.proxy.Enhancer;
@@ -41,8 +43,7 @@ import org.springframework.core.MethodIntrospector;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ParameterNameDiscoverer;
 import org.springframework.core.annotation.AnnotatedElementUtils;
-import org.springframework.core.annotation.SynthesizingMethodParameter;
-import org.springframework.lang.Nullable;
+import org.springframework.core.annotation.AnnotatedMethod;
 import org.springframework.objenesis.ObjenesisException;
 import org.springframework.objenesis.SpringObjenesis;
 import org.springframework.util.AntPathMatcher;
@@ -52,6 +53,7 @@ import org.springframework.util.PathMatcher;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.util.ReflectionUtils.MethodFilter;
 import org.springframework.util.StringUtils;
+import org.springframework.util.SystemPropertyUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.context.request.RequestAttributes;
@@ -64,6 +66,7 @@ import org.springframework.web.servlet.DispatcherServlet;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.pattern.PathPatternParser;
 
 /**
  * Creates instances of {@link org.springframework.web.util.UriComponentsBuilder}
@@ -535,6 +538,7 @@ public class MvcUriComponentsBuilder {
 	private static UriComponentsBuilder fromMethodInternal(@Nullable UriComponentsBuilder builder,
 			Class<?> controllerType, Method method, Object... args) {
 
+		AnnotatedMethod annotatedMethod = new AnnotatedMethod(method);
 		builder = getBaseUrlToUse(builder);
 
 		// Externally configured prefix via PathConfigurer..
@@ -542,17 +546,15 @@ public class MvcUriComponentsBuilder {
 		builder.path(prefix);
 
 		String typePath = getClassMapping(controllerType);
-		String methodPath = getMethodMapping(method);
+		String methodPath = getMethodMapping(annotatedMethod);
 		String path = pathMatcher.combine(typePath, methodPath);
-		if (StringUtils.hasLength(path) && !path.startsWith("/")) {
-			path = "/" + path;
-		}
-		else if (!StringUtils.hasText(prefix + path)) {
+		path = PathPatternParser.defaultInstance.initFullPathPattern(path);
+		if (!StringUtils.hasText(prefix + path)) {
 			path = "/";
 		}
 		builder.path(path);
 
-		return applyContributors(builder, method, args);
+		return applyContributors(builder, annotatedMethod, args);
 	}
 
 	private static UriComponentsBuilder getBaseUrlToUse(@Nullable UriComponentsBuilder baseUrl) {
@@ -583,30 +585,26 @@ public class MvcUriComponentsBuilder {
 		if (mapping == null) {
 			return "";
 		}
-		String[] paths = mapping.path();
-		if (ObjectUtils.isEmpty(paths) || !StringUtils.hasLength(paths[0])) {
-			return "";
-		}
-		if (paths.length > 1 && logger.isTraceEnabled()) {
-			logger.trace("Using first of multiple paths on " + controllerType.getName());
-		}
-		return paths[0];
+		return getPathMapping(mapping, controllerType.getName());
 	}
 
-	private static String getMethodMapping(Method method) {
-		Assert.notNull(method, "'method' must not be null");
-		RequestMapping requestMapping = AnnotatedElementUtils.findMergedAnnotation(method, RequestMapping.class);
+	private static String getMethodMapping(AnnotatedMethod annotatedMethod) {
+		RequestMapping requestMapping = annotatedMethod.getMethodAnnotation(RequestMapping.class);
 		if (requestMapping == null) {
-			throw new IllegalArgumentException("No @RequestMapping on: " + method.toGenericString());
+			throw new IllegalArgumentException("No @RequestMapping on: " + annotatedMethod.getMethod().toGenericString());
 		}
+		return getPathMapping(requestMapping, annotatedMethod.getMethod().toGenericString());
+	}
+
+	private static String getPathMapping(RequestMapping requestMapping, String source) {
 		String[] paths = requestMapping.path();
 		if (ObjectUtils.isEmpty(paths) || !StringUtils.hasLength(paths[0])) {
 			return "";
 		}
 		if (paths.length > 1 && logger.isTraceEnabled()) {
-			logger.trace("Using first of multiple paths on " + method.toGenericString());
+			logger.trace("Using first of multiple paths on " + source);
 		}
-		return paths[0];
+		return resolveEmbeddedValue(paths[0]);
 	}
 
 	private static Method getMethod(Class<?> controllerType, final String methodName, final Object... args) {
@@ -630,10 +628,12 @@ public class MvcUriComponentsBuilder {
 		}
 	}
 
-	private static UriComponentsBuilder applyContributors(UriComponentsBuilder builder, Method method, Object... args) {
+	private static UriComponentsBuilder applyContributors(UriComponentsBuilder builder,
+			AnnotatedMethod annotatedMethod, Object... args) {
+
 		CompositeUriComponentsContributor contributor = getUriComponentsContributor();
 
-		int paramCount = method.getParameterCount();
+		int paramCount = annotatedMethod.getMethodParameters().length;
 		int argCount = args.length;
 		if (paramCount != argCount) {
 			throw new IllegalArgumentException("Number of method parameters " + paramCount +
@@ -642,7 +642,7 @@ public class MvcUriComponentsBuilder {
 
 		final Map<String, Object> uriVars = new HashMap<>();
 		for (int i = 0; i < paramCount; i++) {
-			MethodParameter param = new SynthesizingMethodParameter(method, i);
+			MethodParameter param = annotatedMethod.getMethodParameters()[i];
 			param.initParameterNameDiscovery(parameterNameDiscoverer);
 			contributor.contributeMethodArgument(param, args[i], builder, uriVars);
 		}
@@ -664,8 +664,21 @@ public class MvcUriComponentsBuilder {
 		return defaultUriComponentsContributor;
 	}
 
-	@Nullable
-	private static WebApplicationContext getWebApplicationContext() {
+	private static String resolveEmbeddedValue(String value) {
+		if (value.contains(SystemPropertyUtils.PLACEHOLDER_PREFIX)) {
+			WebApplicationContext webApplicationContext = getWebApplicationContext();
+			if (webApplicationContext != null
+					&& webApplicationContext.getAutowireCapableBeanFactory() instanceof ConfigurableBeanFactory cbf) {
+				String resolvedEmbeddedValue = cbf.resolveEmbeddedValue(value);
+				if (resolvedEmbeddedValue != null) {
+					return resolvedEmbeddedValue;
+				}
+			}
+		}
+		return value;
+	}
+
+	private static @Nullable WebApplicationContext getWebApplicationContext() {
 		RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
 		if (requestAttributes == null) {
 			return null;
@@ -708,45 +721,49 @@ public class MvcUriComponentsBuilder {
 
 		private final Class<?> controllerType;
 
-		@Nullable
-		private Method controllerMethod;
+		private @Nullable Method controllerMethod;
 
-		@Nullable
-		private Object[] argumentValues;
+		private Object @Nullable [] argumentValues;
 
 		ControllerMethodInvocationInterceptor(Class<?> controllerType) {
 			this.controllerType = controllerType;
 		}
 
 		@Override
-		@Nullable
-		public Object intercept(@Nullable Object obj, Method method, Object[] args, @Nullable MethodProxy proxy) {
+		public @Nullable Object intercept(@Nullable Object obj, Method method, Object[] args, @Nullable MethodProxy proxy) {
 			switch (method.getName()) {
-				case "getControllerType": return this.controllerType;
-				case "getControllerMethod": return this.controllerMethod;
-				case "getArgumentValues": return this.argumentValues;
-			}
-			if (ReflectionUtils.isObjectMethod(method)) {
-				return ReflectionUtils.invokeMethod(method, obj, args);
-			}
-			else {
-				this.controllerMethod = method;
-				this.argumentValues = args;
-				Class<?> returnType = method.getReturnType();
-				try {
-					return (returnType == void.class ? null : returnType.cast(initProxy(returnType, this)));
+				case "getControllerType" -> {
+					return this.controllerType;
 				}
-				catch (Throwable ex) {
-					throw new IllegalStateException(
-							"Failed to create proxy for controller method return type: " + method, ex);
+				case "getControllerMethod" -> {
+					return this.controllerMethod;
+				}
+				case "getArgumentValues" -> {
+					return this.argumentValues;
+				}
+				default -> {
+					if (ReflectionUtils.isObjectMethod(method)) {
+						return ReflectionUtils.invokeMethod(method, obj, args);
+					}
+					else {
+						this.controllerMethod = method;
+						this.argumentValues = args;
+						Class<?> returnType = method.getReturnType();
+						try {
+							return (returnType == void.class ? null : returnType.cast(initProxy(returnType, this)));
+						}
+						catch (Throwable ex) {
+							throw new IllegalStateException(
+									"Failed to create proxy for controller method return type: " + method, ex);
+						}
+					}
 				}
 			}
 		}
 
 		@Override
-		@Nullable
-		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-			return intercept(proxy, method, args, null);
+		public @Nullable Object invoke(Object proxy, Method method, Object @Nullable [] args) {
+			return intercept(proxy, method, (args != null ? args : new Object[0]), null);
 		}
 
 		@Override
@@ -780,10 +797,23 @@ public class MvcUriComponentsBuilder {
 
 			else if (controllerType.isInterface()) {
 				ClassLoader classLoader = controllerType.getClassLoader();
-				if (classLoader == null || classLoader.getParent() == null) {
-					// JDK interface type from bootstrap loader or platform loader ->
-					// use higher-level loader which can see Spring infrastructure classes
+				if (classLoader == null) {
+					// JDK bootstrap loader -> use MethodInvocationInfo ClassLoader instead.
 					classLoader = MethodInvocationInfo.class.getClassLoader();
+				}
+				else if (classLoader.getParent() == null) {
+					// Potentially the JDK platform loader on JDK 9+
+					ClassLoader miiClassLoader = MethodInvocationInfo.class.getClassLoader();
+					ClassLoader miiParent = miiClassLoader.getParent();
+					while (miiParent != null) {
+						if (classLoader == miiParent) {
+							// Suggested ClassLoader is ancestor of MethodInvocationInfo ClassLoader
+							// -> use MethodInvocationInfo ClassLoader itself instead.
+							classLoader = miiClassLoader;
+							break;
+						}
+						miiParent = miiParent.getParent();
+					}
 				}
 				Class<?>[] ifcs = new Class<?>[] {controllerType, MethodInvocationInfo.class};
 				return (T) Proxy.newProxyInstance(classLoader, ifcs, interceptor);

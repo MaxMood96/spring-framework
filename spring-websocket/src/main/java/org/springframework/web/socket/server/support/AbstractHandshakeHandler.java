@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,10 +23,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.Lifecycle;
 import org.springframework.core.log.LogFormatUtils;
@@ -34,9 +36,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
-import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.socket.SubProtocolCapable;
 import org.springframework.web.socket.WebSocketExtension;
@@ -46,65 +46,26 @@ import org.springframework.web.socket.handler.WebSocketHandlerDecorator;
 import org.springframework.web.socket.server.HandshakeFailureException;
 import org.springframework.web.socket.server.HandshakeHandler;
 import org.springframework.web.socket.server.RequestUpgradeStrategy;
-import org.springframework.web.socket.server.jetty.JettyRequestUpgradeStrategy;
-import org.springframework.web.socket.server.standard.GlassFishRequestUpgradeStrategy;
 import org.springframework.web.socket.server.standard.StandardWebSocketUpgradeStrategy;
-import org.springframework.web.socket.server.standard.TomcatRequestUpgradeStrategy;
-import org.springframework.web.socket.server.standard.UndertowRequestUpgradeStrategy;
-import org.springframework.web.socket.server.standard.WebLogicRequestUpgradeStrategy;
-import org.springframework.web.socket.server.standard.WebSphereRequestUpgradeStrategy;
 
 /**
  * A base class for {@link HandshakeHandler} implementations, independent of the Servlet API.
  *
  * <p>Performs initial validation of the WebSocket handshake request - possibly rejecting it
  * through the appropriate HTTP status code - while also allowing its subclasses to override
- * various parts of the negotiation process (e.g. origin validation, sub-protocol negotiation,
- * extensions negotiation, etc).
+ * various parts of the negotiation process: for example, origin validation, sub-protocol
+ * negotiation, extensions negotiation, etc.
  *
  * <p>If the negotiation succeeds, the actual upgrade is delegated to a server-specific
  * {@link org.springframework.web.socket.server.RequestUpgradeStrategy}, which will update
- * the response as necessary and initialize the WebSocket. Currently, supported servers are
- * Jetty 9.0-9.3, Tomcat 7.0.47+ and 8.x, Undertow 1.0-1.3, GlassFish 4.1+, WebLogic 12.1.3+.
+ * the response as necessary and initialize the WebSocket. As of 7.0, this class uses
+ * {@link StandardWebSocketUpgradeStrategy} unless explicitly configured.
  *
  * @author Rossen Stoyanchev
  * @author Juergen Hoeller
  * @since 4.2
- * @see org.springframework.web.socket.server.jetty.JettyRequestUpgradeStrategy
- * @see org.springframework.web.socket.server.standard.TomcatRequestUpgradeStrategy
- * @see org.springframework.web.socket.server.standard.UndertowRequestUpgradeStrategy
- * @see org.springframework.web.socket.server.standard.GlassFishRequestUpgradeStrategy
  */
 public abstract class AbstractHandshakeHandler implements HandshakeHandler, Lifecycle {
-
-	private static final boolean tomcatWsPresent;
-
-	private static final boolean jettyWsPresent;
-
-	private static final boolean undertowWsPresent;
-
-	private static final boolean glassfishWsPresent;
-
-	private static final boolean weblogicWsPresent;
-
-	private static final boolean websphereWsPresent;
-
-	static {
-		ClassLoader classLoader = AbstractHandshakeHandler.class.getClassLoader();
-		tomcatWsPresent = ClassUtils.isPresent(
-				"org.apache.tomcat.websocket.server.WsHttpUpgradeHandler", classLoader);
-		jettyWsPresent = ClassUtils.isPresent(
-				"org.eclipse.jetty.websocket.server.JettyWebSocketServerContainer", classLoader);
-		undertowWsPresent = ClassUtils.isPresent(
-				"io.undertow.websockets.jsr.ServerWebSocketContainer", classLoader);
-		glassfishWsPresent = ClassUtils.isPresent(
-				"org.glassfish.tyrus.servlet.TyrusHttpUpgradeHandler", classLoader);
-		weblogicWsPresent = ClassUtils.isPresent(
-				"weblogic.websocket.tyrus.TyrusServletWriter", classLoader);
-		websphereWsPresent = ClassUtils.isPresent(
-				"com.ibm.websphere.wsoc.WsWsocServerContainer", classLoader);
-	}
-
 
 	protected final Log logger = LogFactory.getLog(getClass());
 
@@ -116,12 +77,10 @@ public abstract class AbstractHandshakeHandler implements HandshakeHandler, Life
 
 
 	/**
-	 * Default constructor that auto-detects and instantiates a
-	 * {@link RequestUpgradeStrategy} suitable for the runtime container.
-	 * @throws IllegalStateException if no {@link RequestUpgradeStrategy} can be found.
+	 * Default constructor that uses {@link StandardWebSocketUpgradeStrategy}.
 	 */
 	protected AbstractHandshakeHandler() {
-		this(initRequestUpgradeStrategy());
+		this(new StandardWebSocketUpgradeStrategy());
 	}
 
 	/**
@@ -155,7 +114,7 @@ public abstract class AbstractHandshakeHandler implements HandshakeHandler, Life
 	public void setSupportedProtocols(String... protocols) {
 		this.supportedProtocols.clear();
 		for (String protocol : protocols) {
-			this.supportedProtocols.add(protocol.toLowerCase());
+			this.supportedProtocols.add(protocol.toLowerCase(Locale.ROOT));
 		}
 	}
 
@@ -326,14 +285,13 @@ public abstract class AbstractHandshakeHandler implements HandshakeHandler, Life
 	 * @return the selected protocols or {@code null}
 	 * @see #determineHandlerSupportedProtocols(WebSocketHandler)
 	 */
-	@Nullable
-	protected String selectProtocol(List<String> requestedProtocols, WebSocketHandler webSocketHandler) {
+	protected @Nullable String selectProtocol(List<String> requestedProtocols, WebSocketHandler webSocketHandler) {
 		List<String> handlerProtocols = determineHandlerSupportedProtocols(webSocketHandler);
 		for (String protocol : requestedProtocols) {
-			if (handlerProtocols.contains(protocol.toLowerCase())) {
+			if (handlerProtocols.contains(protocol.toLowerCase(Locale.ROOT))) {
 				return protocol;
 			}
-			if (this.supportedProtocols.contains(protocol.toLowerCase())) {
+			if (this.supportedProtocols.contains(protocol.toLowerCase(Locale.ROOT))) {
 				return protocol;
 			}
 		}
@@ -387,52 +345,10 @@ public abstract class AbstractHandshakeHandler implements HandshakeHandler, Life
 	 * @param attributes handshake attributes to pass to the WebSocket session
 	 * @return the user for the WebSocket session, or {@code null} if not available
 	 */
-	@Nullable
-	protected Principal determineUser(
+	protected @Nullable Principal determineUser(
 			ServerHttpRequest request, WebSocketHandler wsHandler, Map<String, Object> attributes) {
 
 		return request.getPrincipal();
-	}
-
-
-	private static RequestUpgradeStrategy initRequestUpgradeStrategy() {
-		if (tomcatWsPresent) {
-			return new TomcatRequestUpgradeStrategy();
-		}
-		else if (jettyWsPresent) {
-			return new JettyRequestUpgradeStrategy();
-		}
-		else if (undertowWsPresent) {
-			return new UndertowRequestUpgradeStrategy();
-		}
-		else if (glassfishWsPresent) {
-			return TyrusStrategyDelegate.forGlassFish();
-		}
-		else if (weblogicWsPresent) {
-			return TyrusStrategyDelegate.forWebLogic();
-		}
-		else if (websphereWsPresent) {
-			return new WebSphereRequestUpgradeStrategy();
-		}
-		else {
-			// Let's assume Jakarta WebSocket API 2.1+
-			return new StandardWebSocketUpgradeStrategy();
-		}
-	}
-
-
-	/**
-	 * Inner class to avoid a reachable dependency on Tyrus API.
-	 */
-	private static class TyrusStrategyDelegate {
-
-		public static RequestUpgradeStrategy forGlassFish() {
-			return new GlassFishRequestUpgradeStrategy();
-		}
-
-		public static RequestUpgradeStrategy forWebLogic() {
-			return new WebLogicRequestUpgradeStrategy();
-		}
 	}
 
 }

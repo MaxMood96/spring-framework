@@ -9,7 +9,11 @@ The `spring-web` module provides some useful filters:
 * xref:web/webmvc/filters.adoc#filters-forwarded-headers[Forwarded Headers]
 * xref:web/webmvc/filters.adoc#filters-shallow-etag[Shallow ETag]
 * xref:web/webmvc/filters.adoc#filters-cors[CORS]
+* xref:web/webmvc/filters.adoc#filters.url-handler[URL Handler]
 
+Servlet filters can be configured in the `web.xml` configuration file or using Servlet annotations.
+If you are using Spring Boot, you can
+{spring-boot-docs}/how-to/webserver.html#howto.webserver.add-servlet-filter-listener.spring-bean[declare them as beans and configure them as part of your application].
 
 
 [[filters-http-put]]
@@ -30,14 +34,12 @@ available through the `ServletRequest.getParameter{asterisk}()` family of method
 == Forwarded Headers
 [.small]#xref:web/webflux/reactive-spring.adoc#webflux-forwarded-headers[See equivalent in the Reactive stack]#
 
-As a request goes through proxies (such as load balancers) the host, port, and
-scheme may change, and that makes it a challenge to create links that point to the correct
-host, port, and scheme from a client perspective.
+include::partial$web/forwarded-headers.adoc[]
 
-https://tools.ietf.org/html/rfc7239[RFC 7239] defines the `Forwarded` HTTP header
-that proxies can use to provide information about the original request. There are other
-non-standard headers, too, including `X-Forwarded-Host`, `X-Forwarded-Port`,
-`X-Forwarded-Proto`, `X-Forwarded-Ssl`, and `X-Forwarded-Prefix`.
+
+
+[[filters-forwarded-headers-non-forwardedheaderfilter]]
+=== ForwardedHeaderFilter
 
 `ForwardedHeaderFilter` is a Servlet filter that modifies the request in order to
 a) change the host, port, and scheme based on `Forwarded` headers, and b) to remove those
@@ -45,11 +47,21 @@ headers to eliminate further impact. The filter relies on wrapping the request, 
 therefore it must be ordered ahead of other filters, such as `RequestContextFilter`, that
 should work with the modified and not the original request.
 
+
+
+[[filters-forwarded-headers-security]]
+=== Security Considerations
+
 There are security considerations for forwarded headers since an application cannot know
 if the headers were added by a proxy, as intended, or by a malicious client. This is why
 a proxy at the boundary of trust should be configured to remove untrusted `Forwarded`
 headers that come from the outside. You can also configure the `ForwardedHeaderFilter`
 with `removeOnly=true`, in which case it removes but does not use the headers.
+
+
+
+[[filters-forwarded-headers-dispatcher]]
+=== Dispatcher Types
 
 In order to support xref:web/webmvc/mvc-ann-async.adoc[asynchronous requests] and error dispatches this
 filter should be mapped with `DispatcherType.ASYNC` and also `DispatcherType.ERROR`.
@@ -69,13 +81,15 @@ written to the response and computing an MD5 hash from it. The next time a clien
 it does the same, but it also compares the computed value against the `If-None-Match`
 request header and, if the two are equal, returns a 304 (NOT_MODIFIED).
 
-This strategy saves network bandwidth but not CPU, as the full response must be computed
-for each request. Other strategies at the controller level, described earlier, can avoid
-the computation. See xref:web/webmvc/mvc-caching.adoc[HTTP Caching].
+This strategy saves network bandwidth but not CPU, as the full response must be computed for each request.
+State-changing HTTP methods and other HTTP conditional request headers such as `If-Match` and
+`If-Unmodified-Since` are outside the scope of this filter. Other strategies at the controller level
+can avoid the computation and have a broader support for HTTP conditional requests.
+See xref:web/webmvc/mvc-caching.adoc[HTTP Caching].
 
 This filter has a `writeWeakETag` parameter that configures the filter to write weak ETags
 similar to the following: `W/"02a2d595e6ed9a0b24f027f2b63b134d6"` (as defined in
-https://tools.ietf.org/html/rfc7232#section-2.3[RFC 7232 Section 2.3]).
+{rfc-site}/rfc7232#section-2.3[RFC 7232 Section 2.3]).
 
 In order to support xref:web/webmvc/mvc-ann-async.adoc[asynchronous requests] this filter must be mapped
 with `DispatcherType.ASYNC` so that the filter can delay and successfully generate an
@@ -99,4 +113,22 @@ See the sections on xref:web/webmvc-cors.adoc[CORS] and the xref:web/webmvc-cors
 
 
 
+[[filters.url-handler]]
+== URL Handler
+[.small]#xref:web/webflux/reactive-spring.adoc#filters.url-handler[See equivalent in the Reactive stack]#
+
+In previous Spring Framework versions, Spring MVC could be configured to ignore trailing slashes in URL paths
+when mapping incoming requests on controller methods. This means that sending a "GET /home/" request would be
+handled by a controller method annotated with `@GetMapping("/home")`.
+
+This option was deprecated in 6.0 and removed in 7.0, but applications are still expected to handle such
+requests in a safe way. The `UrlHandlerFilter` Servlet filter has been designed for this purpose.
+It can be configured to:
+
+* respond with an HTTP redirect status when receiving URLs with trailing slashes, sending browsers to the non-trailing slash URL variant.
+* wrap the request to act as if the request was sent without a trailing slash and continue the processing of the request.
+
+Here is how you can instantiate and configure a `UrlHandlerFilter` for a blog application:
+
+include-code::./UrlHandlerFilterConfiguration[tag=config,indent=0]
 

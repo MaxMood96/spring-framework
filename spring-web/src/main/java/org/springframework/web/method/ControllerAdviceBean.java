@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aop.scope.ScopedProxyUtils;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryUtils;
@@ -33,9 +35,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.OrderComparator;
 import org.springframework.core.Ordered;
-import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.core.annotation.OrderUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -43,10 +43,11 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 /**
  * Encapsulates information about an {@link ControllerAdvice @ControllerAdvice}
  * Spring-managed bean without necessarily requiring it to be instantiated.
+ * The {@link #findAnnotatedBeans(ApplicationContext)} method can be used to
+ * discover such beans.
  *
- * <p>The {@link #findAnnotatedBeans(ApplicationContext)} method can be used to
- * discover such beans. However, a {@code ControllerAdviceBean} may be created
- * from any object, including ones without an {@code @ControllerAdvice} annotation.
+ * <p>This class is internal to Spring Framework and is not meant to be used
+ * by applications to manually create {@code @ControllerAdvice} beans.
  *
  * @author Rossen Stoyanchev
  * @author Brian Clozel
@@ -56,11 +57,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
  */
 public class ControllerAdviceBean implements Ordered {
 
-	/**
-	 * Reference to the actual bean instance or a {@code String} representing
-	 * the bean name.
-	 */
-	private final Object beanOrName;
+	private final String beanName;
 
 	private final boolean isSingleton;
 
@@ -68,45 +65,16 @@ public class ControllerAdviceBean implements Ordered {
 	 * Reference to the resolved bean instance, potentially lazily retrieved
 	 * via the {@code BeanFactory}.
 	 */
-	@Nullable
-	private Object resolvedBean;
+	private @Nullable Object resolvedBean;
 
-	@Nullable
-	private final Class<?> beanType;
+	private final @Nullable Class<?> beanType;
 
 	private final HandlerTypePredicate beanTypePredicate;
 
-	@Nullable
 	private final BeanFactory beanFactory;
 
-	@Nullable
-	private Integer order;
+	private @Nullable Integer order;
 
-
-	/**
-	 * Create a {@code ControllerAdviceBean} using the given bean instance.
-	 * @param bean the bean instance
-	 */
-	public ControllerAdviceBean(Object bean) {
-		Assert.notNull(bean, "Bean must not be null");
-		this.beanOrName = bean;
-		this.isSingleton = true;
-		this.resolvedBean = bean;
-		this.beanType = ClassUtils.getUserClass(bean.getClass());
-		this.beanTypePredicate = createBeanTypePredicate(this.beanType);
-		this.beanFactory = null;
-	}
-
-	/**
-	 * Create a {@code ControllerAdviceBean} using the given bean name and
-	 * {@code BeanFactory}.
-	 * @param beanName the name of the bean
-	 * @param beanFactory a {@code BeanFactory} to retrieve the bean type initially
-	 * and later to resolve the actual bean
-	 */
-	public ControllerAdviceBean(String beanName, BeanFactory beanFactory) {
-		this(beanName, beanFactory, null);
-	}
 
 	/**
 	 * Create a {@code ControllerAdviceBean} using the given bean name,
@@ -115,21 +83,20 @@ public class ControllerAdviceBean implements Ordered {
 	 * @param beanName the name of the bean
 	 * @param beanFactory a {@code BeanFactory} to retrieve the bean type initially
 	 * and later to resolve the actual bean
-	 * @param controllerAdvice the {@code @ControllerAdvice} annotation for the
-	 * bean, or {@code null} if not yet retrieved
+	 * @param controllerAdvice the {@code @ControllerAdvice} annotation for the bean
 	 * @since 5.2
 	 */
-	public ControllerAdviceBean(String beanName, BeanFactory beanFactory, @Nullable ControllerAdvice controllerAdvice) {
+	public ControllerAdviceBean(String beanName, BeanFactory beanFactory, ControllerAdvice controllerAdvice) {
 		Assert.hasText(beanName, "Bean name must contain text");
 		Assert.notNull(beanFactory, "BeanFactory must not be null");
 		Assert.isTrue(beanFactory.containsBean(beanName), () -> "BeanFactory [" + beanFactory +
 				"] does not contain specified controller advice bean '" + beanName + "'");
+		Assert.notNull(controllerAdvice, "ControllerAdvice must not be null");
 
-		this.beanOrName = beanName;
+		this.beanName = beanName;
 		this.isSingleton = beanFactory.isSingleton(beanName);
 		this.beanType = getBeanType(beanName, beanFactory);
-		this.beanTypePredicate = (controllerAdvice != null ? createBeanTypePredicate(controllerAdvice) :
-				createBeanTypePredicate(this.beanType));
+		this.beanTypePredicate = createBeanTypePredicate(controllerAdvice);
 		this.beanFactory = beanFactory;
 	}
 
@@ -158,21 +125,14 @@ public class ControllerAdviceBean implements Ordered {
 	@Override
 	public int getOrder() {
 		if (this.order == null) {
-			String beanName = null;
 			Object resolvedBean = null;
-			if (this.beanFactory != null && this.beanOrName instanceof String stringBeanName) {
-				beanName = stringBeanName;
-				String targetBeanName = ScopedProxyUtils.getTargetBeanName(beanName);
-				boolean isScopedProxy = this.beanFactory.containsBean(targetBeanName);
-				// Avoid eager @ControllerAdvice bean resolution for scoped proxies,
-				// since attempting to do so during context initialization would result
-				// in an exception due to the current absence of the scope. For example,
-				// an HTTP request or session scope is not active during initialization.
-				if (!isScopedProxy && !ScopedProxyUtils.isScopedTarget(beanName)) {
-					resolvedBean = resolveBean();
-				}
-			}
-			else {
+			String targetBeanName = ScopedProxyUtils.getTargetBeanName(this.beanName);
+			boolean isScopedProxy = this.beanFactory.containsBean(targetBeanName);
+			// Avoid eager @ControllerAdvice bean resolution for scoped proxies,
+			// since attempting to do so during context initialization would result
+			// in an exception due to the current absence of the scope. For example,
+			// an HTTP request or session scope is not active during initialization.
+			if (!isScopedProxy && !ScopedProxyUtils.isScopedTarget(this.beanName)) {
 				resolvedBean = resolveBean();
 			}
 
@@ -180,9 +140,9 @@ public class ControllerAdviceBean implements Ordered {
 				this.order = ordered.getOrder();
 			}
 			else {
-				if (beanName != null && this.beanFactory instanceof ConfigurableBeanFactory cbf) {
+				if (this.beanFactory instanceof ConfigurableBeanFactory cbf) {
 					try {
-						BeanDefinition bd = cbf.getMergedBeanDefinition(beanName);
+						BeanDefinition bd = cbf.getMergedBeanDefinition(this.beanName);
 						if (bd instanceof RootBeanDefinition rbd) {
 							Method factoryMethod = rbd.getResolvedFactoryMethod();
 							if (factoryMethod != null) {
@@ -212,35 +172,26 @@ public class ControllerAdviceBean implements Ordered {
 	 * <p>If the bean type is a CGLIB-generated class, the original user-defined
 	 * class is returned.
 	 */
-	@Nullable
-	public Class<?> getBeanType() {
+	public @Nullable Class<?> getBeanType() {
 		return this.beanType;
 	}
 
 	/**
 	 * Get the bean instance for this {@code ControllerAdviceBean}, if necessary
 	 * resolving the bean name through the {@link BeanFactory}.
-	 * <p>As of Spring Framework 5.2, once the bean instance has been resolved it
-	 * will be cached if it is a singleton, thereby avoiding repeated lookups in
-	 * the {@code BeanFactory}.
+	 * <p>Once the bean instance has been resolved it will be cached if it is a
+	 * singleton, thereby avoiding repeated lookups in the {@code BeanFactory}.
 	 */
 	public Object resolveBean() {
 		if (this.resolvedBean == null) {
-			// this.beanOrName must be a String representing the bean name if
-			// this.resolvedBean is null.
-			Object resolvedBean = obtainBeanFactory().getBean((String) this.beanOrName);
-			// Don't cache non-singletons (e.g., prototypes).
+			Object resolvedBean = this.beanFactory.getBean(this.beanName);
+			// Don't cache non-singletons (for example, prototypes).
 			if (!this.isSingleton) {
 				return resolvedBean;
 			}
 			this.resolvedBean = resolvedBean;
 		}
 		return this.resolvedBean;
-	}
-
-	private BeanFactory obtainBeanFactory() {
-		Assert.state(this.beanFactory != null, "No BeanFactory set");
-		return this.beanFactory;
 	}
 
 	/**
@@ -257,23 +208,18 @@ public class ControllerAdviceBean implements Ordered {
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof ControllerAdviceBean otherAdvice)) {
-			return false;
-		}
-		return (this.beanOrName.equals(otherAdvice.beanOrName) && this.beanFactory == otherAdvice.beanFactory);
+		return (this == other || (other instanceof ControllerAdviceBean that &&
+				this.beanName.equals(that.beanName) && this.beanFactory == that.beanFactory));
 	}
 
 	@Override
 	public int hashCode() {
-		return this.beanOrName.hashCode();
+		return this.beanName.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return this.beanOrName.toString();
+		return this.beanName;
 	}
 
 
@@ -281,8 +227,8 @@ public class ControllerAdviceBean implements Ordered {
 	 * Find beans annotated with {@link ControllerAdvice @ControllerAdvice} in the
 	 * given {@link ApplicationContext} and wrap them as {@code ControllerAdviceBean}
 	 * instances.
-	 * <p>As of Spring Framework 5.2, the {@code ControllerAdviceBean} instances
-	 * in the returned list are sorted using {@link OrderComparator#sort(List)}.
+	 * <p>Note that the {@code ControllerAdviceBean} instances in the returned list
+	 * are sorted using {@link OrderComparator#sort(List)}.
 	 * @see #getOrder()
 	 * @see OrderComparator
 	 * @see Ordered
@@ -308,28 +254,18 @@ public class ControllerAdviceBean implements Ordered {
 		return adviceBeans;
 	}
 
-	@Nullable
-	private static Class<?> getBeanType(String beanName, BeanFactory beanFactory) {
+	private static @Nullable Class<?> getBeanType(String beanName, BeanFactory beanFactory) {
 		Class<?> beanType = beanFactory.getType(beanName);
 		return (beanType != null ? ClassUtils.getUserClass(beanType) : null);
 	}
 
-	private static HandlerTypePredicate createBeanTypePredicate(@Nullable Class<?> beanType) {
-		ControllerAdvice controllerAdvice = (beanType != null ?
-				AnnotatedElementUtils.findMergedAnnotation(beanType, ControllerAdvice.class) : null);
-		return createBeanTypePredicate(controllerAdvice);
-	}
-
-	private static HandlerTypePredicate createBeanTypePredicate(@Nullable ControllerAdvice controllerAdvice) {
-		if (controllerAdvice != null) {
-			return HandlerTypePredicate.builder()
-					.basePackage(controllerAdvice.basePackages())
-					.basePackageClass(controllerAdvice.basePackageClasses())
-					.assignableType(controllerAdvice.assignableTypes())
-					.annotation(controllerAdvice.annotations())
-					.build();
-		}
-		return HandlerTypePredicate.forAnyHandlerType();
+	private static HandlerTypePredicate createBeanTypePredicate(ControllerAdvice controllerAdvice) {
+		return HandlerTypePredicate.builder()
+				.basePackage(controllerAdvice.basePackages())
+				.basePackageClass(controllerAdvice.basePackageClasses())
+				.assignableType(controllerAdvice.assignableTypes())
+				.annotation(controllerAdvice.annotations())
+				.build();
 	}
 
 }

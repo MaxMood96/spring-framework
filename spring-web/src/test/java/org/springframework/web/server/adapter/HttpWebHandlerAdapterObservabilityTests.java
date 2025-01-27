@@ -20,13 +20,13 @@ package org.springframework.web.server.adapter;
 import java.util.List;
 import java.util.Optional;
 
+import io.micrometer.observation.Observation;
 import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
 import io.micrometer.observation.tck.TestObservationRegistry;
 import io.micrometer.observation.tck.TestObservationRegistryAssert;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
-import reactor.util.context.ContextView;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.observation.ServerRequestObservationContext;
@@ -51,6 +51,7 @@ class HttpWebHandlerAdapterObservabilityTests {
 
 	private final MockServerHttpResponse response = new MockServerHttpResponse();
 
+
 	@Test
 	void handlerShouldSetObservationContextOnExchange() {
 		HttpStatusSuccessStubWebHandler targetHandler = new HttpStatusSuccessStubWebHandler(HttpStatus.OK);
@@ -65,7 +66,8 @@ class HttpWebHandlerAdapterObservabilityTests {
 	void handlerShouldSetCurrentObservationInReactorContext() {
 		ReactorContextWebHandler targetHandler = new ReactorContextWebHandler();
 		createWebHandler(targetHandler).handle(this.request, this.response).block();
-		assertThat(targetHandler.contextView.getOrEmpty(ObservationThreadLocalAccessor.KEY)).isPresent();
+		assertThat(targetHandler.currentObservation).isNotNull();
+		assertThat(targetHandler.observationStarted).isTrue();
 		assertThatHttpObservation().hasLowCardinalityKeyValue("outcome", "SUCCESS");
 	}
 
@@ -93,9 +95,9 @@ class HttpWebHandlerAdapterObservabilityTests {
 	}
 
 	private TestObservationRegistryAssert.TestObservationRegistryAssertReturningObservationContextAssert assertThatHttpObservation() {
-		return TestObservationRegistryAssert.assertThat(this.observationRegistry)
-				.hasObservationWithNameEqualTo("http.server.requests").that();
+		return assertThat(this.observationRegistry).hasObservationWithNameEqualTo("http.server.requests").that();
 	}
+
 
 	private static class HttpStatusSuccessStubWebHandler implements WebHandler {
 
@@ -103,31 +105,36 @@ class HttpWebHandlerAdapterObservabilityTests {
 
 		private Optional<ServerRequestObservationContext> observationContext;
 
-		public HttpStatusSuccessStubWebHandler(HttpStatus responseStatus) {
+		HttpStatusSuccessStubWebHandler(HttpStatus responseStatus) {
 			this.responseStatus = responseStatus;
 		}
 
 		@Override
 		public Mono<Void> handle(ServerWebExchange exchange) {
-			this.observationContext = ServerRequestObservationContext.findCurrent(exchange);
+			this.observationContext = ServerRequestObservationContext.findCurrent(exchange.getAttributes());
 			exchange.getResponse().setStatusCode(this.responseStatus);
 			return Mono.empty();
 		}
 	}
 
+
 	private static class ReactorContextWebHandler implements WebHandler {
 
-		ContextView contextView;
+		Observation currentObservation;
+
+		boolean observationStarted;
 
 		@Override
 		public Mono<Void> handle(ServerWebExchange exchange) {
 			exchange.getResponse().setStatusCode(HttpStatus.OK);
 			return Mono.deferContextual(contextView -> {
-				this.contextView = contextView;
+				this.currentObservation = contextView.get(ObservationThreadLocalAccessor.KEY);
+				this.observationStarted = this.currentObservation.getContext().getLowCardinalityKeyValue("outcome") != null;
 				return Mono.empty();
 			});
 		}
 	}
+
 
 	private static class ThrowingExceptionWebHandler implements WebHandler {
 
@@ -141,10 +148,11 @@ class HttpWebHandlerAdapterObservabilityTests {
 
 		@Override
 		public Mono<Void> handle(ServerWebExchange exchange) {
-			this.observationContext = ServerRequestObservationContext.findCurrent(exchange);
+			this.observationContext = ServerRequestObservationContext.findCurrent(exchange.getAttributes());
 			return Mono.error(this.exception);
 		}
 	}
+
 
 	private static class BadRequestExceptionHandler implements WebExceptionHandler {
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.ConfigurableObjectInputStream;
-import org.springframework.lang.Nullable;
 
 /**
  * A default {@link Deserializer} implementation that reads an input stream
@@ -35,8 +36,7 @@ import org.springframework.lang.Nullable;
  */
 public class DefaultDeserializer implements Deserializer<Object> {
 
-	@Nullable
-	private final ClassLoader classLoader;
+	private final @Nullable ClassLoader classLoader;
 
 
 	/**
@@ -50,6 +50,7 @@ public class DefaultDeserializer implements Deserializer<Object> {
 	/**
 	 * Create a {@code DefaultDeserializer} for using an {@link ObjectInputStream}
 	 * with the given {@code ClassLoader}.
+	 * @param classLoader the ClassLoader to use
 	 * @since 4.2.1
 	 * @see ConfigurableObjectInputStream#ConfigurableObjectInputStream(InputStream, ClassLoader)
 	 */
@@ -64,7 +65,6 @@ public class DefaultDeserializer implements Deserializer<Object> {
 	 * @see ObjectInputStream#readObject()
 	 */
 	@Override
-	@SuppressWarnings("resource")
 	public Object deserialize(InputStream inputStream) throws IOException {
 		ObjectInputStream objectInputStream = new ConfigurableObjectInputStream(inputStream, this.classLoader);
 		try {

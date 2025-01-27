@@ -16,6 +16,8 @@
 
 package org.springframework.expression.spel.ast;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.asm.Label;
 import org.springframework.asm.MethodVisitor;
 import org.springframework.expression.EvaluationException;
@@ -25,7 +27,7 @@ import org.springframework.expression.spel.ExpressionState;
 import org.springframework.expression.spel.SpelEvaluationException;
 import org.springframework.expression.spel.SpelMessage;
 import org.springframework.expression.spel.support.BooleanTypedValue;
-import org.springframework.lang.Nullable;
+import org.springframework.lang.Contract;
 
 /**
  * Represents the boolean AND operation.
@@ -64,6 +66,7 @@ public class OpAnd extends Operator {
 		}
 	}
 
+	@Contract("null -> fail")
 	private void assertValueNotNull(@Nullable Boolean value) {
 		if (value == null) {
 			throw new SpelEvaluationException(SpelMessage.TYPE_CONVERSION_ERROR, "null", "boolean");

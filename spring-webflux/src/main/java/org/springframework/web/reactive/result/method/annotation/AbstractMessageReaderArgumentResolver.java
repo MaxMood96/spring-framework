@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -34,6 +35,7 @@ import org.springframework.core.ResolvableType;
 import org.springframework.core.codec.DecodingException;
 import org.springframework.core.codec.Hints;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferLimitException;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -43,7 +45,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.codec.HttpMessageReader;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.validation.Validator;
 import org.springframework.validation.annotation.ValidationAnnotationUtils;
@@ -51,6 +52,7 @@ import org.springframework.web.bind.support.WebExchangeBindException;
 import org.springframework.web.bind.support.WebExchangeDataBinder;
 import org.springframework.web.reactive.BindingContext;
 import org.springframework.web.reactive.result.method.HandlerMethodArgumentResolverSupport;
+import org.springframework.web.server.PayloadTooLargeException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.ServerWebInputException;
@@ -128,7 +130,7 @@ public abstract class AbstractMessageReaderArgumentResolver extends HandlerMetho
 	 * Read the body from a method argument with {@link HttpMessageReader}.
 	 * @param bodyParam represents the element type for the body
 	 * @param actualParam the actual method argument type; possibly different
-	 * from {@code bodyParam}, e.g. for an {@code HttpEntity} argument
+	 * from {@code bodyParam}, for example, for an {@code HttpEntity} argument
 	 * @param isBodyRequired true if the body is required
 	 * @param bindingContext the binding context to use
 	 * @param exchange the current exchange
@@ -183,7 +185,7 @@ public abstract class AbstractMessageReaderArgumentResolver extends HandlerMetho
 						logger.debug(exchange.getLogPrefix() + "0..N [" + elementType + "]");
 					}
 					Flux<?> flux = reader.read(actualType, elementType, request, response, readHints);
-					flux = flux.onErrorResume(ex -> Flux.error(handleReadError(bodyParam, ex)));
+					flux = flux.onErrorMap(ex -> handleReadError(bodyParam, ex));
 					if (isBodyRequired) {
 						flux = flux.switchIfEmpty(Flux.error(() -> handleMissingBody(bodyParam)));
 					}
@@ -199,7 +201,7 @@ public abstract class AbstractMessageReaderArgumentResolver extends HandlerMetho
 						logger.debug(exchange.getLogPrefix() + "0..1 [" + elementType + "]");
 					}
 					Mono<?> mono = reader.readMono(actualType, elementType, request, response, readHints);
-					mono = mono.onErrorResume(ex -> Mono.error(handleReadError(bodyParam, ex)));
+					mono = mono.onErrorMap(ex -> handleReadError(bodyParam, ex));
 					if (isBodyRequired) {
 						mono = mono.switchIfEmpty(Mono.error(() -> handleMissingBody(bodyParam)));
 					}
@@ -218,7 +220,7 @@ public abstract class AbstractMessageReaderArgumentResolver extends HandlerMetho
 		if (contentType == null && SUPPORTED_METHODS.contains(method)) {
 			Flux<DataBuffer> body = request.getBody().doOnNext(buffer -> {
 				DataBufferUtils.release(buffer);
-				// Body not empty, back toy 415..
+				// Body not empty, back to HTTP 415
 				throw new UnsupportedMediaTypeStatusException(
 						mediaType, getSupportedMediaTypes(elementType), elementType);
 			});
@@ -233,8 +235,13 @@ public abstract class AbstractMessageReaderArgumentResolver extends HandlerMetho
 	}
 
 	private Throwable handleReadError(MethodParameter parameter, Throwable ex) {
-		return (ex instanceof DecodingException ?
-				new ServerWebInputException("Failed to read HTTP message", parameter, ex) : ex);
+		if (ex instanceof DataBufferLimitException) {
+			return new PayloadTooLargeException(ex);
+		}
+		if (ex instanceof DecodingException) {
+			return new ServerWebInputException("Failed to read HTTP message", parameter, ex);
+		}
+		return ex;
 	}
 
 	private ServerWebInputException handleMissingBody(MethodParameter parameter) {
@@ -253,8 +260,7 @@ public abstract class AbstractMessageReaderArgumentResolver extends HandlerMetho
 	 * a (possibly empty) Object[] with validation hints. A return value of
 	 * {@code null} indicates that validation is not required.
 	 */
-	@Nullable
-	private Object[] extractValidationHints(MethodParameter parameter) {
+	private Object @Nullable [] extractValidationHints(MethodParameter parameter) {
 		Annotation[] annotations = parameter.getParameterAnnotations();
 		for (Annotation ann : annotations) {
 			Object[] hints = ValidationAnnotationUtils.determineValidationHints(ann);
@@ -265,11 +271,12 @@ public abstract class AbstractMessageReaderArgumentResolver extends HandlerMetho
 		return null;
 	}
 
-	private void validate(Object target, Object[] validationHints, MethodParameter param,
+	private void validate(Object target, Object[] validationHints, MethodParameter parameter,
 			BindingContext binding, ServerWebExchange exchange) {
 
-		String name = Conventions.getVariableNameForParameter(param);
-		WebExchangeDataBinder binder = binding.createDataBinder(exchange, target, name);
+		String name = Conventions.getVariableNameForParameter(parameter);
+		ResolvableType type = ResolvableType.forMethodParameter(parameter);
+		WebExchangeDataBinder binder = binding.createDataBinder(exchange, target, name, type);
 		try {
 			LocaleContextHolder.setLocaleContext(exchange.getLocaleContext());
 			binder.validate(validationHints);
@@ -278,7 +285,7 @@ public abstract class AbstractMessageReaderArgumentResolver extends HandlerMetho
 			LocaleContextHolder.resetLocaleContext();
 		}
 		if (binder.getBindingResult().hasErrors()) {
-			throw new WebExchangeBindException(param, binder.getBindingResult());
+			throw new WebExchangeBindException(parameter, binder.getBindingResult());
 		}
 	}
 

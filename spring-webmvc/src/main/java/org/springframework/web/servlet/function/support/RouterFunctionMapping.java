@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationContext;
@@ -29,7 +30,6 @@ import org.springframework.http.converter.ByteArrayHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.support.AllEncompassingFormHttpMessageConverter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.filter.ServerHttpObservationFilter;
 import org.springframework.web.servlet.function.HandlerFunction;
@@ -37,6 +37,8 @@ import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.RouterFunctions;
 import org.springframework.web.servlet.function.ServerRequest;
 import org.springframework.web.servlet.handler.AbstractHandlerMapping;
+import org.springframework.web.servlet.handler.MatchableHandlerMapping;
+import org.springframework.web.servlet.handler.RequestMatchResult;
 import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPatternParser;
 
@@ -53,10 +55,10 @@ import org.springframework.web.util.pattern.PathPatternParser;
  * @author Brian Clozel
  * @since 5.2
  */
-public class RouterFunctionMapping extends AbstractHandlerMapping implements InitializingBean {
+@SuppressWarnings("removal")
+public class RouterFunctionMapping extends AbstractHandlerMapping implements InitializingBean, MatchableHandlerMapping {
 
-	@Nullable
-	private RouterFunction<?> routerFunction;
+	private @Nullable RouterFunction<?> routerFunction;
 
 	private List<HttpMessageConverter<?>> messageConverters = Collections.emptyList();
 
@@ -96,8 +98,7 @@ public class RouterFunctionMapping extends AbstractHandlerMapping implements Ini
 	 * prior to {@link #afterPropertiesSet()}.
 	 * @return the router function or {@code null}
 	 */
-	@Nullable
-	public RouterFunction<?> getRouterFunction() {
+	public @Nullable RouterFunction<?> getRouterFunction() {
 		return this.routerFunction;
 	}
 
@@ -123,7 +124,7 @@ public class RouterFunctionMapping extends AbstractHandlerMapping implements Ini
 
 
 	@Override
-	public void afterPropertiesSet() throws Exception {
+	public void afterPropertiesSet() {
 		if (this.routerFunction == null) {
 			initRouterFunctions();
 		}
@@ -195,8 +196,7 @@ public class RouterFunctionMapping extends AbstractHandlerMapping implements Ini
 
 
 	@Override
-	@Nullable
-	protected Object getHandlerInternal(HttpServletRequest servletRequest) throws Exception {
+	protected @Nullable Object getHandlerInternal(HttpServletRequest servletRequest) throws Exception {
 		if (this.routerFunction != null) {
 			ServerRequest request = ServerRequest.create(servletRequest, this.messageConverters);
 			HandlerFunction<?> handlerFunction = this.routerFunction.route(request).orElse(null);
@@ -223,4 +223,10 @@ public class RouterFunctionMapping extends AbstractHandlerMapping implements Ini
 		servletRequest.setAttribute(RouterFunctions.REQUEST_ATTRIBUTE, request);
 	}
 
+	@SuppressWarnings("removal")
+	@Deprecated(since = "7.0", forRemoval = true)
+	@Override
+	public @Nullable RequestMatchResult match(HttpServletRequest request, String pattern) {
+		throw new UnsupportedOperationException("This HandlerMapping uses PathPatterns");
+	}
 }

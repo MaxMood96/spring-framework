@@ -21,10 +21,10 @@ import java.util.Collection;
 import java.util.Map;
 
 import jakarta.servlet.jsp.JspException;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.PropertyAccessorFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.servlet.support.BindStatus;
@@ -43,7 +43,7 @@ import org.springframework.web.servlet.support.BindStatus;
  * the {@code labelProperty}). These properties are then used when
  * rendering each element of the array/{@link Collection} as an '{@code option}'.
  * If either property name is omitted, the value of {@link Object#toString()} of
- * the corresponding array/{@link Collection} element is used instead.  However,
+ * the corresponding array/{@link Collection} element is used instead. However,
  * if the item is an enum, {@link Enum#name()} is used as the default value.
  * </p>
  * <h3>Using a {@link Map}:</h3>
@@ -94,11 +94,9 @@ class OptionWriter {
 
 	private final BindStatus bindStatus;
 
-	@Nullable
-	private final String valueProperty;
+	private final @Nullable String valueProperty;
 
-	@Nullable
-	private final String labelProperty;
+	private final @Nullable String labelProperty;
 
 	private final boolean htmlEscape;
 

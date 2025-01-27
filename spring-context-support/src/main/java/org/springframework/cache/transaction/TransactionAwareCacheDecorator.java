@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,12 @@
 package org.springframework.cache.transaction;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.cache.Cache;
-import org.springframework.lang.Nullable;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.Assert;
@@ -75,24 +78,32 @@ public class TransactionAwareCacheDecorator implements Cache {
 	}
 
 	@Override
-	@Nullable
-	public ValueWrapper get(Object key) {
+	public @Nullable ValueWrapper get(Object key) {
 		return this.targetCache.get(key);
 	}
 
 	@Override
-	public <T> T get(Object key, @Nullable Class<T> type) {
+	public <T> @Nullable T get(Object key, @Nullable Class<T> type) {
 		return this.targetCache.get(key, type);
 	}
 
 	@Override
-	@Nullable
-	public <T> T get(Object key, Callable<T> valueLoader) {
+	public <T> @Nullable T get(Object key, Callable<T> valueLoader) {
 		return this.targetCache.get(key, valueLoader);
 	}
 
 	@Override
-	public void put(final Object key, @Nullable final Object value) {
+	public @Nullable CompletableFuture<?> retrieve(Object key) {
+		return this.targetCache.retrieve(key);
+	}
+
+	@Override
+	public <T> CompletableFuture<T> retrieve(Object key, Supplier<CompletableFuture<T>> valueLoader) {
+		return this.targetCache.retrieve(key, valueLoader);
+	}
+
+	@Override
+	public void put(final Object key, final @Nullable Object value) {
 		if (TransactionSynchronizationManager.isSynchronizationActive()) {
 			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
 				@Override
@@ -107,8 +118,7 @@ public class TransactionAwareCacheDecorator implements Cache {
 	}
 
 	@Override
-	@Nullable
-	public ValueWrapper putIfAbsent(Object key, @Nullable Object value) {
+	public @Nullable ValueWrapper putIfAbsent(Object key, @Nullable Object value) {
 		return this.targetCache.putIfAbsent(key, value);
 	}
 

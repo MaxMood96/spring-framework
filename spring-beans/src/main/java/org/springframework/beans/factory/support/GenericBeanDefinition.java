@@ -16,8 +16,9 @@
 
 package org.springframework.beans.factory.support;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 
 /**
@@ -27,7 +28,7 @@ import org.springframework.util.ObjectUtils;
  * parent bean definition can be flexibly configured through the "parentName" property.
  *
  * <p>In general, use this {@code GenericBeanDefinition} class for the purpose of
- * registering declarative bean definitions (e.g. XML definitions which a bean
+ * registering declarative bean definitions (for example, XML definitions which a bean
  * post-processor might operate on, potentially even reconfiguring the parent name).
  * Use {@code RootBeanDefinition}/{@code ChildBeanDefinition} where parent/child
  * relationships happen to be pre-determined, and prefer {@link RootBeanDefinition}
@@ -40,10 +41,10 @@ import org.springframework.util.ObjectUtils;
  * @see ChildBeanDefinition
  */
 @SuppressWarnings("serial")
-public class GenericBeanDefinition extends AbstractBeanDefinition {
+public class
+GenericBeanDefinition extends AbstractBeanDefinition {
 
-	@Nullable
-	private String parentName;
+	private @Nullable String parentName;
 
 
 	/**
@@ -74,8 +75,7 @@ public class GenericBeanDefinition extends AbstractBeanDefinition {
 	}
 
 	@Override
-	@Nullable
-	public String getParentName() {
+	public @Nullable String getParentName() {
 		return this.parentName;
 	}
 
@@ -87,13 +87,8 @@ public class GenericBeanDefinition extends AbstractBeanDefinition {
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof GenericBeanDefinition that)) {
-			return false;
-		}
-		return (ObjectUtils.nullSafeEquals(this.parentName, that.parentName) && super.equals(other));
+		return (this == other || (other instanceof GenericBeanDefinition that &&
+				ObjectUtils.nullSafeEquals(this.parentName, that.parentName) && super.equals(other)));
 	}
 
 	@Override

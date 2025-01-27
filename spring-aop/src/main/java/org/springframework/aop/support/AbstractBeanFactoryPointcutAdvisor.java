@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,10 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 
 import org.aopalliance.aop.Advice;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -43,16 +42,13 @@ import org.springframework.util.Assert;
 @SuppressWarnings("serial")
 public abstract class AbstractBeanFactoryPointcutAdvisor extends AbstractPointcutAdvisor implements BeanFactoryAware {
 
-	@Nullable
-	private String adviceBeanName;
+	private @Nullable String adviceBeanName;
 
-	@Nullable
-	private BeanFactory beanFactory;
+	private @Nullable BeanFactory beanFactory;
 
-	@Nullable
-	private transient volatile Advice advice;
+	private transient volatile @Nullable Advice advice;
 
-	private transient volatile Object adviceMonitor = new Object();
+	private transient Object adviceMonitor = new Object();
 
 
 	/**
@@ -70,24 +66,13 @@ public abstract class AbstractBeanFactoryPointcutAdvisor extends AbstractPointcu
 	/**
 	 * Return the name of the advice bean that this advisor refers to, if any.
 	 */
-	@Nullable
-	public String getAdviceBeanName() {
+	public @Nullable String getAdviceBeanName() {
 		return this.adviceBeanName;
 	}
 
 	@Override
 	public void setBeanFactory(BeanFactory beanFactory) {
 		this.beanFactory = beanFactory;
-		resetAdviceMonitor();
-	}
-
-	private void resetAdviceMonitor() {
-		if (this.beanFactory instanceof ConfigurableBeanFactory cbf) {
-			this.adviceMonitor = cbf.getSingletonMutex();
-		}
-		else {
-			this.adviceMonitor = new Object();
-		}
 	}
 
 	/**
@@ -118,9 +103,7 @@ public abstract class AbstractBeanFactoryPointcutAdvisor extends AbstractPointcu
 			return advice;
 		}
 		else {
-			// No singleton guarantees from the factory -> let's lock locally but
-			// reuse the factory's singleton lock, just in case a lazy dependency
-			// of our advice bean happens to trigger the singleton lock implicitly...
+			// No singleton guarantees from the factory -> let's lock locally.
 			synchronized (this.adviceMonitor) {
 				advice = this.advice;
 				if (advice == null) {
@@ -155,7 +138,7 @@ public abstract class AbstractBeanFactoryPointcutAdvisor extends AbstractPointcu
 		ois.defaultReadObject();
 
 		// Initialize transient fields.
-		resetAdviceMonitor();
+		this.adviceMonitor = new Object();
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,12 +43,12 @@ import static org.mockito.Mockito.mock;
  *
  * @author Stephane Nicoll
  */
-public class DelegatingWebMvcConfigurationIntegrationTests {
+class DelegatingWebMvcConfigurationIntegrationTests {
 
 	private ConfigurableApplicationContext context;
 
 	@AfterEach
-	public void closeContext() {
+	void closeContext() {
 		if (this.context != null) {
 			this.context.close();
 		}
@@ -70,6 +70,7 @@ public class DelegatingWebMvcConfigurationIntegrationTests {
 				"mvcContentNegotiationManager", "testContentNegotiationManager");
 	}
 
+	@SuppressWarnings("removal")
 	@Test
 	void viewControllerHandlerMappingUsesMvcInfrastructureByDefault() {
 		load(context -> context.registerBean(ViewControllerConfiguration.class));
@@ -78,6 +79,7 @@ public class DelegatingWebMvcConfigurationIntegrationTests {
 		assertThat(handlerMapping.getUrlPathHelper()).isSameAs(this.context.getBean("mvcUrlPathHelper"));
 	}
 
+	@SuppressWarnings("removal")
 	@Test
 	void viewControllerHandlerMappingWithPrimaryUsesQualifiedPathMatcher() {
 		load(registerPrimaryBean("testPathMatcher", PathMatcher.class)
@@ -88,6 +90,7 @@ public class DelegatingWebMvcConfigurationIntegrationTests {
 				"mvcPathMatcher", "testPathMatcher");
 	}
 
+	@SuppressWarnings("removal")
 	@Test
 	void viewControllerHandlerMappingWithPrimaryUsesQualifiedUrlPathHelper() {
 		load(registerPrimaryBean("testUrlPathHelper", UrlPathHelper.class)
@@ -98,6 +101,7 @@ public class DelegatingWebMvcConfigurationIntegrationTests {
 				"mvcUrlPathHelper", "testUrlPathHelper");
 	}
 
+	@SuppressWarnings("removal")
 	@Test
 	void resourceHandlerMappingUsesMvcInfrastructureByDefault() {
 		load(context -> context.registerBean(ResourceHandlerConfiguration.class));
@@ -106,6 +110,7 @@ public class DelegatingWebMvcConfigurationIntegrationTests {
 		assertThat(handlerMapping.getUrlPathHelper()).isSameAs(this.context.getBean("mvcUrlPathHelper"));
 	}
 
+	@SuppressWarnings("removal")
 	@Test
 	void resourceHandlerMappingWithPrimaryUsesQualifiedPathMatcher() {
 		load(registerPrimaryBean("testPathMatcher", PathMatcher.class)
@@ -116,6 +121,7 @@ public class DelegatingWebMvcConfigurationIntegrationTests {
 				"mvcPathMatcher", "testPathMatcher");
 	}
 
+	@SuppressWarnings("removal")
 	@Test
 	void resourceHandlerMappingWithPrimaryUsesQualifiedUrlPathHelper() {
 		load(registerPrimaryBean("testUrlPathHelper", UrlPathHelper.class)

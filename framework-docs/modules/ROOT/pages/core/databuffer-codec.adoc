@@ -29,7 +29,7 @@ a `DataBuffer` implementation and that does not involve allocation.
 
 Note that WebFlux applications do not create a `DataBufferFactory` directly but instead
 access it through the `ServerHttpResponse` or the `ClientHttpRequest` on the client side.
-The type of factory depends on the underlying client or server, e.g.
+The type of factory depends on the underlying client or server, for example,
 `NettyDataBufferFactory` for Reactor Netty, `DefaultDataBufferFactory` for others.
 
 
@@ -56,7 +56,7 @@ alternate between read and write.
 == `PooledDataBuffer`
 
 As explained in the Javadoc for
-https://docs.oracle.com/javase/8/docs/api/java/nio/ByteBuffer.html[ByteBuffer],
+{java-api}/java.base/java/nio/ByteBuffer.html[ByteBuffer],
 byte buffers can be direct or non-direct. Direct buffers may reside outside the Java heap
 which eliminates the need for copying for native I/O operations. That makes direct buffers
 particularly useful for receiving and sending data over a socket, but they're also more
@@ -82,7 +82,7 @@ to use the convenience methods in `DataBufferUtils` that apply release or retain
 
 `DataBufferUtils` offers a number of utility methods to operate on data buffers:
 
-* Join a stream of data buffers into a single buffer possibly with zero copy, e.g. via
+* Join a stream of data buffers into a single buffer possibly with zero copy, for example, via
 composite buffers, if that's supported by the underlying byte buffer API.
 * Turn `InputStream` or NIO `Channel` into `Flux<DataBuffer>`, and vice versa a
 `Publisher<DataBuffer>` into `OutputStream` or NIO `Channel`.
@@ -144,7 +144,7 @@ a serialization error occurs while populating the buffer with data. For example:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	DataBuffer buffer = factory.allocateBuffer();
 	boolean release = true;
@@ -162,7 +162,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	val buffer = factory.allocateBuffer()
 	var release = true

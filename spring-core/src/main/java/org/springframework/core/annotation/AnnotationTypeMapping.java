@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,9 +33,9 @@ import java.util.function.Predicate;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.annotation.AnnotationTypeMapping.MirrorSets.MirrorSet;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
@@ -45,6 +45,7 @@ import org.springframework.util.StringUtils;
  *
  * @author Phillip Webb
  * @author Sam Brannen
+ * @author Juergen Hoeller
  * @since 5.2
  * @see AnnotationTypeMappings
  */
@@ -58,7 +59,7 @@ final class AnnotationTypeMapping {
 	/**
 	 * Set used to track which convention-based annotation attribute overrides
 	 * have already been checked. Each key is the combination of the fully
-	 * qualified class names of a composed annotation and a meta-annotation
+	 * qualified class name of a composed annotation and a meta-annotation
 	 * that it is either present or meta-present on the composed annotation,
 	 * separated by a dash.
 	 * @since 6.0
@@ -68,9 +69,10 @@ final class AnnotationTypeMapping {
 
 	private static final MirrorSet[] EMPTY_MIRROR_SETS = new MirrorSet[0];
 
+	private static final int[] EMPTY_INT_ARRAY = new int[0];
 
-	@Nullable
-	private final AnnotationTypeMapping source;
+
+	private final @Nullable AnnotationTypeMapping source;
 
 	private final AnnotationTypeMapping root;
 
@@ -80,8 +82,7 @@ final class AnnotationTypeMapping {
 
 	private final List<Class<? extends Annotation>> metaTypes;
 
-	@Nullable
-	private final Annotation annotation;
+	private final @Nullable Annotation annotation;
 
 	private final AttributeMethods attributes;
 
@@ -102,8 +103,8 @@ final class AnnotationTypeMapping {
 	private final Set<Method> claimedAliases = new HashSet<>();
 
 
-	AnnotationTypeMapping(@Nullable AnnotationTypeMapping source,
-			Class<? extends Annotation> annotationType, @Nullable Annotation annotation) {
+	AnnotationTypeMapping(@Nullable AnnotationTypeMapping source, Class<? extends Annotation> annotationType,
+			@Nullable Annotation annotation, Set<Class<? extends Annotation>> visitedAnnotationTypes) {
 
 		this.source = source;
 		this.root = (source != null ? source.getRoot() : this);
@@ -123,7 +124,7 @@ final class AnnotationTypeMapping {
 		processAliases();
 		addConventionMappings();
 		addConventionAnnotationValues();
-		this.synthesizable = computeSynthesizableFlag();
+		this.synthesizable = computeSynthesizableFlag(visitedAnnotationTypes);
 	}
 
 
@@ -217,7 +218,7 @@ final class AnnotationTypeMapping {
 	}
 
 	private boolean isCompatibleReturnType(Class<?> attributeType, Class<?> targetType) {
-		return (attributeType == targetType || attributeType == targetType.getComponentType());
+		return (attributeType == targetType || attributeType == targetType.componentType());
 	}
 
 	private void processAliases() {
@@ -319,7 +320,7 @@ final class AnnotationTypeMapping {
 				logger.isWarnEnabled()) {
 			logger.warn("""
 					Support for convention-based annotation attribute overrides is deprecated \
-					and will be removed in Spring Framework 6.1. Please annotate the following \
+					and will be removed in Spring Framework 7.0. Please annotate the following \
 					attributes in @%s with appropriate @AliasFor declarations: %s"""
 						.formatted(rootAnnotationTypeName, conventionMappedAttributes));
 		}
@@ -373,7 +374,10 @@ final class AnnotationTypeMapping {
 	}
 
 	@SuppressWarnings("unchecked")
-	private boolean computeSynthesizableFlag() {
+	private boolean computeSynthesizableFlag(Set<Class<? extends Annotation>> visitedAnnotationTypes) {
+		// Track that we have visited the current annotation type.
+		visitedAnnotationTypes.add(this.annotationType);
+
 		// Uses @AliasFor for local aliases?
 		for (int index : this.aliasMappings) {
 			if (index != -1) {
@@ -399,12 +403,18 @@ final class AnnotationTypeMapping {
 			for (int i = 0; i < attributeMethods.size(); i++) {
 				Method method = attributeMethods.get(i);
 				Class<?> type = method.getReturnType();
-				if (type.isAnnotation() || (type.isArray() && type.getComponentType().isAnnotation())) {
+				if (type.isAnnotation() || (type.isArray() && type.componentType().isAnnotation())) {
 					Class<? extends Annotation> annotationType =
-							(Class<? extends Annotation>) (type.isAnnotation() ? type : type.getComponentType());
-					AnnotationTypeMapping mapping = AnnotationTypeMappings.forAnnotationType(annotationType).get(0);
-					if (mapping.isSynthesizable()) {
-						return true;
+							(Class<? extends Annotation>) (type.isAnnotation() ? type : type.componentType());
+					// Ensure we have not yet visited the current nested annotation type, in order
+					// to avoid infinite recursion for JVM languages other than Java that support
+					// recursive annotation definitions.
+					if (visitedAnnotationTypes.add(annotationType)) {
+						AnnotationTypeMapping mapping =
+								AnnotationTypeMappings.forAnnotationType(annotationType, visitedAnnotationTypes).get(0);
+						if (mapping.isSynthesizable()) {
+							return true;
+						}
 					}
 				}
 			}
@@ -469,8 +479,7 @@ final class AnnotationTypeMapping {
 	 * Get the source of the mapping or {@code null}.
 	 * @return the source of the mapping
 	 */
-	@Nullable
-	AnnotationTypeMapping getSource() {
+	@Nullable AnnotationTypeMapping getSource() {
 		return this.source;
 	}
 
@@ -499,8 +508,7 @@ final class AnnotationTypeMapping {
 	 * meta-annotation, or {@code null} if this is the root mapping.
 	 * @return the source annotation of the mapping
 	 */
-	@Nullable
-	Annotation getAnnotation() {
+	@Nullable Annotation getAnnotation() {
 		return this.annotation;
 	}
 
@@ -548,8 +556,7 @@ final class AnnotationTypeMapping {
 	 * also be considered.
 	 * @return the mapped annotation value, or {@code null}
 	 */
-	@Nullable
-	Object getMappedAnnotationValue(int attributeIndex, boolean metaAnnotationsOnly) {
+	@Nullable Object getMappedAnnotationValue(int attributeIndex, boolean metaAnnotationsOnly) {
 		int mappedIndex = this.annotationValueMappings[attributeIndex];
 		if (mappedIndex == -1) {
 			return null;
@@ -596,6 +603,9 @@ final class AnnotationTypeMapping {
 
 
 	private static int[] filledIntArray(int size) {
+		if (size == 0) {
+			return EMPTY_INT_ARRAY;
+		}
 		int[] array = new int[size];
 		Arrays.fill(array, -1);
 		return array;
@@ -674,7 +684,7 @@ final class AnnotationTypeMapping {
 		private final MirrorSet[] assigned;
 
 		MirrorSets() {
-			this.assigned = new MirrorSet[attributes.size()];
+			this.assigned = attributes.size() > 0 ? new MirrorSet[attributes.size()] : EMPTY_MIRROR_SETS;
 			this.mirrorSets = EMPTY_MIRROR_SETS;
 		}
 
@@ -712,12 +722,14 @@ final class AnnotationTypeMapping {
 			return this.mirrorSets[index];
 		}
 
-		@Nullable
-		MirrorSet getAssigned(int attributeIndex) {
+		@Nullable MirrorSet getAssigned(int attributeIndex) {
 			return this.assigned[attributeIndex];
 		}
 
 		int[] resolve(@Nullable Object source, @Nullable Object annotation, ValueExtractor valueExtractor) {
+			if (attributes.size() == 0) {
+				return EMPTY_INT_ARRAY;
+			}
 			int[] result = new int[attributes.size()];
 			for (int i = 0; i < result.length; i++) {
 				result[i] = i;

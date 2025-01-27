@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@ import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.ObjectFactory;
 import org.springframework.beans.factory.config.Scope;
 import org.springframework.core.NamedThreadLocal;
-import org.springframework.lang.Nullable;
 
 /**
  * A simple thread-backed {@link Scope} implementation.
@@ -55,14 +55,8 @@ public class SimpleThreadScope implements Scope {
 
 	private static final Log logger = LogFactory.getLog(SimpleThreadScope.class);
 
-	private final ThreadLocal<Map<String, Object>> threadScope =
-			new NamedThreadLocal<>("SimpleThreadScope") {
-				@Override
-				protected Map<String, Object> initialValue() {
-					return new HashMap<>();
-				}
-			};
-
+	private final ThreadLocal<Map<String, Object>> threadScope = NamedThreadLocal.withInitial(
+			"SimpleThreadScope", HashMap::new);
 
 	@Override
 	public Object get(String name, ObjectFactory<?> objectFactory) {
@@ -78,8 +72,7 @@ public class SimpleThreadScope implements Scope {
 	}
 
 	@Override
-	@Nullable
-	public Object remove(String name) {
+	public @Nullable Object remove(String name) {
 		Map<String, Object> scope = this.threadScope.get();
 		return scope.remove(name);
 	}
@@ -91,8 +84,7 @@ public class SimpleThreadScope implements Scope {
 	}
 
 	@Override
-	@Nullable
-	public Object resolveContextualObject(String key) {
+	public @Nullable Object resolveContextualObject(String key) {
 		return null;
 	}
 

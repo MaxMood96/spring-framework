@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,15 @@
 
 package org.springframework.context.aot;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aot.generate.GenerationContext;
-import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.beans.factory.aot.BeanRegistrationAotContribution;
 import org.springframework.beans.factory.aot.BeanRegistrationAotProcessor;
 import org.springframework.beans.factory.aot.BeanRegistrationCode;
 import org.springframework.beans.factory.support.RegisteredBean;
 import org.springframework.core.KotlinDetector;
-import org.springframework.lang.Nullable;
 
 /**
  * AOT {@code BeanRegistrationAotProcessor} that adds additional hints
@@ -35,21 +35,21 @@ import org.springframework.lang.Nullable;
  */
 class KotlinReflectionBeanRegistrationAotProcessor implements BeanRegistrationAotProcessor {
 
-	@Nullable
 	@Override
-	public BeanRegistrationAotContribution processAheadOfTime(RegisteredBean registeredBean) {
+	public @Nullable BeanRegistrationAotContribution processAheadOfTime(RegisteredBean registeredBean) {
 		Class<?> beanClass = registeredBean.getBeanClass();
 		if (KotlinDetector.isKotlinType(beanClass)) {
-			return new KotlinReflectionBeanRegistrationAotContribution(beanClass);
+			return new AotContribution(beanClass);
 		}
 		return null;
 	}
 
-	private static class KotlinReflectionBeanRegistrationAotContribution implements BeanRegistrationAotContribution {
+
+	private static class AotContribution implements BeanRegistrationAotContribution {
 
 		private final Class<?> beanClass;
 
-		public KotlinReflectionBeanRegistrationAotContribution(Class<?> beanClass) {
+		public AotContribution(Class<?> beanClass) {
 			this.beanClass = beanClass;
 		}
 
@@ -60,11 +60,15 @@ class KotlinReflectionBeanRegistrationAotProcessor implements BeanRegistrationAo
 
 		private void registerHints(Class<?> type, RuntimeHints runtimeHints) {
 			if (KotlinDetector.isKotlinType(type)) {
-				runtimeHints.reflection().registerType(type, MemberCategory.INTROSPECT_DECLARED_METHODS);
+				runtimeHints.reflection().registerType(type);
 			}
 			Class<?> superClass = type.getSuperclass();
 			if (superClass != null) {
 				registerHints(superClass, runtimeHints);
+			}
+			Class<?> enclosingClass = type.getEnclosingClass();
+			if (enclosingClass != null) {
+				runtimeHints.reflection().registerType(enclosingClass);
 			}
 		}
 	}

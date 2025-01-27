@@ -20,9 +20,10 @@ import java.util.Properties;
 
 import javax.sql.DataSource;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -49,8 +50,7 @@ public class JdbcBeanDefinitionReader {
 
 	private final org.springframework.beans.factory.support.PropertiesBeanDefinitionReader propReader;
 
-	@Nullable
-	private JdbcTemplate jdbcTemplate;
+	private @Nullable JdbcTemplate jdbcTemplate;
 
 
 	/**
@@ -99,7 +99,7 @@ public class JdbcBeanDefinitionReader {
 	 * Load bean definitions from the database via the given SQL string.
 	 * @param sql the SQL query to use for loading bean definitions.
 	 * The first three columns must be bean name, property name and value.
-	 * Any join and any other columns are permitted: e.g.
+	 * Any join and any other columns are permitted: for example,
 	 * {@code SELECT BEAN_NAME, PROPERTY, VALUE FROM CONFIG WHERE CONFIG.APP_ID = 1}
 	 * It's also possible to perform a join. Column names are not significant --
 	 * only the ordering of these first three columns.

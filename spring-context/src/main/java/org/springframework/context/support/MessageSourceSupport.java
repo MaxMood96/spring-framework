@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,14 @@
 package org.springframework.context.support;
 
 import java.text.MessageFormat;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 
 /**
@@ -53,7 +53,7 @@ public abstract class MessageSourceSupport {
 	 * Used for passed-in default messages. MessageFormats for resolved
 	 * codes are cached on a specific basis in subclasses.
 	 */
-	private final Map<String, Map<Locale, MessageFormat>> messageFormatsPerMessage = new HashMap<>();
+	private final Map<String, Map<Locale, MessageFormat>> messageFormatsPerMessage = new ConcurrentHashMap<>();
 
 
 	/**
@@ -98,7 +98,7 @@ public abstract class MessageSourceSupport {
 	 * @return the rendered default message (with resolved arguments)
 	 * @see #formatMessage(String, Object[], java.util.Locale)
 	 */
-	protected String renderDefaultMessage(String defaultMessage, @Nullable Object[] args, Locale locale) {
+	protected String renderDefaultMessage(String defaultMessage, Object @Nullable [] args, Locale locale) {
 		return formatMessage(defaultMessage, args, locale);
 	}
 
@@ -112,36 +112,26 @@ public abstract class MessageSourceSupport {
 	 * @param locale the Locale used for formatting
 	 * @return the formatted message (with resolved arguments)
 	 */
-	protected String formatMessage(String msg, @Nullable Object[] args, Locale locale) {
+	protected String formatMessage(String msg, Object @Nullable [] args, Locale locale) {
 		if (!isAlwaysUseMessageFormat() && ObjectUtils.isEmpty(args)) {
 			return msg;
 		}
-		MessageFormat messageFormat = null;
-		synchronized (this.messageFormatsPerMessage) {
-			Map<Locale, MessageFormat> messageFormatsPerLocale = this.messageFormatsPerMessage.get(msg);
-			if (messageFormatsPerLocale != null) {
-				messageFormat = messageFormatsPerLocale.get(locale);
+		Map<Locale, MessageFormat> messageFormatsPerLocale = this.messageFormatsPerMessage
+				.computeIfAbsent(msg, key -> new ConcurrentHashMap<>());
+		MessageFormat messageFormat = messageFormatsPerLocale.computeIfAbsent(locale, key -> {
+			try {
+				return createMessageFormat(msg, locale);
 			}
-			else {
-				messageFormatsPerLocale = new HashMap<>();
-				this.messageFormatsPerMessage.put(msg, messageFormatsPerLocale);
-			}
-			if (messageFormat == null) {
-				try {
-					messageFormat = createMessageFormat(msg, locale);
+			catch (IllegalArgumentException ex) {
+				// Invalid message format - probably not intended for formatting,
+				// rather using a message structure with no arguments involved...
+				if (isAlwaysUseMessageFormat()) {
+					throw ex;
 				}
-				catch (IllegalArgumentException ex) {
-					// Invalid message format - probably not intended for formatting,
-					// rather using a message structure with no arguments involved...
-					if (isAlwaysUseMessageFormat()) {
-						throw ex;
-					}
-					// Silently proceed with raw message if format not enforced...
-					messageFormat = INVALID_MESSAGE_FORMAT;
-				}
-				messageFormatsPerLocale.put(locale, messageFormat);
+				// Silently proceed with raw message if format not enforced...
+				return INVALID_MESSAGE_FORMAT;
 			}
-		}
+		});
 		if (messageFormat == INVALID_MESSAGE_FORMAT) {
 			return msg;
 		}
@@ -168,7 +158,7 @@ public abstract class MessageSourceSupport {
 	 * @param locale the Locale to resolve against
 	 * @return the resolved argument array
 	 */
-	protected Object[] resolveArguments(@Nullable Object[] args, Locale locale) {
+	protected Object[] resolveArguments(Object @Nullable [] args, Locale locale) {
 		return (args != null ? args : new Object[0]);
 	}
 

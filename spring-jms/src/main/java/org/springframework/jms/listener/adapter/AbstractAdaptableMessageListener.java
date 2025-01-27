@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import jakarta.jms.MessageProducer;
 import jakarta.jms.Session;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.jms.listener.SessionAwareMessageListener;
 import org.springframework.jms.support.JmsHeaderMapper;
@@ -39,7 +40,6 @@ import org.springframework.jms.support.converter.SimpleMessageConverter;
 import org.springframework.jms.support.converter.SmartMessageConverter;
 import org.springframework.jms.support.destination.DestinationResolver;
 import org.springframework.jms.support.destination.DynamicDestinationResolver;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.util.Assert;
 
@@ -59,18 +59,15 @@ public abstract class AbstractAdaptableMessageListener
 	/** Logger available to subclasses. */
 	protected final Log logger = LogFactory.getLog(getClass());
 
-	@Nullable
-	private Object defaultResponseDestination;
+	private @Nullable Object defaultResponseDestination;
 
 	private DestinationResolver destinationResolver = new DynamicDestinationResolver();
 
-	@Nullable
-	private MessageConverter messageConverter = new SimpleMessageConverter();
+	private @Nullable MessageConverter messageConverter = new SimpleMessageConverter();
 
 	private final MessagingMessageConverterAdapter messagingMessageConverter = new MessagingMessageConverterAdapter();
 
-	@Nullable
-	private QosSettings responseQosSettings;
+	private @Nullable QosSettings responseQosSettings;
 
 
 	/**
@@ -151,8 +148,7 @@ public abstract class AbstractAdaptableMessageListener
 	 * listener method arguments, and objects returned from listener
 	 * methods back to JMS messages.
 	 */
-	@Nullable
-	protected MessageConverter getMessageConverter() {
+	protected @Nullable MessageConverter getMessageConverter() {
 		return this.messageConverter;
 	}
 
@@ -190,8 +186,7 @@ public abstract class AbstractAdaptableMessageListener
 	 * or {@code null} if the defaults should be used.
 	 * @since 5.0
 	 */
-	@Nullable
-	protected QosSettings getResponseQosSettings() {
+	protected @Nullable QosSettings getResponseQosSettings() {
 		return this.responseQosSettings;
 	}
 
@@ -243,7 +238,7 @@ public abstract class AbstractAdaptableMessageListener
 	 * as an argument
 	 * @throws MessageConversionException if the message could not be extracted
 	 */
-	protected Object extractMessage(Message message)  {
+	protected Object extractMessage(Message message) {
 		try {
 			MessageConverter converter = getMessageConverter();
 			if (converter != null) {
@@ -405,8 +400,7 @@ public abstract class AbstractAdaptableMessageListener
 	 * @see #setDefaultResponseTopicName
 	 * @see #setDestinationResolver
 	 */
-	@Nullable
-	protected Destination resolveDefaultResponseDestination(Session session) throws JMSException {
+	protected @Nullable Destination resolveDefaultResponseDestination(Session session) throws JMSException {
 		if (this.defaultResponseDestination instanceof Destination destination) {
 			return destination;
 		}
@@ -504,11 +498,9 @@ public abstract class AbstractAdaptableMessageListener
 
 			private final jakarta.jms.Message message;
 
-			@Nullable
-			private Object payload;
+			private @Nullable Object payload;
 
-			@Nullable
-			private MessageHeaders headers;
+			private @Nullable MessageHeaders headers;
 
 			public LazyResolutionMessage(jakarta.jms.Message message) {
 				this.message = message;
@@ -550,6 +542,29 @@ public abstract class AbstractAdaptableMessageListener
 				}
 				return this.headers;
 			}
+
+			@Override
+			public String toString() {
+				StringBuilder sb = new StringBuilder(getClass().getSimpleName());
+				if (this.payload == null) {
+					sb.append(" [rawMessage=").append(this.message);
+				}
+				else {
+					sb.append(" [payload=");
+					if (this.payload instanceof byte[] bytes) {
+						sb.append("byte[").append(bytes.length).append(']');
+					}
+					else {
+						sb.append(this.payload);
+					}
+				}
+				if (this.headers != null) {
+					sb.append(", headers=").append(this.headers);
+				}
+				sb.append(']');
+				return sb.toString();
+			}
+
 		}
 	}
 

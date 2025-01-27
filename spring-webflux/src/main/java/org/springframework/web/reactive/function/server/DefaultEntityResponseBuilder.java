@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -116,6 +116,13 @@ class DefaultEntityResponseBuilder<T> implements EntityResponse.Builder<T> {
 	}
 
 	@Override
+	public EntityResponse.Builder<T> headers(Consumer<HttpHeaders> headersConsumer) {
+		Assert.notNull(headersConsumer, "HeadersConsumer must not be null");
+		headersConsumer.accept(this.headers);
+		return this;
+	}
+
+	@Override
 	public EntityResponse.Builder<T> allow(HttpMethod... allowedMethods) {
 		this.headers.setAllow(new LinkedHashSet<>(Arrays.asList(allowedMethods)));
 		return this;
@@ -140,14 +147,8 @@ class DefaultEntityResponseBuilder<T> implements EntityResponse.Builder<T> {
 	}
 
 	@Override
-	public EntityResponse.Builder<T> eTag(String etag) {
-		if (!etag.startsWith("\"") && !etag.startsWith("W/\"")) {
-			etag = "\"" + etag;
-		}
-		if (!etag.endsWith("\"")) {
-			etag = etag + "\"";
-		}
-		this.headers.setETag(etag);
+	public EntityResponse.Builder<T> eTag(String tag) {
+		this.headers.setETag(tag);
 		return this;
 	}
 

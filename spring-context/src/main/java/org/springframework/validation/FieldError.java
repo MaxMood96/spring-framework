@@ -16,7 +16,8 @@
 
 package org.springframework.validation;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
@@ -37,8 +38,7 @@ public class FieldError extends ObjectError {
 
 	private final String field;
 
-	@Nullable
-	private final Object rejectedValue;
+	private final @Nullable Object rejectedValue;
 
 	private final boolean bindingFailure;
 
@@ -65,7 +65,7 @@ public class FieldError extends ObjectError {
 	 * @param defaultMessage the default message to be used to resolve this message
 	 */
 	public FieldError(String objectName, String field, @Nullable Object rejectedValue, boolean bindingFailure,
-			@Nullable String[] codes, @Nullable Object[] arguments, @Nullable String defaultMessage) {
+			String @Nullable [] codes, Object @Nullable [] arguments, @Nullable String defaultMessage) {
 
 		super(objectName, codes, arguments, defaultMessage);
 		Assert.notNull(field, "Field must not be null");
@@ -85,8 +85,7 @@ public class FieldError extends ObjectError {
 	/**
 	 * Return the rejected field value.
 	 */
-	@Nullable
-	public Object getRejectedValue() {
+	public @Nullable Object getRejectedValue() {
 		return this.rejectedValue;
 	}
 
@@ -107,8 +106,7 @@ public class FieldError extends ObjectError {
 		if (!super.equals(other)) {
 			return false;
 		}
-		FieldError otherError = (FieldError) other;
-		return (getField().equals(otherError.getField()) &&
+		return (other instanceof FieldError otherError && getField().equals(otherError.getField()) &&
 				ObjectUtils.nullSafeEquals(getRejectedValue(), otherError.getRejectedValue()) &&
 				isBindingFailure() == otherError.isBindingFailure());
 	}
@@ -124,8 +122,10 @@ public class FieldError extends ObjectError {
 
 	@Override
 	public String toString() {
+		// We would preferably use ObjectUtils.nullSafeConciseToString(rejectedValue) here but
+		// keep including the full nullSafeToString representation for backwards compatibility.
 		return "Field error in object '" + getObjectName() + "' on field '" + this.field +
-				"': rejected value [" + ObjectUtils.nullSafeConciseToString(this.rejectedValue) + "]; " +
+				"': rejected value [" + ObjectUtils.nullSafeToString(this.rejectedValue) + "]; " +
 				resolvableToString();
 	}
 

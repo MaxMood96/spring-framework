@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.core.Ordered
 import org.springframework.core.ResolvableType
+import org.springframework.core.codec.DecodingException
 import org.springframework.core.io.buffer.DataBuffer
 import org.springframework.core.testfixture.codec.AbstractDecoderTests
 import org.springframework.http.MediaType
@@ -39,8 +40,8 @@ import reactor.test.StepVerifier.FirstStep
  * @author Iain Henderson
  */
 @ExperimentalSerializationApi
-class KotlinSerializationCborDecoderTests : AbstractDecoderTests<KotlinSerializationProtobufDecoder>(KotlinSerializationProtobufDecoder()) {
-	@Suppress("UsePropertyAccessSyntax")
+class KotlinSerializationProtobufDecoderTests : AbstractDecoderTests<KotlinSerializationProtobufDecoder>(KotlinSerializationProtobufDecoder()) {
+
 	@Test
 	override fun canDecode() {
 		for (mimeType in listOf(MediaType.APPLICATION_PROTOBUF, MediaType.APPLICATION_OCTET_STREAM, MediaType("application", "vnd.google.protobuf"))) {
@@ -83,6 +84,21 @@ class KotlinSerializationCborDecoderTests : AbstractDecoderTests<KotlinSerializa
 					.expectNext(pojo2)
 					.expectComplete()
 					.verify()
+		}, null, null)
+	}
+
+	@Test
+	fun decodeToMonoWithUnexpectedFormat() {
+		val input = Mono.just(
+			bufferFactory.allocateBuffer(0),
+		)
+
+		val elementType = ResolvableType.forClass(Pojo::class.java)
+
+		testDecodeToMono(input, elementType, { step: FirstStep<Any> ->
+			step
+				.expectError(DecodingException::class.java)
+				.verify()
 		}, null, null)
 	}
 

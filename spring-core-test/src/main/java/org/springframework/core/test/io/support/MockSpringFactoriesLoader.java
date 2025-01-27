@@ -24,8 +24,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.io.support.SpringFactoriesLoader;
-import org.springframework.lang.Nullable;
 
 /**
  * Simple mock {@link SpringFactoriesLoader} implementation that can be used for testing
@@ -68,7 +69,7 @@ public class MockSpringFactoriesLoader extends SpringFactoriesLoader {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	protected <T> T instantiateFactory(String implementationName, Class<T> type,
+	protected <T> @Nullable T instantiateFactory(String implementationName, Class<T> type,
 			@Nullable ArgumentResolver argumentResolver, FailureHandler failureHandler) {
 		if (implementationName.startsWith("!")) {
 			Object implementation = this.implementations.get(implementationName);

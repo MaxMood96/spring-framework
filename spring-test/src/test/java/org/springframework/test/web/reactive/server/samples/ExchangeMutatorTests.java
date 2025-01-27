@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,11 @@ package org.springframework.test.web.reactive.server.samples;
 
 import java.security.Principal;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 
 import org.springframework.http.client.reactive.ClientHttpConnector;
-import org.springframework.lang.Nullable;
 import org.springframework.test.web.reactive.server.MockServerConfigurer;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.test.web.reactive.server.WebTestClientConfigurer;
@@ -114,7 +114,7 @@ class ExchangeMutatorTests {
 
 			Assert.notNull(httpHandlerBuilder, "Not a mock server");
 			httpHandlerBuilder.filters(filters -> {
-				filters.removeIf(filter -> filter instanceof IdentityFilter);
+				filters.removeIf(IdentityFilter.class::isInstance);
 				filters.add(0, this.filter);
 			});
 		}

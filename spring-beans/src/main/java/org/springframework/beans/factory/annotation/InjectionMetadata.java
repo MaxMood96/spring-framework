@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,13 +23,15 @@ import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.Set;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.PropertyValues;
 import org.springframework.beans.factory.support.RootBeanDefinition;
-import org.springframework.lang.Nullable;
+import org.springframework.lang.Contract;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
 /**
@@ -71,8 +73,7 @@ public class InjectionMetadata {
 
 	private final Collection<InjectedElement> injectedElements;
 
-	@Nullable
-	private volatile Set<InjectedElement> checkedElements;
+	private volatile @Nullable Set<InjectedElement> checkedElements;
 
 
 	/**
@@ -106,8 +107,7 @@ public class InjectionMetadata {
 	 * @since 6.0.10
 	 */
 	public Collection<InjectedElement> getInjectedElements(@Nullable PropertyValues pvs) {
-		return this.injectedElements.stream()
-				.filter(candidate -> candidate.shouldInject(pvs)).toList();
+		return this.injectedElements.stream().filter(candidate -> candidate.shouldInject(pvs)).toList();
 	}
 
 	/**
@@ -117,7 +117,7 @@ public class InjectionMetadata {
 	 * @since 5.2.4
 	 */
 	protected boolean needsRefresh(Class<?> clazz) {
-		return this.targetClass != clazz;
+		return (this.targetClass != clazz);
 	}
 
 	public void checkConfigMembers(RootBeanDefinition beanDefinition) {
@@ -125,7 +125,7 @@ public class InjectionMetadata {
 			this.checkedElements = Collections.emptySet();
 		}
 		else {
-			Set<InjectedElement> checkedElements = new LinkedHashSet<>((this.injectedElements.size() * 4 / 3) + 1);
+			Set<InjectedElement> checkedElements = CollectionUtils.newLinkedHashSet(this.injectedElements.size());
 			for (InjectedElement element : this.injectedElements) {
 				Member member = element.getMember();
 				if (!beanDefinition.isExternallyManagedConfigMember(member)) {
@@ -183,6 +183,7 @@ public class InjectionMetadata {
 	 * @return {@code true} indicating a refresh, {@code false} otherwise
 	 * @see #needsRefresh(Class)
 	 */
+	@Contract("null, _ -> true")
 	public static boolean needsRefresh(@Nullable InjectionMetadata metadata, Class<?> clazz) {
 		return (metadata == null || metadata.needsRefresh(clazz));
 	}
@@ -197,11 +198,9 @@ public class InjectionMetadata {
 
 		protected final boolean isField;
 
-		@Nullable
-		protected final PropertyDescriptor pd;
+		protected final @Nullable PropertyDescriptor pd;
 
-		@Nullable
-		protected volatile Boolean skip;
+		protected volatile @Nullable Boolean skip;
 
 		protected InjectedElement(Member member, @Nullable PropertyDescriptor pd) {
 			this.member = member;
@@ -334,20 +333,14 @@ public class InjectionMetadata {
 		/**
 		 * Either this or {@link #inject} needs to be overridden.
 		 */
-		@Nullable
-		protected Object getResourceToInject(Object target, @Nullable String requestingBeanName) {
+		protected @Nullable Object getResourceToInject(Object target, @Nullable String requestingBeanName) {
 			return null;
 		}
 
 		@Override
 		public boolean equals(@Nullable Object other) {
-			if (this == other) {
-				return true;
-			}
-			if (!(other instanceof InjectedElement otherElement)) {
-				return false;
-			}
-			return this.member.equals(otherElement.member);
+			return (this == other || (other instanceof InjectedElement that &&
+					this.member.equals(that.member)));
 		}
 
 		@Override
