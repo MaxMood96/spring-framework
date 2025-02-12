@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.BeanFactoryUtils;
@@ -37,10 +39,8 @@ import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartFactoryBean;
-import org.springframework.core.OrderComparator;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.annotation.AnnotatedElementUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -155,7 +155,7 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 	}
 
 	@Override
-	public Object getBean(String name, Object... args) throws BeansException {
+	public Object getBean(String name, @Nullable Object @Nullable ... args) throws BeansException {
 		if (!ObjectUtils.isEmpty(args)) {
 			throw new UnsupportedOperationException(
 					"StaticListableBeanFactory does not support explicit bean creation arguments");
@@ -178,7 +178,7 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 	}
 
 	@Override
-	public <T> T getBean(Class<T> requiredType, Object... args) throws BeansException {
+	public <T> T getBean(Class<T> requiredType, @Nullable Object @Nullable ... args) throws BeansException {
 		if (!ObjectUtils.isEmpty(args)) {
 			throw new UnsupportedOperationException(
 					"StaticListableBeanFactory does not support explicit bean creation arguments");
@@ -232,12 +232,12 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 	}
 
 	@Override
-	public Class<?> getType(String name) throws NoSuchBeanDefinitionException {
+	public @Nullable Class<?> getType(String name) throws NoSuchBeanDefinitionException {
 		return getType(name, true);
 	}
 
 	@Override
-	public Class<?> getType(String name, boolean allowFactoryBeanInit) throws NoSuchBeanDefinitionException {
+	public @Nullable Class<?> getType(String name, boolean allowFactoryBeanInit) throws NoSuchBeanDefinitionException {
 		String beanName = BeanFactoryUtils.transformedBeanName(name);
 
 		Object bean = this.beans.get(beanName);
@@ -301,7 +301,7 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 				}
 			}
 			@Override
-			public T getObject(Object... args) throws BeansException {
+			public T getObject(@Nullable Object... args) throws BeansException {
 				String[] beanNames = getBeanNamesForType(requiredType);
 				if (beanNames.length == 1) {
 					return (T) getBean(beanNames[0], args);
@@ -314,8 +314,7 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 				}
 			}
 			@Override
-			@Nullable
-			public T getIfAvailable() throws BeansException {
+			public @Nullable T getIfAvailable() throws BeansException {
 				String[] beanNames = getBeanNamesForType(requiredType);
 				if (beanNames.length == 1) {
 					return (T) getBean(beanNames[0]);
@@ -328,8 +327,7 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 				}
 			}
 			@Override
-			@Nullable
-			public T getIfUnique() throws BeansException {
+			public @Nullable T getIfUnique() throws BeansException {
 				String[] beanNames = getBeanNamesForType(requiredType);
 				if (beanNames.length == 1) {
 					return (T) getBean(beanNames[0]);
@@ -341,10 +339,6 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 			@Override
 			public Stream<T> stream() {
 				return Arrays.stream(getBeanNamesForType(requiredType)).map(name -> (T) getBean(name));
-			}
-			@Override
-			public Stream<T> orderedStream() {
-				return stream().sorted(OrderComparator.INSTANCE);
 			}
 		};
 	}
@@ -455,16 +449,14 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 	}
 
 	@Override
-	@Nullable
-	public <A extends Annotation> A findAnnotationOnBean(String beanName, Class<A> annotationType)
+	public <A extends Annotation> @Nullable A findAnnotationOnBean(String beanName, Class<A> annotationType)
 			throws NoSuchBeanDefinitionException {
 
 		return findAnnotationOnBean(beanName, annotationType, true);
 	}
 
 	@Override
-	@Nullable
-	public <A extends Annotation> A findAnnotationOnBean(
+	public <A extends Annotation> @Nullable A findAnnotationOnBean(
 			String beanName, Class<A> annotationType, boolean allowFactoryBeanInit)
 			throws NoSuchBeanDefinitionException {
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,18 @@
 
 package org.springframework.util.backoff;
 
+import java.util.StringJoiner;
+
 import org.springframework.util.Assert;
 
 /**
  * Implementation of {@link BackOff} that increases the back off period for each
- * retry attempt. When the interval has reached the {@link #setMaxInterval(long)
+ * retry attempt. When the interval has reached the {@linkplain #setMaxInterval
  * max interval}, it is no longer increased. Stops retrying once the
- * {@link #setMaxElapsedTime(long) max elapsed time} has been reached.
+ * {@linkplain #setMaxElapsedTime max elapsed time} has been reached.
  *
- * <p>Example: The default interval is {@value #DEFAULT_INITIAL_INTERVAL} ms,
- * the default multiplier is {@value #DEFAULT_MULTIPLIER}, and the default max
+ * <p>Example: The default interval is {@value #DEFAULT_INITIAL_INTERVAL} ms;
+ * the default multiplier is {@value #DEFAULT_MULTIPLIER}; and the default max
  * interval is {@value #DEFAULT_MAX_INTERVAL}. For 10 attempts the sequence will be
  * as follows:
  *
@@ -44,12 +46,15 @@ import org.springframework.util.Assert;
  * 10             30000
  * </pre>
  *
- * <p>Note that the default max elapsed time is {@link Long#MAX_VALUE}. Use
- * {@link #setMaxElapsedTime(long)} to limit the maximum length of time
- * that an instance should accumulate before returning
- * {@link BackOffExecution#STOP}.
+ * <p>Note that the default max elapsed time is {@link Long#MAX_VALUE}, and the
+ * default maximum number of attempts is {@link Integer#MAX_VALUE}.
+ * Use {@link #setMaxElapsedTime} to limit the length of time that an instance
+ * should accumulate before returning {@link BackOffExecution#STOP}. Alternatively,
+ * use {@link #setMaxAttempts} to limit the number of attempts. The execution
+ * stops when either of those two limits is reached.
  *
  * @author Stephane Nicoll
+ * @author Gary Russell
  * @since 4.1
  */
 public class ExponentialBackOff implements BackOff {
@@ -74,6 +79,11 @@ public class ExponentialBackOff implements BackOff {
 	 */
 	public static final long DEFAULT_MAX_ELAPSED_TIME = Long.MAX_VALUE;
 
+	/**
+	 * The default maximum attempts.
+	 * @since 6.1
+	 */
+	public static final int DEFAULT_MAX_ATTEMPTS = Integer.MAX_VALUE;
 
 	private long initialInterval = DEFAULT_INITIAL_INTERVAL;
 
@@ -83,6 +93,8 @@ public class ExponentialBackOff implements BackOff {
 
 	private long maxElapsedTime = DEFAULT_MAX_ELAPSED_TIME;
 
+	private int maxAttempts = DEFAULT_MAX_ATTEMPTS;
+
 
 	/**
 	 * Create an instance with the default settings.
@@ -90,6 +102,7 @@ public class ExponentialBackOff implements BackOff {
 	 * @see #DEFAULT_MULTIPLIER
 	 * @see #DEFAULT_MAX_INTERVAL
 	 * @see #DEFAULT_MAX_ELAPSED_TIME
+	 * @see #DEFAULT_MAX_ATTEMPTS
 	 */
 	public ExponentialBackOff() {
 	}
@@ -107,7 +120,7 @@ public class ExponentialBackOff implements BackOff {
 
 
 	/**
-	 * The initial interval in milliseconds.
+	 * Set the initial interval in milliseconds.
 	 */
 	public void setInitialInterval(long initialInterval) {
 		this.initialInterval = initialInterval;
@@ -121,7 +134,7 @@ public class ExponentialBackOff implements BackOff {
 	}
 
 	/**
-	 * The value to multiply the current interval by for each retry attempt.
+	 * Set the value to multiply the current interval by for each retry attempt.
 	 */
 	public void setMultiplier(double multiplier) {
 		checkMultiplier(multiplier);
@@ -136,22 +149,24 @@ public class ExponentialBackOff implements BackOff {
 	}
 
 	/**
-	 * The maximum back off time.
+	 * Set the maximum back off time in milliseconds.
 	 */
 	public void setMaxInterval(long maxInterval) {
 		this.maxInterval = maxInterval;
 	}
 
 	/**
-	 * Return the maximum back off time.
+	 * Return the maximum back off time in milliseconds.
 	 */
 	public long getMaxInterval() {
 		return this.maxInterval;
 	}
 
 	/**
-	 * The maximum elapsed time in milliseconds after which a call to
+	 * Set the maximum elapsed time in milliseconds after which a call to
 	 * {@link BackOffExecution#nextBackOff()} returns {@link BackOffExecution#STOP}.
+	 * @param maxElapsedTime the maximum elapsed time
+	 * @see #setMaxAttempts
 	 */
 	public void setMaxElapsedTime(long maxElapsedTime) {
 		this.maxElapsedTime = maxElapsedTime;
@@ -160,9 +175,33 @@ public class ExponentialBackOff implements BackOff {
 	/**
 	 * Return the maximum elapsed time in milliseconds after which a call to
 	 * {@link BackOffExecution#nextBackOff()} returns {@link BackOffExecution#STOP}.
+	 * @return the maximum elapsed time
+	 * @see #getMaxAttempts()
 	 */
 	public long getMaxElapsedTime() {
 		return this.maxElapsedTime;
+	}
+
+	/**
+	 * The maximum number of attempts after which a call to
+	 * {@link BackOffExecution#nextBackOff()} returns {@link BackOffExecution#STOP}.
+	 * @param maxAttempts the maximum number of attempts
+	 * @since 6.1
+	 * @see #setMaxElapsedTime
+	 */
+	public void setMaxAttempts(int maxAttempts) {
+		this.maxAttempts = maxAttempts;
+	}
+
+	/**
+	 * Return the maximum number of attempts after which a call to
+	 * {@link BackOffExecution#nextBackOff()} returns {@link BackOffExecution#STOP}.
+	 * @return the maximum number of attempts
+	 * @since 6.1
+	 * @see #getMaxElapsedTime()
+	 */
+	public int getMaxAttempts() {
+		return this.maxAttempts;
 	}
 
 	@Override
@@ -175,6 +214,16 @@ public class ExponentialBackOff implements BackOff {
 					"or equal to 1. A multiplier of 1 is equivalent to a fixed interval.");
 	}
 
+	@Override
+	public String toString() {
+		return new StringJoiner(", ", ExponentialBackOff.class.getSimpleName() + "{", "}")
+				.add("initialInterval=" + this.initialInterval)
+				.add("multiplier=" + this.multiplier)
+				.add("maxInterval=" + this.maxInterval)
+				.add("maxElapsedTime=" + this.maxElapsedTime)
+				.add("maxAttempts=" + this.maxAttempts)
+				.toString();
+	}
 
 	private class ExponentialBackOffExecution implements BackOffExecution {
 
@@ -182,14 +231,16 @@ public class ExponentialBackOff implements BackOff {
 
 		private long currentElapsedTime = 0;
 
+		private int attempts;
+
 		@Override
 		public long nextBackOff() {
-			if (this.currentElapsedTime >= maxElapsedTime) {
+			if (this.currentElapsedTime >= getMaxElapsedTime() || this.attempts >= getMaxAttempts()) {
 				return STOP;
 			}
-
 			long nextInterval = computeNextInterval();
 			this.currentElapsedTime += nextInterval;
+			this.attempts++;
 			return nextInterval;
 		}
 
@@ -214,14 +265,14 @@ public class ExponentialBackOff implements BackOff {
 			return Math.min(i, maxInterval);
 		}
 
-
 		@Override
 		public String toString() {
-			StringBuilder sb = new StringBuilder("ExponentialBackOff{");
-			sb.append("currentInterval=").append(this.currentInterval < 0 ? "n/a" : this.currentInterval + "ms");
-			sb.append(", multiplier=").append(getMultiplier());
-			sb.append('}');
-			return sb.toString();
+			String currentIntervalDescription = this.currentInterval < 0 ? "n/a" : this.currentInterval + "ms";
+			return new StringJoiner(", ", ExponentialBackOffExecution.class.getSimpleName() + "{", "}")
+					.add("currentInterval=" + currentIntervalDescription)
+					.add("multiplier=" + getMultiplier())
+					.add("attempts=" + this.attempts)
+					.toString();
 		}
 	}
 

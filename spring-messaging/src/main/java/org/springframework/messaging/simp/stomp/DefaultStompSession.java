@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,9 +30,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import org.apache.commons.logging.Log;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.ResolvableType;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.converter.MessageConversionException;
@@ -87,19 +87,16 @@ public class DefaultStompSession implements ConnectionHandlingStompSession {
 
 	private MessageConverter converter = new SimpleMessageConverter();
 
-	@Nullable
-	private TaskScheduler taskScheduler;
+	private @Nullable TaskScheduler taskScheduler;
 
 	private long receiptTimeLimit = TimeUnit.SECONDS.toMillis(15);
 
 	private volatile boolean autoReceiptEnabled;
 
 
-	@Nullable
-	private volatile TcpConnection<byte[]> connection;
+	private volatile @Nullable TcpConnection<byte[]> connection;
 
-	@Nullable
-	private volatile String version;
+	private volatile @Nullable String version;
 
 	private final AtomicInteger subscriptionIndex = new AtomicInteger();
 
@@ -109,8 +106,7 @@ public class DefaultStompSession implements ConnectionHandlingStompSession {
 
 	private final Map<String, ReceiptHandler> receiptHandlers = new ConcurrentHashMap<>(4);
 
-	/* Whether the client is willfully closing the connection */
-	private volatile boolean closing;
+	private volatile boolean clientSideClose;
 
 
 	/**
@@ -180,8 +176,7 @@ public class DefaultStompSession implements ConnectionHandlingStompSession {
 	/**
 	 * Return the configured TaskScheduler to use for receipt tracking.
 	 */
-	@Nullable
-	public TaskScheduler getTaskScheduler() {
+	public @Nullable TaskScheduler getTaskScheduler() {
 		return this.taskScheduler;
 	}
 
@@ -241,8 +236,7 @@ public class DefaultStompSession implements ConnectionHandlingStompSession {
 		return receiptable;
 	}
 
-	@Nullable
-	private String checkOrAddReceipt(StompHeaders headers) {
+	private @Nullable String checkOrAddReceipt(StompHeaders headers) {
 		String receiptId = headers.getReceipt();
 		if (isAutoReceiptEnabled() && receiptId == null) {
 			receiptId = String.valueOf(DefaultStompSession.this.receiptIndex.getAndIncrement());
@@ -368,7 +362,7 @@ public class DefaultStompSession implements ConnectionHandlingStompSession {
 
 	@Override
 	public void disconnect(@Nullable StompHeaders headers) {
-		this.closing = true;
+		this.clientSideClose = true;
 		try {
 			StompHeaderAccessor accessor = createHeaderAccessor(StompCommand.DISCONNECT);
 			if (headers != null) {
@@ -492,7 +486,7 @@ public class DefaultStompSession implements ConnectionHandlingStompSession {
 		TcpConnection<byte[]> con = this.connection;
 		Assert.state(con != null, "No TcpConnection available");
 		if (connect[0] > 0 && connected[1] > 0) {
-			long interval = Math.max(connect[0],  connected[1]);
+			long interval = Math.max(connect[0], connected[1]);
 			con.onWriteInactivity(new WriteInactivityTask(), interval);
 		}
 		if (connect[1] > 0 && connected[0] > 0) {
@@ -519,7 +513,7 @@ public class DefaultStompSession implements ConnectionHandlingStompSession {
 		if (logger.isDebugEnabled()) {
 			logger.debug("Connection closed in session id=" + this.sessionId);
 		}
-		if (!this.closing) {
+		if (!this.clientSideClose) {
 			resetConnection();
 			handleFailure(new ConnectionLostException("Connection closed"));
 		}
@@ -541,21 +535,17 @@ public class DefaultStompSession implements ConnectionHandlingStompSession {
 
 	private class ReceiptHandler implements Receiptable {
 
-		@Nullable
-		private final String receiptId;
+		private final @Nullable String receiptId;
 
 		private final List<Consumer<StompHeaders>> receiptCallbacks = new ArrayList<>(2);
 
 		private final List<Runnable> receiptLostCallbacks = new ArrayList<>(2);
 
-		@Nullable
-		private ScheduledFuture<?> future;
+		private @Nullable ScheduledFuture<?> future;
 
-		@Nullable
-		private Boolean result;
+		private @Nullable Boolean result;
 
-		@Nullable
-		private StompHeaders receiptHeaders;
+		private @Nullable StompHeaders receiptHeaders;
 
 		public ReceiptHandler(@Nullable String receiptId) {
 			this.receiptId = receiptId;
@@ -572,8 +562,7 @@ public class DefaultStompSession implements ConnectionHandlingStompSession {
 		}
 
 		@Override
-		@Nullable
-		public String getReceiptId() {
+		public @Nullable String getReceiptId() {
 			return this.receiptId;
 		}
 
@@ -672,8 +661,7 @@ public class DefaultStompSession implements ConnectionHandlingStompSession {
 		}
 
 		@Override
-		@Nullable
-		public String getSubscriptionId() {
+		public @Nullable String getSubscriptionId() {
 			return this.headers.getId();
 		}
 
@@ -715,9 +703,14 @@ public class DefaultStompSession implements ConnectionHandlingStompSession {
 		public void run() {
 			TcpConnection<byte[]> conn = connection;
 			if (conn != null) {
-				conn.sendAsync(HEARTBEAT).whenComplete((unused, throwable) -> {
-					if (throwable != null) {
-						handleFailure(throwable);
+				conn.sendAsync(HEARTBEAT).whenComplete((unused, ex) -> {
+					if (ex != null) {
+						String msg = "Heartbeat write failure. Closing connection in session id=" + sessionId + ".";
+						if (logger.isDebugEnabled()) {
+							logger.debug(msg);
+						}
+						resetConnection();
+						handleFailure(new ConnectionLostException(msg, ex));
 					}
 				});
 			}
@@ -729,13 +722,13 @@ public class DefaultStompSession implements ConnectionHandlingStompSession {
 
 		@Override
 		public void run() {
-			closing = true;
-			String error = "Server has gone quiet. Closing connection in session id=" + sessionId + ".";
+			String msg = "Read inactivity. Closing connection in session id=" + sessionId + ".";
 			if (logger.isDebugEnabled()) {
-				logger.debug(error);
+				logger.debug(msg);
 			}
+			clientSideClose = true;
 			resetConnection();
-			handleFailure(new IllegalStateException(error));
+			handleFailure(new ConnectionLostException(msg));
 		}
 	}
 

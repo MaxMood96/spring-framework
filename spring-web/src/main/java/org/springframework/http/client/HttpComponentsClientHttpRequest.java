@@ -30,11 +30,13 @@ import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.Method;
+import org.apache.hc.core5.http.io.entity.NullEntity;
 import org.apache.hc.core5.http.protocol.HttpContext;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 
 /**
@@ -89,8 +91,10 @@ final class HttpComponentsClientHttpRequest extends AbstractStreamingClientHttpR
 		addHeaders(this.httpRequest, headers);
 
 		if (body != null) {
-			HttpEntity requestEntity = new BodyEntity(headers, body);
-			this.httpRequest.setEntity(requestEntity);
+			this.httpRequest.setEntity(new BodyEntity(headers, body));
+		}
+		else if (!Method.isSafe(this.httpRequest.getMethod())) {
+			this.httpRequest.setEntity(NullEntity.INSTANCE);
 		}
 		ClassicHttpResponse httpResponse = this.httpClient.executeOpen(null, this.httpRequest, this.httpContext);
 		return new HttpComponentsClientHttpResponse(httpResponse);
@@ -136,8 +140,7 @@ final class HttpComponentsClientHttpRequest extends AbstractStreamingClientHttpR
 		}
 
 		@Override
-		@Nullable
-		public String getContentType() {
+		public @Nullable String getContentType() {
 			return this.headers.getFirst(HttpHeaders.CONTENT_TYPE);
 		}
 
@@ -153,23 +156,21 @@ final class HttpComponentsClientHttpRequest extends AbstractStreamingClientHttpR
 
 		@Override
 		public boolean isRepeatable() {
-			return false;
+			return this.body.repeatable();
 		}
 
 		@Override
 		public boolean isStreaming() {
-			return true;
+			return false;
 		}
 
 		@Override
-		@Nullable
-		public Supplier<List<? extends Header>> getTrailers() {
+		public @Nullable Supplier<List<? extends Header>> getTrailers() {
 			return null;
 		}
 
 		@Override
-		@Nullable
-		public String getContentEncoding() {
+		public @Nullable String getContentEncoding() {
 			return this.headers.getFirst(HttpHeaders.CONTENT_ENCODING);
 		}
 
@@ -179,8 +180,7 @@ final class HttpComponentsClientHttpRequest extends AbstractStreamingClientHttpR
 		}
 
 		@Override
-		@Nullable
-		public Set<String> getTrailerNames() {
+		public @Nullable Set<String> getTrailerNames() {
 			return null;
 		}
 

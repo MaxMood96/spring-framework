@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,17 +20,21 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
+import java.util.Objects;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.MethodParameter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
 /**
  * A simple descriptor for an injection point, pointing to a method/constructor
- * parameter or a field. Exposed by {@link UnsatisfiedDependencyException}.
- * Also available as an argument for factory methods, reacting to the
- * requesting injection point for building a customized bean instance.
+ * parameter or a field.
+ *
+ * <p>Exposed by {@link UnsatisfiedDependencyException}. Also available as an
+ * argument for factory methods, reacting to the requesting injection point
+ * for building a customized bean instance.
  *
  * @author Juergen Hoeller
  * @since 4.3
@@ -39,14 +43,11 @@ import org.springframework.util.ObjectUtils;
  */
 public class InjectionPoint {
 
-	@Nullable
-	protected MethodParameter methodParameter;
+	protected @Nullable MethodParameter methodParameter;
 
-	@Nullable
-	protected Field field;
+	protected @Nullable Field field;
 
-	@Nullable
-	private volatile Annotation[] fieldAnnotations;
+	private volatile Annotation @Nullable [] fieldAnnotations;
 
 
 	/**
@@ -90,8 +91,7 @@ public class InjectionPoint {
 	 * <p>Note: Either MethodParameter or Field is available.
 	 * @return the MethodParameter, or {@code null} if none
 	 */
-	@Nullable
-	public MethodParameter getMethodParameter() {
+	public @Nullable MethodParameter getMethodParameter() {
 		return this.methodParameter;
 	}
 
@@ -100,8 +100,7 @@ public class InjectionPoint {
 	 * <p>Note: Either MethodParameter or Field is available.
 	 * @return the Field, or {@code null} if none
 	 */
-	@Nullable
-	public Field getField() {
+	public @Nullable Field getField() {
 		return this.field;
 	}
 
@@ -139,8 +138,7 @@ public class InjectionPoint {
 	 * @return the annotation instance, or {@code null} if none found
 	 * @since 4.3.9
 	 */
-	@Nullable
-	public <A extends Annotation> A getAnnotation(Class<A> annotationType) {
+	public <A extends Annotation> @Nullable A getAnnotation(Class<A> annotationType) {
 		return (this.field != null ? this.field.getAnnotation(annotationType) :
 				obtainMethodParameter().getParameterAnnotation(annotationType));
 	}
@@ -190,7 +188,7 @@ public class InjectionPoint {
 
 	@Override
 	public int hashCode() {
-		return (this.field != null ? this.field.hashCode() : ObjectUtils.nullSafeHashCode(this.methodParameter));
+		return Objects.hash(this.field, this.methodParameter);
 	}
 
 	@Override

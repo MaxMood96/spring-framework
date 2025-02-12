@@ -22,7 +22,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Fail
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.BDDMockito.*
+import org.mockito.BDDMockito.given
 import org.mockito.Mockito
 import org.springframework.transaction.*
 import org.springframework.transaction.reactive.TransactionContext
@@ -337,17 +337,17 @@ abstract class AbstractCoroutinesTransactionAspectTests {
 		private var name: String? = null
 
 		override suspend fun getName(): String? {
-			delay(10)
+			delay(1)
 			return name
 		}
 
 		override suspend fun setName(name: String?) {
-			delay(10)
+			delay(1)
 			this.name = name
 		}
 
 		override suspend fun exceptional(t: Throwable?) {
-			delay(10)
+			delay(1)
 			if (t != null) {
 				throw t
 			}

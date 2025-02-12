@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,11 @@
 package org.springframework.beans.testfixture.beans;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,6 +50,10 @@ public class IndexedTestBean {
 
 	private SortedMap sortedMap;
 
+	private IterableMap iterableMap;
+
+	private MyTestBeans myTestBeans;
+
 
 	public IndexedTestBean() {
 		this(true);
@@ -69,8 +76,12 @@ public class IndexedTestBean {
 		TestBean tb6 = new TestBean("name6", 0);
 		TestBean tb7 = new TestBean("name7", 0);
 		TestBean tb8 = new TestBean("name8", 0);
+		TestBean tbA = new TestBean("nameA", 0);
+		TestBean tbB = new TestBean("nameB", 0);
+		TestBean tbC = new TestBean("nameC", 0);
 		TestBean tbX = new TestBean("nameX", 0);
 		TestBean tbY = new TestBean("nameY", 0);
+		TestBean tbZ = new TestBean("nameZ", 0);
 		this.array = new TestBean[] {tb0, tb1};
 		this.list = new ArrayList<>();
 		this.list.add(tb2);
@@ -83,10 +94,17 @@ public class IndexedTestBean {
 		this.map.put("key2", tb5);
 		this.map.put("key.3", tb5);
 		List list = new ArrayList();
+		list.add(tbA);
+		list.add(tbB);
+		this.iterableMap = new IterableMap<>();
+		this.iterableMap.put("key1", tbC);
+		this.iterableMap.put("key2", list);
+		list = new ArrayList();
 		list.add(tbX);
 		list.add(tbY);
 		this.map.put("key4", list);
 		this.map.put("key5[foo]", tb8);
+		this.myTestBeans = new MyTestBeans(tbZ);
 	}
 
 
@@ -144,6 +162,46 @@ public class IndexedTestBean {
 
 	public void setSortedMap(SortedMap sortedMap) {
 		this.sortedMap = sortedMap;
+	}
+
+	public IterableMap getIterableMap() {
+		return this.iterableMap;
+	}
+
+	public void setIterableMap(IterableMap iterableMap) {
+		this.iterableMap = iterableMap;
+	}
+
+	public MyTestBeans getMyTestBeans() {
+		return myTestBeans;
+	}
+
+	public void setMyTestBeans(MyTestBeans myTestBeans) {
+		this.myTestBeans = myTestBeans;
+	}
+
+
+	@SuppressWarnings("serial")
+	public static class IterableMap<K,V> extends LinkedHashMap<K,V> implements Iterable<V> {
+
+		@Override
+		public Iterator<V> iterator() {
+			return values().iterator();
+		}
+	}
+
+	public static class MyTestBeans implements Iterable<TestBean> {
+
+		private final Collection<TestBean> testBeans;
+
+		public MyTestBeans(TestBean... testBeans) {
+			this.testBeans = Arrays.asList(testBeans);
+		}
+
+		@Override
+		public Iterator<TestBean> iterator() {
+			return this.testBeans.iterator();
+		}
 	}
 
 }

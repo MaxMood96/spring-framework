@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowire;
@@ -49,7 +50,6 @@ import org.springframework.core.convert.ConversionFailedException;
 import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.core.convert.support.DefaultConversionService;
 import org.springframework.core.convert.support.GenericConversionService;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -139,12 +139,16 @@ abstract class AbstractPropertyAccessorTests {
 		assertThat(accessor.isReadableProperty("list")).isTrue();
 		assertThat(accessor.isReadableProperty("set")).isTrue();
 		assertThat(accessor.isReadableProperty("map")).isTrue();
+		assertThat(accessor.isReadableProperty("iterableMap")).isTrue();
+		assertThat(accessor.isReadableProperty("myTestBeans")).isTrue();
 		assertThat(accessor.isReadableProperty("xxx")).isFalse();
 
 		assertThat(accessor.isWritableProperty("array")).isTrue();
 		assertThat(accessor.isWritableProperty("list")).isTrue();
 		assertThat(accessor.isWritableProperty("set")).isTrue();
 		assertThat(accessor.isWritableProperty("map")).isTrue();
+		assertThat(accessor.isWritableProperty("iterableMap")).isTrue();
+		assertThat(accessor.isWritableProperty("myTestBeans")).isTrue();
 		assertThat(accessor.isWritableProperty("xxx")).isFalse();
 
 		assertThat(accessor.isReadableProperty("array[0]")).isTrue();
@@ -159,6 +163,16 @@ abstract class AbstractPropertyAccessorTests {
 		assertThat(accessor.isReadableProperty("map[key4][0].name")).isTrue();
 		assertThat(accessor.isReadableProperty("map[key4][1]")).isTrue();
 		assertThat(accessor.isReadableProperty("map[key4][1].name")).isTrue();
+		assertThat(accessor.isReadableProperty("map[key999]")).isTrue();
+		assertThat(accessor.isReadableProperty("iterableMap[key1]")).isTrue();
+		assertThat(accessor.isReadableProperty("iterableMap[key1].name")).isTrue();
+		assertThat(accessor.isReadableProperty("iterableMap[key2][0]")).isTrue();
+		assertThat(accessor.isReadableProperty("iterableMap[key2][0].name")).isTrue();
+		assertThat(accessor.isReadableProperty("iterableMap[key2][1]")).isTrue();
+		assertThat(accessor.isReadableProperty("iterableMap[key2][1].name")).isTrue();
+		assertThat(accessor.isReadableProperty("iterableMap[key999]")).isTrue();
+		assertThat(accessor.isReadableProperty("myTestBeans[0]")).isTrue();
+		assertThat(accessor.isReadableProperty("myTestBeans[1]")).isFalse();
 		assertThat(accessor.isReadableProperty("array[key1]")).isFalse();
 
 		assertThat(accessor.isWritableProperty("array[0]")).isTrue();
@@ -173,6 +187,16 @@ abstract class AbstractPropertyAccessorTests {
 		assertThat(accessor.isWritableProperty("map[key4][0].name")).isTrue();
 		assertThat(accessor.isWritableProperty("map[key4][1]")).isTrue();
 		assertThat(accessor.isWritableProperty("map[key4][1].name")).isTrue();
+		assertThat(accessor.isWritableProperty("map[key999]")).isTrue();
+		assertThat(accessor.isWritableProperty("iterableMap[key1]")).isTrue();
+		assertThat(accessor.isWritableProperty("iterableMap[key1].name")).isTrue();
+		assertThat(accessor.isWritableProperty("iterableMap[key2][0]")).isTrue();
+		assertThat(accessor.isWritableProperty("iterableMap[key2][0].name")).isTrue();
+		assertThat(accessor.isWritableProperty("iterableMap[key2][1]")).isTrue();
+		assertThat(accessor.isWritableProperty("iterableMap[key2][1].name")).isTrue();
+		assertThat(accessor.isWritableProperty("iterableMap[key999]")).isTrue();
+		assertThat(accessor.isReadableProperty("myTestBeans[0]")).isTrue();
+		assertThat(accessor.isReadableProperty("myTestBeans[1]")).isFalse();
 		assertThat(accessor.isWritableProperty("array[key1]")).isFalse();
 	}
 
@@ -288,7 +312,7 @@ abstract class AbstractPropertyAccessorTests {
 	}
 
 	@Test
-	void setNestedPropertyPolymorphic() throws Exception {
+	void setNestedPropertyPolymorphic() {
 		ITestBean target = new TestBean("rod", 31);
 		ITestBean kerry = new Employee();
 
@@ -310,7 +334,7 @@ abstract class AbstractPropertyAccessorTests {
 	}
 
 	@Test
-	void setAnotherNestedProperty() throws Exception {
+	void setAnotherNestedProperty() {
 		ITestBean target = new TestBean("rod", 31);
 		ITestBean kerry = new TestBean("kerry", 0);
 
@@ -380,7 +404,7 @@ abstract class AbstractPropertyAccessorTests {
 	}
 
 	@Test
-	void setAnotherPropertyIntermediatePropertyIsNull() throws Exception {
+	void setAnotherPropertyIntermediatePropertyIsNull() {
 		ITestBean target = new TestBean("rod", 31);
 		AbstractPropertyAccessor accessor = createAccessor(target);
 		assertThatExceptionOfType(NullValueInNestedPathException.class).isThrownBy(() ->
@@ -400,6 +424,7 @@ abstract class AbstractPropertyAccessorTests {
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	void setPropertyIntermediateListIsNullWithAutoGrow() {
 		Foo target = new Foo();
 		AbstractPropertyAccessor accessor = createAccessor(target);
@@ -408,7 +433,7 @@ abstract class AbstractPropertyAccessorTests {
 		Map<String, String> map = new HashMap<>();
 		map.put("favoriteNumber", "9");
 		accessor.setPropertyValue("list[0]", map);
-		assertThat(target.list.get(0)).isEqualTo(map);
+		assertThat(target.list).element(0).isEqualTo(map);
 	}
 
 	@Test
@@ -546,7 +571,7 @@ abstract class AbstractPropertyAccessorTests {
 	}
 
 	@Test
-	void setStringPropertyWithCustomEditor() throws Exception {
+	void setStringPropertyWithCustomEditor() {
 		TestBean target = new TestBean();
 		AbstractPropertyAccessor accessor = createAccessor(target);
 		accessor.registerCustomEditor(String.class, "name", new PropertyEditorSupport() {
@@ -667,22 +692,22 @@ abstract class AbstractPropertyAccessorTests {
 		accessor.setPropertyValue("myDouble", doubleValue);
 
 		assertThat(target.getMyPrimitiveByte()).isEqualTo(Byte.MAX_VALUE);
-		assertThat(target.getMyByte().byteValue()).isEqualTo(Byte.MAX_VALUE);
+		assertThat(target.getMyByte()).isEqualTo(Byte.MAX_VALUE);
 
 		assertThat(target.getMyPrimitiveShort()).isEqualTo(Short.MAX_VALUE);
-		assertThat(target.getMyShort().shortValue()).isEqualTo(Short.MAX_VALUE);
+		assertThat(target.getMyShort()).isEqualTo(Short.MAX_VALUE);
 
 		assertThat(target.getMyPrimitiveInt()).isEqualTo(Integer.MAX_VALUE);
-		assertThat(target.getMyInteger().intValue()).isEqualTo(Integer.MAX_VALUE);
+		assertThat(target.getMyInteger()).isEqualTo(Integer.MAX_VALUE);
 
 		assertThat(target.getMyPrimitiveLong()).isEqualTo(Long.MAX_VALUE);
-		assertThat(target.getMyLong().longValue()).isEqualTo(Long.MAX_VALUE);
+		assertThat(target.getMyLong()).isEqualTo(Long.MAX_VALUE);
 
 		assertThat((double) target.getMyPrimitiveFloat()).isCloseTo(Float.MAX_VALUE, within(0.001));
 		assertThat((double) target.getMyFloat()).isCloseTo(Float.MAX_VALUE, within(0.001));
 
 		assertThat(target.getMyPrimitiveDouble()).isCloseTo(Double.MAX_VALUE, within(0.001));
-		assertThat(target.getMyDouble().doubleValue()).isCloseTo(Double.MAX_VALUE, within(0.001));
+		assertThat(target.getMyDouble()).isCloseTo(Double.MAX_VALUE, within(0.001));
 	}
 
 	@Test
@@ -717,7 +742,7 @@ abstract class AbstractPropertyAccessorTests {
 	}
 
 	@Test
-	void setPropertiesProperty() throws Exception {
+	void setPropertiesProperty() {
 		PropsTester target = new PropsTester();
 		AbstractPropertyAccessor accessor = createAccessor(target);
 		accessor.setPropertyValue("name", "ptest");
@@ -735,7 +760,7 @@ abstract class AbstractPropertyAccessorTests {
 	}
 
 	@Test
-	void setStringArrayProperty() throws Exception {
+	void setStringArrayProperty() {
 		PropsTester target = new PropsTester();
 		AbstractPropertyAccessor accessor = createAccessor(target);
 
@@ -760,7 +785,7 @@ abstract class AbstractPropertyAccessorTests {
 	}
 
 	@Test
-	void setStringArrayPropertyWithCustomStringEditor() throws Exception {
+	void setStringArrayPropertyWithCustomStringEditor() {
 		PropsTester target = new PropsTester();
 		AbstractPropertyAccessor accessor = createAccessor(target);
 		accessor.registerCustomEditor(String.class, "stringArray", new PropertyEditorSupport() {
@@ -789,7 +814,7 @@ abstract class AbstractPropertyAccessorTests {
 	}
 
 	@Test
-	void setStringArrayPropertyWithStringSplitting() throws Exception {
+	void setStringArrayPropertyWithStringSplitting() {
 		PropsTester target = new PropsTester();
 		AbstractPropertyAccessor accessor = createAccessor(target);
 		accessor.useConfigValueEditors();
@@ -798,7 +823,7 @@ abstract class AbstractPropertyAccessorTests {
 	}
 
 	@Test
-	void setStringArrayPropertyWithCustomStringDelimiter() throws Exception {
+	void setStringArrayPropertyWithCustomStringDelimiter() {
 		PropsTester target = new PropsTester();
 		AbstractPropertyAccessor accessor = createAccessor(target);
 		accessor.registerCustomEditor(String[].class, "stringArray", new StringArrayPropertyEditor("-"));
@@ -807,7 +832,7 @@ abstract class AbstractPropertyAccessorTests {
 	}
 
 	@Test
-	void setStringArrayWithAutoGrow() throws Exception {
+	void setStringArrayWithAutoGrow() {
 		StringArrayBean target = new StringArrayBean();
 		AbstractPropertyAccessor accessor = createAccessor(target);
 		accessor.setAutoGrowNestedPaths(true);
@@ -881,7 +906,7 @@ abstract class AbstractPropertyAccessorTests {
 	}
 
 	@Test
-	void setIntArrayPropertyWithStringSplitting() throws Exception {
+	void setIntArrayPropertyWithStringSplitting() {
 		PropsTester target = new PropsTester();
 		AbstractPropertyAccessor accessor = createAccessor(target);
 		accessor.useConfigValueEditors();
@@ -936,7 +961,7 @@ abstract class AbstractPropertyAccessorTests {
 	}
 
 	@Test
-	void setPrimitiveArrayPropertyWithAutoGrow() throws Exception {
+	void setPrimitiveArrayPropertyWithAutoGrow() {
 		PrimitiveArrayBean target = new PrimitiveArrayBean();
 		AbstractPropertyAccessor accessor = createAccessor(target);
 		accessor.setAutoGrowNestedPaths(true);
@@ -1137,12 +1162,12 @@ abstract class AbstractPropertyAccessorTests {
 		assertThat(target.getSet()).hasSize(1);
 		assertThat(target.getSet().contains("set1")).isTrue();
 		assertThat(target.getSortedSet()).hasSize(1);
-		assertThat(target.getSortedSet().contains("sortedSet1")).isTrue();
+		assertThat(target.getSortedSet()).contains("sortedSet1");
 		assertThat(target.getList()).hasSize(1);
-		assertThat(target.getList().contains("list1")).isTrue();
+		assertThat(target.getList()).contains("list1");
 
 		accessor.setPropertyValue("list", Collections.singletonList("list1 "));
-		assertThat(target.getList().contains("list1")).isTrue();
+		assertThat(target.getList()).contains("list1");
 	}
 
 	@Test
@@ -1388,6 +1413,10 @@ abstract class AbstractPropertyAccessorTests {
 		assertThat(accessor.getPropertyValue("map[key5[foo]].name")).isEqualTo("name8");
 		assertThat(accessor.getPropertyValue("map['key5[foo]'].name")).isEqualTo("name8");
 		assertThat(accessor.getPropertyValue("map[\"key5[foo]\"].name")).isEqualTo("name8");
+		assertThat(accessor.getPropertyValue("iterableMap[key1].name")).isEqualTo("nameC");
+		assertThat(accessor.getPropertyValue("iterableMap[key2][0].name")).isEqualTo("nameA");
+		assertThat(accessor.getPropertyValue("iterableMap[key2][1].name")).isEqualTo("nameB");
+		assertThat(accessor.getPropertyValue("myTestBeans[0].name")).isEqualTo("nameZ");
 
 		MutablePropertyValues pvs = new MutablePropertyValues();
 		pvs.add("array[0].name", "name5");
@@ -1401,6 +1430,10 @@ abstract class AbstractPropertyAccessorTests {
 		pvs.add("map[key4][0].name", "nameA");
 		pvs.add("map[key4][1].name", "nameB");
 		pvs.add("map[key5[foo]].name", "name10");
+		pvs.add("iterableMap[key1].name", "newName1");
+		pvs.add("iterableMap[key2][0].name", "newName2A");
+		pvs.add("iterableMap[key2][1].name", "newName2B");
+		pvs.add("myTestBeans[0].name", "nameZZ");
 		accessor.setPropertyValues(pvs);
 		assertThat(tb0.getName()).isEqualTo("name5");
 		assertThat(tb1.getName()).isEqualTo("name4");
@@ -1419,6 +1452,10 @@ abstract class AbstractPropertyAccessorTests {
 		assertThat(accessor.getPropertyValue("map[key4][0].name")).isEqualTo("nameA");
 		assertThat(accessor.getPropertyValue("map[key4][1].name")).isEqualTo("nameB");
 		assertThat(accessor.getPropertyValue("map[key5[foo]].name")).isEqualTo("name10");
+		assertThat(accessor.getPropertyValue("iterableMap[key1].name")).isEqualTo("newName1");
+		assertThat(accessor.getPropertyValue("iterableMap[key2][0].name")).isEqualTo("newName2A");
+		assertThat(accessor.getPropertyValue("iterableMap[key2][1].name")).isEqualTo("newName2B");
+		assertThat(accessor.getPropertyValue("myTestBeans[0].name")).isEqualTo("nameZZ");
 	}
 
 	@Test
@@ -1994,6 +2031,7 @@ abstract class AbstractPropertyAccessorTests {
 
 	}
 
+	@SuppressWarnings("unchecked")
 	static class Spr13837Bean implements Spr13837 {
 
 		protected Integer something;
@@ -2004,7 +2042,6 @@ abstract class AbstractPropertyAccessorTests {
 		}
 
 		@Override
-		@SuppressWarnings("unchecked")
 		public Spr13837Bean setSomething(final Integer something) {
 			this.something = something;
 			return this;

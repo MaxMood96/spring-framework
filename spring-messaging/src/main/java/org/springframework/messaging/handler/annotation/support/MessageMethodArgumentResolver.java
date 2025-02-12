@@ -18,9 +18,10 @@ package org.springframework.messaging.handler.annotation.support;
 
 import java.lang.reflect.Type;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ResolvableType;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.converter.MessageConversionException;
 import org.springframework.messaging.converter.MessageConverter;
@@ -43,8 +44,7 @@ import org.springframework.util.StringUtils;
  */
 public class MessageMethodArgumentResolver implements HandlerMethodArgumentResolver {
 
-	@Nullable
-	private final MessageConverter converter;
+	private final @Nullable MessageConverter converter;
 
 
 	/**
@@ -99,7 +99,7 @@ public class MessageMethodArgumentResolver implements HandlerMethodArgumentResol
 	 * Resolve the target class to convert the payload to.
 	 * <p>By default this is the generic type declared in the {@code Message}
 	 * method parameter but that can be overridden to select a more specific
-	 * target type after also taking into account the "Content-Type", e.g.
+	 * target type after also taking into account the "Content-Type", for example,
 	 * return {@code String} if target type is {@code Object} and
 	 * {@code "Content-Type:text/**"}.
 	 * @param parameter the target method parameter

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -29,7 +30,6 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.http.HttpStatus;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.cors.reactive.CorsUtils;
 import org.springframework.web.cors.reactive.PreFlightRequestHandler;
@@ -71,14 +71,11 @@ import org.springframework.web.server.adapter.WebHttpHandlerBuilder;
  */
 public class DispatcherHandler implements WebHandler, PreFlightRequestHandler, ApplicationContextAware {
 
-	@Nullable
-	private List<HandlerMapping> handlerMappings;
+	private @Nullable List<HandlerMapping> handlerMappings;
 
-	@Nullable
-	private List<HandlerAdapter> handlerAdapters;
+	private @Nullable List<HandlerAdapter> handlerAdapters;
 
-	@Nullable
-	private List<HandlerResultHandler> resultHandlers;
+	private @Nullable List<HandlerResultHandler> resultHandlers;
 
 
 	/**
@@ -105,8 +102,7 @@ public class DispatcherHandler implements WebHandler, PreFlightRequestHandler, A
 	 * prior to {@link #setApplicationContext(ApplicationContext)}.
 	 * @return immutable list with the configured mappings or {@code null}
 	 */
-	@Nullable
-	public final List<HandlerMapping> getHandlerMappings() {
+	public final @Nullable List<HandlerMapping> getHandlerMappings() {
 		return this.handlerMappings;
 	}
 
@@ -150,7 +146,7 @@ public class DispatcherHandler implements WebHandler, PreFlightRequestHandler, A
 				.concatMap(mapping -> mapping.getHandler(exchange))
 				.next()
 				.switchIfEmpty(createNotFoundError())
-				.onErrorResume(ex -> handleDispatchError(exchange, ex))
+				.onErrorResume(ex -> handleResultMono(exchange, Mono.error(ex)))
 				.flatMap(handler -> handleRequestWith(exchange, handler));
 	}
 
@@ -161,8 +157,7 @@ public class DispatcherHandler implements WebHandler, PreFlightRequestHandler, A
 		});
 	}
 
-	private Mono<Void> handleDispatchError(ServerWebExchange exchange, Throwable ex) {
-		Mono<HandlerResult> resultMono = Mono.error(ex);
+	private Mono<Void> handleResultMono(ServerWebExchange exchange, Mono<HandlerResult> resultMono) {
 		if (this.handlerAdapters != null) {
 			for (HandlerAdapter adapter : this.handlerAdapters) {
 				if (adapter instanceof DispatchExceptionHandler exceptionHandler) {
@@ -170,36 +165,20 @@ public class DispatcherHandler implements WebHandler, PreFlightRequestHandler, A
 				}
 			}
 		}
-		return resultMono.flatMap(result -> handleResult(exchange, result));
-	}
-
-	private Mono<Void> handleRequestWith(ServerWebExchange exchange, Object handler) {
-		if (ObjectUtils.nullSafeEquals(exchange.getResponse().getStatusCode(), HttpStatus.FORBIDDEN)) {
-			return Mono.empty();  // CORS rejection
-		}
-		if (this.handlerAdapters != null) {
-			for (HandlerAdapter adapter : this.handlerAdapters) {
-				if (adapter.supports(handler)) {
-					return adapter.handle(exchange, handler)
-							.flatMap(result -> handleResult(exchange, result));
-				}
+		return resultMono.flatMap(result -> {
+			Mono<Void> voidMono = handleResult(exchange, result, "Handler " + result.getHandler());
+			DispatchExceptionHandler exceptionHandler = result.getExceptionHandler();
+			if (exceptionHandler != null) {
+				voidMono = voidMono.onErrorResume(ex ->
+						exceptionHandler.handleError(exchange, ex).flatMap(result2 ->
+								handleResult(exchange, result2, "Exception handler " +
+										result2.getHandler() + ", error=\"" + ex.getMessage() + "\"")));
 			}
-		}
-		return Mono.error(new IllegalStateException("No HandlerAdapter: " + handler));
+			return voidMono;
+		});
 	}
 
-	private Mono<Void> handleResult(ServerWebExchange exchange, HandlerResult result) {
-		Mono<Void> resultMono = doHandleResult(exchange, result, "Handler " + result.getHandler());
-		if (result.getExceptionHandler() != null) {
-			resultMono = resultMono.onErrorResume(ex ->
-					result.getExceptionHandler().handleError(exchange, ex).flatMap(result2 ->
-							doHandleResult(exchange, result2, "Exception handler " +
-									result2.getHandler() + ", error=\"" + ex.getMessage() + "\"")));
-		}
-		return resultMono;
-	}
-
-	private Mono<Void> doHandleResult(
+	private Mono<Void> handleResult(
 			ServerWebExchange exchange, HandlerResult handlerResult, String description) {
 
 		if (this.resultHandlers != null) {
@@ -212,6 +191,21 @@ public class DispatcherHandler implements WebHandler, PreFlightRequestHandler, A
 		}
 		return Mono.error(new IllegalStateException(
 				"No HandlerResultHandler for " + handlerResult.getReturnValue()));
+	}
+
+	private Mono<Void> handleRequestWith(ServerWebExchange exchange, Object handler) {
+		if (ObjectUtils.nullSafeEquals(exchange.getResponse().getStatusCode(), HttpStatus.FORBIDDEN)) {
+			return Mono.empty();  // CORS rejection
+		}
+		if (this.handlerAdapters != null) {
+			for (HandlerAdapter adapter : this.handlerAdapters) {
+				if (adapter.supports(handler)) {
+					Mono<HandlerResult> resultMono = adapter.handle(exchange, handler);
+					return handleResultMono(exchange, resultMono);
+				}
+			}
+		}
+		return Mono.error(new IllegalStateException("No HandlerAdapter: " + handler));
 	}
 
 	@Override

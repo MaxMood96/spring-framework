@@ -16,8 +16,9 @@
 
 package org.springframework.beans.factory;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.BeansException;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 
 /**
@@ -32,8 +33,7 @@ import org.springframework.util.StringUtils;
 @SuppressWarnings("serial")
 public class UnsatisfiedDependencyException extends BeanCreationException {
 
-	@Nullable
-	private final InjectionPoint injectionPoint;
+	private final @Nullable InjectionPoint injectionPoint;
 
 
 	/**
@@ -44,7 +44,7 @@ public class UnsatisfiedDependencyException extends BeanCreationException {
 	 * @param msg the detail message
 	 */
 	public UnsatisfiedDependencyException(
-			@Nullable String resourceDescription, @Nullable String beanName, String propertyName, String msg) {
+			@Nullable String resourceDescription, @Nullable String beanName, String propertyName, @Nullable String msg) {
 
 		super(resourceDescription, beanName,
 				"Unsatisfied dependency expressed through bean property '" + propertyName + "'" +
@@ -75,7 +75,7 @@ public class UnsatisfiedDependencyException extends BeanCreationException {
 	 * @since 4.3
 	 */
 	public UnsatisfiedDependencyException(
-			@Nullable String resourceDescription, @Nullable String beanName, @Nullable InjectionPoint injectionPoint, String msg) {
+			@Nullable String resourceDescription, @Nullable String beanName, @Nullable InjectionPoint injectionPoint, @Nullable String msg) {
 
 		super(resourceDescription, beanName,
 				"Unsatisfied dependency expressed through " + injectionPoint +
@@ -103,8 +103,7 @@ public class UnsatisfiedDependencyException extends BeanCreationException {
 	 * Return the injection point (field or method/constructor parameter), if known.
 	 * @since 4.3
 	 */
-	@Nullable
-	public InjectionPoint getInjectionPoint() {
+	public @Nullable InjectionPoint getInjectionPoint() {
 		return this.injectionPoint;
 	}
 

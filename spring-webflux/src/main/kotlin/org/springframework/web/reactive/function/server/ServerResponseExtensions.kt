@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package org.springframework.web.reactive.function.server
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.reactive.awaitSingle
+import kotlinx.coroutines.reactor.awaitSingle
 import org.reactivestreams.Publisher
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.MediaType
@@ -51,9 +51,6 @@ inline fun <reified T : Any> ServerResponse.BodyBuilder.body(producer: Any): Mon
 /**
  * Coroutines variant of [ServerResponse.BodyBuilder.bodyValue].
  *
- * Set the body of the response to the given {@code Object} and return it.
- * This convenience method combines [body] and
- * [org.springframework.web.reactive.function.BodyInserters.fromValue].
  * @param body the body of the response
  * @return the built response
  * @throws IllegalArgumentException if `body` is a [Publisher] or an
@@ -61,6 +58,21 @@ inline fun <reified T : Any> ServerResponse.BodyBuilder.body(producer: Any): Mon
  */
 suspend fun ServerResponse.BodyBuilder.bodyValueAndAwait(body: Any): ServerResponse =
 		bodyValue(body).awaitSingle()
+
+/**
+ * Coroutines variant of [ServerResponse.BodyBuilder.bodyValue] providing a `bodyValueWithTypeAndAwait<T>(Any)` variant
+ * leveraging Kotlin reified type parameters. This extension is not subject to type
+ * erasure and retains actual generic type arguments.
+ *
+ * @param body the body of the response
+ * @param T the type of the body
+ * @return the built response
+ * @throws IllegalArgumentException if `body` is a [Publisher] or an
+ * instance of a type supported by [org.springframework.core.ReactiveAdapterRegistry.getSharedInstance],
+ * @since 6.2
+ */
+suspend inline fun <reified T: Any> ServerResponse.BodyBuilder.bodyValueWithTypeAndAwait(body: T): ServerResponse =
+	bodyValue(body, object : ParameterizedTypeReference<T>() {}).awaitSingle()
 
 /**
  * Coroutines variant of [ServerResponse.BodyBuilder.body] with [Any] and
@@ -72,18 +84,6 @@ suspend fun ServerResponse.BodyBuilder.bodyValueAndAwait(body: Any): ServerRespo
  */
 suspend inline fun <reified T : Any> ServerResponse.BodyBuilder.bodyAndAwait(flow: Flow<T>): ServerResponse =
 		body(flow, object : ParameterizedTypeReference<T>() {}).awaitSingle()
-
-/**
- * Extension for [ServerResponse.BodyBuilder.body] providing a
- * `bodyToServerSentEvents(Publisher<T>)` variant. This extension is not subject to type
- * erasure and retains actual generic type arguments.
- *
- * @author Sebastien Deleuze
- * @since 5.0
- */
-@Deprecated("Use 'sse().body(publisher)' instead.", replaceWith = ReplaceWith("sse().body(publisher)"))
-inline fun <reified T : Any> ServerResponse.BodyBuilder.bodyToServerSentEvents(publisher: Publisher<T>): Mono<ServerResponse> =
-		contentType(MediaType.TEXT_EVENT_STREAM).body(publisher, object : ParameterizedTypeReference<T>() {})
 
 /**
  * Shortcut for setting [MediaType.APPLICATION_JSON] `Content-Type` header.

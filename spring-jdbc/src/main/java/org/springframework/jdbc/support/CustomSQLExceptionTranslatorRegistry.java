@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,13 +21,12 @@ import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
- * Registry for custom {@link org.springframework.jdbc.support.SQLExceptionTranslator} instances associated with
- * specific databases allowing for overriding translation based on values contained in the configuration file
- * named "sql-error-codes.xml".
+ * Registry for custom {@link SQLExceptionTranslator} instances associated with
+ * specific databases allowing for overriding translation based on values
+ * contained in the configuration file named "sql-error-codes.xml".
  *
  * @author Thomas Risberg
  * @since 3.1.1
@@ -38,7 +37,7 @@ public final class CustomSQLExceptionTranslatorRegistry {
 	private static final Log logger = LogFactory.getLog(CustomSQLExceptionTranslatorRegistry.class);
 
 	/**
-	 * Keep track of a single instance so we can return it to classes that request it.
+	 * Keep track of a single instance, so we can return it to classes that request it.
 	 */
 	private static final CustomSQLExceptionTranslatorRegistry instance = new CustomSQLExceptionTranslatorRegistry();
 
@@ -91,8 +90,7 @@ public final class CustomSQLExceptionTranslatorRegistry {
 	 * @param dbName the database name
 	 * @return the custom translator, or {@code null} if none found
 	 */
-	@Nullable
-	public SQLExceptionTranslator findTranslatorForDatabase(String dbName) {
+	public @Nullable SQLExceptionTranslator findTranslatorForDatabase(String dbName) {
 		return this.translatorMap.get(dbName);
 	}
 

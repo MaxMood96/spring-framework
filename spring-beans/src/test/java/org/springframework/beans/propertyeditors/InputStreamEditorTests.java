@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.springframework.beans.propertyeditors;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 import org.junit.jupiter.api.Test;
@@ -26,21 +27,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 /**
- * Unit tests for the {@link InputStreamEditor} class.
+ * Tests for {@link InputStreamEditor}.
  *
  * @author Rick Evans
  * @author Chris Beams
  */
-public class InputStreamEditorTests {
+class InputStreamEditorTests {
 
 	@Test
-	public void testCtorWithNullResourceEditor() throws Exception {
+	void testCtorWithNullResourceEditor() {
 		assertThatIllegalArgumentException().isThrownBy(() ->
 				new InputStreamEditor(null));
 	}
 
 	@Test
-	public void testSunnyDay() throws Exception {
+	void testSunnyDay() throws IOException {
 		InputStream stream = null;
 		try {
 			String resource = "classpath:" + ClassUtils.classPackageAsResourcePath(getClass()) +
@@ -49,8 +50,7 @@ public class InputStreamEditorTests {
 			editor.setAsText(resource);
 			Object value = editor.getValue();
 			assertThat(value).isNotNull();
-			boolean condition = value instanceof InputStream;
-			assertThat(condition).isTrue();
+			assertThat(value).isInstanceOf(InputStream.class);
 			stream = (InputStream) value;
 			assertThat(stream.available()).isGreaterThan(0);
 		}
@@ -62,14 +62,14 @@ public class InputStreamEditorTests {
 	}
 
 	@Test
-	public void testWhenResourceDoesNotExist() throws Exception {
+	void testWhenResourceDoesNotExist() {
 		InputStreamEditor editor = new InputStreamEditor();
 		assertThatIllegalArgumentException().isThrownBy(() ->
 				editor.setAsText("classpath:bingo!"));
 	}
 
 	@Test
-	public void testGetAsTextReturnsNullByDefault() throws Exception {
+	void testGetAsTextReturnsNullByDefault() {
 		assertThat(new InputStreamEditor().getAsText()).isNull();
 		String resource = "classpath:" + ClassUtils.classPackageAsResourcePath(getClass()) +
 				"/" + ClassUtils.getShortName(getClass()) + ".class";

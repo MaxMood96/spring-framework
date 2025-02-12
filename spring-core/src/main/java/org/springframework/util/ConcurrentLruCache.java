@@ -28,7 +28,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Simple LRU (Least Recently Used) cache, bounded by a specified cache capacity.
@@ -45,7 +45,7 @@ import org.springframework.lang.Nullable;
  * @param <V> the type of the cached values, does not allow null values
  * @see #get(Object)
  */
-@SuppressWarnings({"unchecked"})
+@SuppressWarnings({"unchecked", "NullAway"})
 public final class ConcurrentLruCache<K, V> {
 
 	private final int capacity;
@@ -81,7 +81,7 @@ public final class ConcurrentLruCache<K, V> {
 	}
 
 	private ConcurrentLruCache(int capacity, Function<K, V> generator, int concurrencyLevel) {
-		Assert.isTrue(capacity > 0, "Capacity must be > 0");
+		Assert.isTrue(capacity >= 0, "Capacity must be >= 0");
 		this.capacity = capacity;
 		this.cache = new ConcurrentHashMap<>(16, 0.75f, concurrencyLevel);
 		this.generator = generator;
@@ -95,6 +95,9 @@ public final class ConcurrentLruCache<K, V> {
 	 * @return the cached or newly generated value
 	 */
 	public V get(K key) {
+		if (this.capacity == 0) {
+			return this.generator.apply(key);
+		}
 		final Node<K, V> node = this.cache.get(key);
 		if (node == null) {
 			V value = this.generator.apply(key);
@@ -220,7 +223,6 @@ public final class ConcurrentLruCache<K, V> {
 	 * @return {@code true} if the key was present before,
 	 * {@code false} if there was no matching key
 	 */
-	@Nullable
 	public boolean remove(K key) {
 		final Node<K, V> node = this.cache.remove(key);
 		if (node == null) {
@@ -393,7 +395,6 @@ public final class ConcurrentLruCache<K, V> {
 
 		private final EvictionQueue<K, V> evictionQueue;
 
-		@SuppressWarnings("rawtypes")
 		ReadOperations(EvictionQueue<K, V> evictionQueue) {
 			this.evictionQueue = evictionQueue;
 			for (int i = 0; i < BUFFER_COUNT; i++) {
@@ -484,19 +485,16 @@ public final class ConcurrentLruCache<K, V> {
 	private static final class Node<K, V> extends AtomicReference<CacheEntry<V>> {
 		final K key;
 
-		@Nullable
-		Node<K, V> prev;
+		@Nullable Node<K, V> prev;
 
-		@Nullable
-		Node<K, V> next;
+		@Nullable Node<K, V> next;
 
 		Node(K key, CacheEntry<V> cacheEntry) {
 			super(cacheEntry);
 			this.key = key;
 		}
 
-		@Nullable
-		public Node<K, V> getPrevious() {
+		public @Nullable Node<K, V> getPrevious() {
 			return this.prev;
 		}
 
@@ -504,8 +502,7 @@ public final class ConcurrentLruCache<K, V> {
 			this.prev = prev;
 		}
 
-		@Nullable
-		public Node<K, V> getNext() {
+		public @Nullable Node<K, V> getNext() {
 			return this.next;
 		}
 
@@ -521,15 +518,12 @@ public final class ConcurrentLruCache<K, V> {
 
 	private static final class EvictionQueue<K, V> {
 
-		@Nullable
-		Node<K, V> first;
+		@Nullable Node<K, V> first;
 
-		@Nullable
-		Node<K, V> last;
+		@Nullable Node<K, V> last;
 
 
-		@Nullable
-		Node<K, V> poll() {
+		@Nullable Node<K, V> poll() {
 			if (this.first == null) {
 				return null;
 			}

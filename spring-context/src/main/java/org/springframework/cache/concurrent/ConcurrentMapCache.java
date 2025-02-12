@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,21 +17,29 @@
 package org.springframework.cache.concurrent;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ForkJoinPool;
+import java.util.function.Supplier;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.cache.support.AbstractValueAdaptingCache;
 import org.springframework.core.serializer.support.SerializationDelegate;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
- * Simple {@link org.springframework.cache.Cache} implementation based on the
- * core JDK {@code java.util.concurrent} package.
+ * Simple {@link org.springframework.cache.Cache} implementation based on the core
+ * JDK {@code java.util.concurrent} package.
  *
  * <p>Useful for testing or simple caching scenarios, typically in combination
  * with {@link org.springframework.cache.support.SimpleCacheManager} or
  * dynamically through {@link ConcurrentMapCacheManager}.
+ *
+ * <p>Supports the  {@link #retrieve(Object)} and {@link #retrieve(Object, Supplier)}
+ * operations in a best-effort fashion, relying on default {@link CompletableFuture}
+ * execution (typically within the JVM's {@link ForkJoinPool#commonPool()}).
  *
  * <p><b>Note:</b> As {@link ConcurrentHashMap} (the default implementation used)
  * does not allow for {@code null} values to be stored, this class will replace
@@ -50,8 +58,7 @@ public class ConcurrentMapCache extends AbstractValueAdaptingCache {
 
 	private final ConcurrentMap<Object, Object> store;
 
-	@Nullable
-	private final SerializationDelegate serialization;
+	private final @Nullable SerializationDelegate serialization;
 
 
 	/**
@@ -130,15 +137,13 @@ public class ConcurrentMapCache extends AbstractValueAdaptingCache {
 	}
 
 	@Override
-	@Nullable
-	protected Object lookup(Object key) {
+	protected @Nullable Object lookup(Object key) {
 		return this.store.get(key);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	@Nullable
-	public <T> T get(Object key, Callable<T> valueLoader) {
+	public <T> @Nullable T get(Object key, Callable<T> valueLoader) {
 		return (T) fromStoreValue(this.store.computeIfAbsent(key, k -> {
 			try {
 				return toStoreValue(valueLoader.call());
@@ -150,13 +155,26 @@ public class ConcurrentMapCache extends AbstractValueAdaptingCache {
 	}
 
 	@Override
+	public @Nullable CompletableFuture<?> retrieve(Object key) {
+		Object value = lookup(key);
+		return (value != null ? CompletableFuture.completedFuture(
+				isAllowNullValues() ? toValueWrapper(value) : fromStoreValue(value)) : null);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <T> CompletableFuture<T> retrieve(Object key, Supplier<CompletableFuture<T>> valueLoader) {
+		return CompletableFuture.supplyAsync(() ->
+				(T) fromStoreValue(this.store.computeIfAbsent(key, k -> toStoreValue(valueLoader.get().join()))));
+	}
+
+	@Override
 	public void put(Object key, @Nullable Object value) {
 		this.store.put(key, toStoreValue(value));
 	}
 
 	@Override
-	@Nullable
-	public ValueWrapper putIfAbsent(Object key, @Nullable Object value) {
+	public @Nullable ValueWrapper putIfAbsent(Object key, @Nullable Object value) {
 		Object existing = this.store.putIfAbsent(key, toStoreValue(value));
 		return toValueWrapper(existing);
 	}
@@ -201,7 +219,7 @@ public class ConcurrentMapCache extends AbstractValueAdaptingCache {
 	}
 
 	@Override
-	protected Object fromStoreValue(@Nullable Object storeValue) {
+	protected @Nullable Object fromStoreValue(@Nullable Object storeValue) {
 		if (storeValue != null && this.serialization != null) {
 			try {
 				return super.fromStoreValue(this.serialization.deserializeFromByteArray((byte[]) storeValue));

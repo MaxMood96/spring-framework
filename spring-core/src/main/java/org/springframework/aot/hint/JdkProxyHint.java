@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A hint that describes the need for a JDK interface-based {@link Proxy}.
@@ -35,8 +35,7 @@ public final class JdkProxyHint implements ConditionalHint {
 
 	private final List<TypeReference> proxiedInterfaces;
 
-	@Nullable
-	private final TypeReference reachableType;
+	private final @Nullable TypeReference reachableType;
 
 
 	private JdkProxyHint(Builder builder) {
@@ -62,6 +61,7 @@ public final class JdkProxyHint implements ConditionalHint {
 		return new Builder().proxiedInterfaces(proxiedInterfaces);
 	}
 
+
 	/**
 	 * Return the interfaces to be proxied.
 	 * @return the interfaces that the proxy should implement
@@ -70,23 +70,16 @@ public final class JdkProxyHint implements ConditionalHint {
 		return this.proxiedInterfaces;
 	}
 
-	@Nullable
 	@Override
-	public TypeReference getReachableType() {
+	public @Nullable TypeReference getReachableType() {
 		return this.reachableType;
 	}
 
 	@Override
-	public boolean equals(@Nullable Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		JdkProxyHint that = (JdkProxyHint) o;
-		return this.proxiedInterfaces.equals(that.proxiedInterfaces)
-				&& Objects.equals(this.reachableType, that.reachableType);
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof JdkProxyHint that &&
+				this.proxiedInterfaces.equals(that.proxiedInterfaces) &&
+				Objects.equals(this.reachableType, that.reachableType)));
 	}
 
 	@Override
@@ -102,9 +95,7 @@ public final class JdkProxyHint implements ConditionalHint {
 
 		private final LinkedList<TypeReference> proxiedInterfaces;
 
-		@Nullable
-		private TypeReference reachableType;
-
+		private @Nullable TypeReference reachableType;
 
 		Builder() {
 			this.proxiedInterfaces = new LinkedList<>();
@@ -131,10 +122,8 @@ public final class JdkProxyHint implements ConditionalHint {
 		}
 
 		/**
-		 * Make this hint conditional on the fact that the specified type
-		 * can be resolved.
-		 * @param reachableType the type that should be reachable for this
-		 * hint to apply
+		 * Make this hint conditional on the fact that the specified type can be resolved.
+		 * @param reachableType the type that should be reachable for this hint to apply
 		 * @return {@code this}, to facilitate method chaining
 		 */
 		public Builder onReachableType(TypeReference reachableType) {
@@ -160,7 +149,6 @@ public final class JdkProxyHint implements ConditionalHint {
 			}
 			return TypeReference.listOf(proxiedInterfaces);
 		}
-
 	}
 
 }

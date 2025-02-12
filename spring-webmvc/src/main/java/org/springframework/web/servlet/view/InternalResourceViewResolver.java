@@ -16,7 +16,8 @@
 
 package org.springframework.web.servlet.view;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.ClassUtils;
 
 /**
@@ -30,7 +31,7 @@ import org.springframework.util.ClassUtils;
  * JSTL API is present.
  *
  * <p>BTW, it's good practice to put JSP files that just serve as views under
- * WEB-INF, to hide them from direct access (e.g. via a manually entered URL).
+ * WEB-INF, to hide them from direct access (for example, via a manually entered URL).
  * Only controllers will be able to access them then.
  *
  * <p><b>Note:</b> When chaining ViewResolvers, an InternalResourceViewResolver
@@ -51,8 +52,7 @@ public class InternalResourceViewResolver extends UrlBasedViewResolver {
 	private static final boolean jstlPresent = ClassUtils.isPresent(
 			"jakarta.servlet.jsp.jstl.core.Config", InternalResourceViewResolver.class.getClassLoader());
 
-	@Nullable
-	private Boolean alwaysInclude;
+	private @Nullable Boolean alwaysInclude;
 
 
 	/**

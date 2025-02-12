@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,22 +20,23 @@ import java.net.URI;
 import java.util.Locale;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
-import org.springframework.lang.Nullable;
 
 /**
- * Representation of a complete RFC 7807 error response including status,
- * headers, and an RFC 7807 formatted {@link ProblemDetail} body. Allows any
+ * Representation of a complete RFC 9457 error response including status,
+ * headers, and an RFC 9457 formatted {@link ProblemDetail} body. Allows any
  * exception to expose HTTP error response information.
  *
  * <p>{@link ErrorResponseException} is a default implementation of this
  * interface and a convenient base class for other exceptions to use.
  *
  * <p>{@code ErrorResponse} is supported as a return value from
- * {@code @ExceptionHandler} methods that render directly to the response, e.g.
+ * {@code @ExceptionHandler} methods that render directly to the response, for example,
  * by being marked {@code @ResponseBody}, or declared in an
  * {@code @RestController} or {@code RestControllerAdvice} class.
  *
@@ -58,11 +59,40 @@ public interface ErrorResponse {
 	}
 
 	/**
-	 * Return the body for the response, formatted as an RFC 7807
+	 * Return the body for the response, formatted as an RFC 9457
 	 * {@link ProblemDetail} whose {@link ProblemDetail#getStatus() status}
 	 * should match the response status.
+	 * <p><strong>Note:</strong> The returned {@code ProblemDetail} may be
+	 * updated before the response is rendered, for example, via
+	 * {@link #updateAndGetBody(MessageSource, Locale)}. Therefore, implementing
+	 * methods should use an instance field, and should not re-create the
+	 * {@code ProblemDetail} on every call, nor use a static variable.
 	 */
 	ProblemDetail getBody();
+
+
+	// MessageSource codes and arguments
+
+	/**
+	 * Return a code to use to resolve the problem "type" for this exception
+	 * through a {@link MessageSource}. The type resolved through the
+	 * {@code MessageSource} will be passed into {@link URI#create(String)}
+	 * and therefore must be an encoded URI String.
+	 * <p>By default this is initialized via {@link #getDefaultTypeMessageCode(Class)}.
+	 * @since 6.1
+	 */
+	default String getTypeMessageCode() {
+		return getDefaultTypeMessageCode(getClass());
+	}
+
+	/**
+	 * Return a code to use to resolve the problem "title" for this exception
+	 * through a {@link MessageSource}.
+	 * <p>By default this is initialized via {@link #getDefaultTitleMessageCode(Class)}.
+	 */
+	default String getTitleMessageCode() {
+		return getDefaultTitleMessageCode(getClass());
+	}
 
 	/**
 	 * Return a code to use to resolve the problem "detail" for this exception
@@ -78,10 +108,9 @@ public interface ErrorResponse {
 	 * Return arguments to use along with a {@link #getDetailMessageCode()
 	 * message code} to resolve the problem "detail" for this exception
 	 * through a {@link MessageSource}. The arguments are expanded
-	 * into placeholders of the message value, e.g. "Invalid content type {0}".
+	 * into placeholders of the message value, for example, "Invalid content type {0}".
 	 */
-	@Nullable
-	default Object[] getDetailMessageArguments() {
+	default Object @Nullable [] getDetailMessageArguments() {
 		return null;
 	}
 
@@ -94,30 +123,24 @@ public interface ErrorResponse {
 	 * @param messageSource the {@code MessageSource} to use for the lookup
 	 * @param locale the {@code Locale} to use for the lookup
 	 */
-	@Nullable
-	default Object[] getDetailMessageArguments(MessageSource messageSource, Locale locale) {
+	default Object @Nullable [] getDetailMessageArguments(MessageSource messageSource, Locale locale) {
 		return getDetailMessageArguments();
 	}
 
 	/**
-	 * Return a code to use to resolve the problem "title" for this exception
-	 * through a {@link MessageSource}.
-	 * <p>By default this is initialized via {@link #getDefaultTitleMessageCode(Class)}.
-	 */
-	default String getTitleMessageCode() {
-		return getDefaultTitleMessageCode(getClass());
-	}
-
-	/**
-	 * Resolve the {@link #getDetailMessageCode() detailMessageCode} and the
-	 * {@link #getTitleMessageCode() titleMessageCode} through the given
-	 * {@link MessageSource}, and if found, update the "detail" and "title"
-	 * fields respectively.
+	 * Use the given {@link MessageSource} to resolve the
+	 * {@link #getTypeMessageCode() type}, {@link #getTitleMessageCode() title},
+	 * and {@link #getDetailMessageCode() detail} message codes, and then use the
+	 * resolved values to update the corresponding fields in {@link #getBody()}.
 	 * @param messageSource the {@code MessageSource} to use for the lookup
 	 * @param locale the {@code Locale} to use for the lookup
 	 */
 	default ProblemDetail updateAndGetBody(@Nullable MessageSource messageSource, Locale locale) {
 		if (messageSource != null) {
+			String type = messageSource.getMessage(getTypeMessageCode(), null, null, locale);
+			if (type != null) {
+				getBody().setType(URI.create(type));
+			}
 			Object[] arguments = getDetailMessageArguments(messageSource, locale);
 			String detail = messageSource.getMessage(getDetailMessageCode(), arguments, null, locale);
 			if (detail != null) {
@@ -133,15 +156,14 @@ public interface ErrorResponse {
 
 
 	/**
-	 * Build a message code for the "detail" field, for the given exception type.
+	 * Build a message code for the "type" field, for the given exception type.
 	 * @param exceptionType the exception type associated with the problem
-	 * @param suffix an optional suffix, e.g. for exceptions that may have multiple
-	 * error message with different arguments
-	 * @return {@code "problemDetail."} followed by the fully qualified
-	 * {@link Class#getName() class name} and an optional suffix
+	 * @return {@code "problemDetail.type."} followed by the fully qualified
+	 * {@link Class#getName() class name}
+	 * @since 6.1
 	 */
-	static String getDefaultDetailMessageCode(Class<?> exceptionType, @Nullable String suffix) {
-		return "problemDetail." + exceptionType.getName() + (suffix != null ? "." + suffix : "");
+	static String getDefaultTypeMessageCode(Class<?> exceptionType) {
+		return "problemDetail.type." + exceptionType.getName();
 	}
 
 	/**
@@ -153,6 +175,19 @@ public interface ErrorResponse {
 	static String getDefaultTitleMessageCode(Class<?> exceptionType) {
 		return "problemDetail.title." + exceptionType.getName();
 	}
+
+	/**
+	 * Build a message code for the "detail" field, for the given exception type.
+	 * @param exceptionType the exception type associated with the problem
+	 * @param suffix an optional suffix, for example, for exceptions that may have multiple
+	 * error message with different arguments
+	 * @return {@code "problemDetail."} followed by the fully qualified
+	 * {@link Class#getName() class name} and an optional suffix
+	 */
+	static String getDefaultDetailMessageCode(Class<?> exceptionType, @Nullable String suffix) {
+		return "problemDetail." + exceptionType.getName() + (suffix != null ? "." + suffix : "");
+	}
+
 
 	/**
 	 * Static factory method to build an instance via
@@ -174,7 +209,16 @@ public interface ErrorResponse {
 	 * by a {@link MessageSource} lookup with {@link #getDetailMessageCode()}
 	 */
 	static Builder builder(Throwable ex, HttpStatusCode statusCode, String detail) {
-		return new DefaultErrorResponseBuilder(ex, statusCode, detail);
+		return builder(ex, ProblemDetail.forStatusAndDetail(statusCode, detail));
+	}
+
+	/**
+	 * Variant of {@link #builder(Throwable, HttpStatusCode, String)} for use
+	 * with a custom {@link ProblemDetail} instance.
+	 * @since 6.1
+	 */
+	static Builder builder(Throwable ex, ProblemDetail problemDetail) {
+		return new DefaultErrorResponseBuilder(ex, problemDetail);
 	}
 
 
@@ -195,12 +239,51 @@ public interface ErrorResponse {
 		/**
 		 * Manipulate this response's headers with the given consumer. This is
 		 * useful to {@linkplain HttpHeaders#set(String, String) overwrite} or
-		 * {@linkplain HttpHeaders#remove(Object) remove} existing values, or
+		 * {@linkplain HttpHeaders#remove(String) remove} existing values, or
 		 * use any other {@link HttpHeaders} methods.
 		 * @param headersConsumer a function that consumes the {@code HttpHeaders}
 		 * @return the same builder instance
 		 */
 		Builder headers(Consumer<HttpHeaders> headersConsumer);
+
+		/**
+		 * Set the underlying {@link ProblemDetail#setType(URI) type} field.
+		 * @return the same builder instance
+		 */
+		Builder type(URI type);
+
+		/**
+		 * Customize the {@link MessageSource} code to use to resolve the value
+		 * for {@link ProblemDetail#setType(URI)}.
+		 * <p>By default, set from {@link ErrorResponse#getDefaultTypeMessageCode(Class)}.
+		 * @param messageCode the message code to use
+		 * @return the same builder instance
+		 * @since 6.1
+		 * @see ErrorResponse#getTypeMessageCode()
+		 */
+		Builder typeMessageCode(String messageCode);
+
+		/**
+		 * Set the underlying {@link ProblemDetail#setTitle(String) title} field.
+		 * @return the same builder instance
+		 */
+		Builder title(@Nullable String title);
+
+		/**
+		 * Customize the {@link MessageSource} code to use to resolve the value
+		 * for {@link ProblemDetail#setTitle(String)}.
+		 * <p>By default, set from {@link ErrorResponse#getDefaultTitleMessageCode(Class)}.
+		 * @param messageCode the message code to use
+		 * @return the same builder instance
+		 * @see ErrorResponse#getTitleMessageCode()
+		 */
+		Builder titleMessageCode(String messageCode);
+
+		/**
+		 * Set the underlying {@link ProblemDetail#setInstance(URI) instance} field.
+		 * @return the same builder instance
+		 */
+		Builder instance(@Nullable URI instance);
 
 		/**
 		 * Set the underlying {@link ProblemDetail#setDetail(String) detail}.
@@ -209,11 +292,9 @@ public interface ErrorResponse {
 		Builder detail(String detail);
 
 		/**
-		 * Customize the {@link MessageSource} code for looking up the value for
-		 * the underlying {@link #detail(String) detail}.
-		 * <p>By default, this is set to
-		 * {@link ErrorResponse#getDefaultDetailMessageCode(Class, String)} with the
-		 * associated Exception type.
+		 * Customize the {@link MessageSource} code to use to resolve the value
+		 * for the {@link #detail(String)}.
+		 * <p>By default, set from {@link ErrorResponse#getDefaultDetailMessageCode(Class, String)}.
 		 * @param messageCode the message code to use
 		 * @return the same builder instance
 		 * @see ErrorResponse#getDetailMessageCode()
@@ -228,36 +309,6 @@ public interface ErrorResponse {
 		 * @see ErrorResponse#getDetailMessageArguments()
 		 */
 		Builder detailMessageArguments(Object... messageArguments);
-
-		/**
-		 * Set the underlying {@link ProblemDetail#setType(URI) type} field.
-		 * @return the same builder instance
-		 */
-		Builder type(URI type);
-
-		/**
-		 * Set the underlying {@link ProblemDetail#setTitle(String) title} field.
-		 * @return the same builder instance
-		 */
-		Builder title(@Nullable String title);
-
-		/**
-		 * Customize the {@link MessageSource} code for looking up the value for
-		 * the underlying {@link ProblemDetail#setTitle(String) title}.
-		 * <p>By default, set via
-		 * {@link ErrorResponse#getDefaultTitleMessageCode(Class)} with the
-		 * associated Exception type.
-		 * @param messageCode the message code to use
-		 * @return the same builder instance
-		 * @see ErrorResponse#getTitleMessageCode()
-		 */
-		Builder titleMessageCode(String messageCode);
-
-		/**
-		 * Set the underlying {@link ProblemDetail#setInstance(URI) instance} field.
-		 * @return the same builder instance
-		 */
-		Builder instance(@Nullable URI instance);
 
 		/**
 		 * Set a "dynamic" {@link ProblemDetail#setProperty(String, Object)
@@ -283,6 +334,26 @@ public interface ErrorResponse {
 			response.updateAndGetBody(messageSource, locale);
 			return response;
 		}
+
+	}
+
+
+	/**
+	 * Callback to perform an action before an RFC-9457 {@link ProblemDetail}
+	 * response is rendered.
+	 *
+	 * @author Rossen Stoyanchev
+	 * @since 6.2
+	 */
+	interface Interceptor {
+
+		/**
+		 * Handle the given {@code ProblemDetail} that's going to be rendered,
+		 * and the {@code ErrorResponse} it originates from, if applicable.
+		 * @param detail the {@code ProblemDetail} to be rendered
+		 * @param errorResponse the {@code ErrorResponse}, or {@code null} if there isn't one
+		 */
+		void handleError(ProblemDetail detail, @Nullable ErrorResponse errorResponse);
 
 	}
 

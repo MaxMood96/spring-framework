@@ -16,7 +16,8 @@
 
 package org.springframework.transaction.support;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.transaction.TransactionStatus;
 
 /**
@@ -25,7 +26,7 @@ import org.springframework.transaction.TransactionStatus;
  *
  * <p>Typically used to assemble various calls to transaction-unaware data access
  * services into a higher-level service method with transaction demarcation. As an
- * alternative, consider the use of declarative transaction demarcation (e.g. through
+ * alternative, consider the use of declarative transaction demarcation (for example, through
  * Spring's {@link org.springframework.transaction.annotation.Transactional} annotation).
  *
  * @author Juergen Hoeller
@@ -41,7 +42,7 @@ public interface TransactionCallback<T> {
 	 * Gets called by {@link TransactionTemplate#execute} within a transactional context.
 	 * Does not need to care about transactions itself, although it can retrieve and
 	 * influence the status of the current transaction via the given status object,
-	 * e.g. setting rollback-only.
+	 * for example, setting rollback-only.
 	 * <p>Allows for returning a result object created within the transaction, i.e. a
 	 * domain object or a collection of domain objects. A RuntimeException thrown by the
 	 * callback is treated as application exception that enforces a rollback. Any such
@@ -52,7 +53,6 @@ public interface TransactionCallback<T> {
 	 * @see TransactionTemplate#execute
 	 * @see CallbackPreferringPlatformTransactionManager#execute
 	 */
-	@Nullable
-	T doInTransaction(TransactionStatus status);
+	@Nullable T doInTransaction(TransactionStatus status);
 
 }

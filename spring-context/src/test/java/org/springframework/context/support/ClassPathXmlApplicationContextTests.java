@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,8 +48,9 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
  * @author Juergen Hoeller
  * @author Chris Beams
  * @author Sam Brannen
+ * @author Yanming Zhou
  */
-public class ClassPathXmlApplicationContextTests {
+class ClassPathXmlApplicationContextTests {
 
 	private static final String PATH = "/org/springframework/context/support/";
 	private static final String RESOURCE_CONTEXT = PATH + "ClassPathXmlApplicationContextTests-resource.xml";
@@ -134,7 +135,7 @@ public class ClassPathXmlApplicationContextTests {
 	}
 
 	@Test
-	void contextWithInvalidValueType() throws IOException {
+	void contextWithInvalidValueType() {
 		ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(
 				new String[] {INVALID_VALUE_TYPE_CONTEXT}, false);
 		assertThatExceptionOfType(BeanCreationException.class)
@@ -166,9 +167,9 @@ public class ClassPathXmlApplicationContextTests {
 	void contextWithInvalidLazyClass() {
 		ClassPathXmlApplicationContext ctx = new ClassPathXmlApplicationContext(INVALID_CLASS_CONTEXT, getClass());
 		assertThat(ctx.containsBean("someMessageSource")).isTrue();
-		assertThatExceptionOfType(CannotLoadBeanClassException.class).isThrownBy(() ->
-				ctx.getBean("someMessageSource"))
-			.satisfies(ex -> assertThat(ex.contains(ClassNotFoundException.class)).isTrue());
+		assertThatExceptionOfType(CannotLoadBeanClassException.class)
+				.isThrownBy(() -> ctx.getBean("someMessageSource"))
+				.withCauseExactlyInstanceOf(ClassNotFoundException.class);
 		ctx.close();
 	}
 
@@ -176,8 +177,7 @@ public class ClassPathXmlApplicationContextTests {
 	void contextWithClassNameThatContainsPlaceholder() {
 		ClassPathXmlApplicationContext ctx = new ClassPathXmlApplicationContext(CLASS_WITH_PLACEHOLDER_CONTEXT, getClass());
 		assertThat(ctx.containsBean("someMessageSource")).isTrue();
-		boolean condition = ctx.getBean("someMessageSource") instanceof StaticMessageSource;
-		assertThat(condition).isTrue();
+		assertThat(ctx.getBean("someMessageSource")).isInstanceOf(StaticMessageSource.class);
 		ctx.close();
 	}
 
@@ -223,11 +223,16 @@ public class ClassPathXmlApplicationContextTests {
 		ClassPathXmlApplicationContext ctx = new ClassPathXmlApplicationContext(CONTEXT_WILDCARD);
 		Service service = ctx.getBean("service", Service.class);
 		assertThat(service.getResources()).containsExactlyInAnyOrder(contextA, contextB, contextC);
+		assertThat(service.getResourceSet()).containsExactlyInAnyOrder(contextA, contextB, contextC);
+
+		Service service3 = ctx.getBean("service3", Service.class);
+		assertThat(service3.getResources()).containsOnly(new ClassPathResource(FQ_CONTEXT_A));
+		assertThat(service3.getResourceSet()).containsOnly(new ClassPathResource(FQ_CONTEXT_A));
 		ctx.close();
 	}
 
 	@Test
-	void childWithProxy() throws Exception {
+	void childWithProxy() {
 		ClassPathXmlApplicationContext ctx = new ClassPathXmlApplicationContext(CONTEXT_WILDCARD);
 		ClassPathXmlApplicationContext child = new ClassPathXmlApplicationContext(
 				new String[] {CHILD_WITH_PROXY_CONTEXT}, ctx);
@@ -312,17 +317,13 @@ public class ClassPathXmlApplicationContextTests {
 		assertThat(beanNamesForType[0]).isEqualTo("myMessageSource");
 
 		Map<?, StaticMessageSource> beansOfType = ctx.getBeansOfType(StaticMessageSource.class);
-		assertThat(beansOfType).hasSize(1);
-		assertThat(beansOfType.values().iterator().next()).isSameAs(myMessageSource);
+		assertThat(beansOfType.values()).singleElement().isSameAs(myMessageSource);
 		beansOfType = ctx.getBeansOfType(StaticMessageSource.class, true, true);
-		assertThat(beansOfType).hasSize(1);
-		assertThat(beansOfType.values().iterator().next()).isSameAs(myMessageSource);
+		assertThat(beansOfType.values()).singleElement().isSameAs(myMessageSource);
 		beansOfType = BeanFactoryUtils.beansOfTypeIncludingAncestors(ctx, StaticMessageSource.class);
-		assertThat(beansOfType).hasSize(1);
-		assertThat(beansOfType.values().iterator().next()).isSameAs(myMessageSource);
+		assertThat(beansOfType.values()).singleElement().isSameAs(myMessageSource);
 		beansOfType = BeanFactoryUtils.beansOfTypeIncludingAncestors(ctx, StaticMessageSource.class, true, true);
-		assertThat(beansOfType).hasSize(1);
-		assertThat(beansOfType.values().iterator().next()).isSameAs(myMessageSource);
+		assertThat(beansOfType.values()).singleElement().isSameAs(myMessageSource);
 	}
 
 	@Test
@@ -338,8 +339,7 @@ public class ClassPathXmlApplicationContextTests {
 		};
 		ResourceTestBean resource1 = (ResourceTestBean) ctx.getBean("resource1");
 		ResourceTestBean resource2 = (ResourceTestBean) ctx.getBean("resource2");
-		boolean condition = resource1.getResource() instanceof ClassPathResource;
-		assertThat(condition).isTrue();
+		assertThat(resource1.getResource()).isInstanceOf(ClassPathResource.class);
 		StringWriter writer = new StringWriter();
 		FileCopyUtils.copy(new InputStreamReader(resource1.getResource().getInputStream()), writer);
 		assertThat(writer.toString()).isEqualTo("contexttest");

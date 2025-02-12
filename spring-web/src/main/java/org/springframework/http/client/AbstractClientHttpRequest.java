@@ -18,9 +18,12 @@ package org.springframework.http.client;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.HttpHeaders;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -36,8 +39,9 @@ public abstract class AbstractClientHttpRequest implements ClientHttpRequest {
 
 	private boolean executed = false;
 
-	@Nullable
-	private HttpHeaders readOnlyHeaders;
+	private @Nullable HttpHeaders readOnlyHeaders;
+
+	private @Nullable Map<String, Object> attributes;
 
 
 	@Override
@@ -58,6 +62,16 @@ public abstract class AbstractClientHttpRequest implements ClientHttpRequest {
 	public final OutputStream getBody() throws IOException {
 		assertNotExecuted();
 		return getBodyInternal(this.headers);
+	}
+
+	@Override
+	public Map<String, Object> getAttributes() {
+		Map<String, Object> attributes = this.attributes;
+		if (attributes == null) {
+			attributes = new LinkedHashMap<>();
+			this.attributes = attributes;
+		}
+		return attributes;
 	}
 
 	@Override

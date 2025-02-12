@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,8 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Map;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.ConcurrentReferenceHashMap;
 import org.springframework.util.ReflectionUtils;
@@ -39,20 +40,17 @@ final class AttributeMethods {
 
 	static final AttributeMethods NONE = new AttributeMethods(null, new Method[0]);
 
-
-	private static final Map<Class<? extends Annotation>, AttributeMethods> cache =
-			new ConcurrentReferenceHashMap<>();
+	static final Map<Class<? extends Annotation>, AttributeMethods> cache = new ConcurrentReferenceHashMap<>();
 
 	private static final Comparator<Method> methodComparator = (m1, m2) -> {
 		if (m1 != null && m2 != null) {
 			return m1.getName().compareTo(m2.getName());
 		}
-		return m1 != null ? -1 : 1;
+		return (m1 != null ? -1 : 1);
 	};
 
 
-	@Nullable
-	private final Class<? extends Annotation> annotationType;
+	private final @Nullable Class<? extends Annotation> annotationType;
 
 	private final Method[] attributeMethods;
 
@@ -75,7 +73,7 @@ final class AttributeMethods {
 			if (!foundDefaultValueMethod && (method.getDefaultValue() != null)) {
 				foundDefaultValueMethod = true;
 			}
-			if (!foundNestedAnnotation && (type.isAnnotation() || (type.isArray() && type.getComponentType().isAnnotation()))) {
+			if (!foundNestedAnnotation && (type.isAnnotation() || (type.isArray() && type.componentType().isAnnotation()))) {
 				foundNestedAnnotation = true;
 			}
 			ReflectionUtils.makeAccessible(method);
@@ -89,18 +87,26 @@ final class AttributeMethods {
 	/**
 	 * Determine if values from the given annotation can be safely accessed without
 	 * causing any {@link TypeNotPresentException TypeNotPresentExceptions}.
+	 * <p>This method is designed to cover Google App Engine's late arrival of such
+	 * exceptions for {@code Class} values (instead of the more typical early
+	 * {@code Class.getAnnotations() failure} on a regular JVM).
 	 * @param annotation the annotation to check
 	 * @return {@code true} if all values are present
 	 * @see #validate(Annotation)
 	 */
-	boolean isValid(Annotation annotation) {
+	boolean canLoad(Annotation annotation) {
 		assertAnnotation(annotation);
 		for (int i = 0; i < size(); i++) {
 			if (canThrowTypeNotPresentException(i)) {
 				try {
 					AnnotationUtils.invokeAnnotationMethod(get(i), annotation);
 				}
+				catch (IllegalStateException ex) {
+					// Plain invocation failure to expose -> leave up to attribute retrieval
+					// (if any) where such invocation failure will be logged eventually.
+				}
 				catch (Throwable ex) {
+					// TypeNotPresentException etc. -> annotation type not actually loadable.
 					return false;
 				}
 			}
@@ -110,13 +116,13 @@ final class AttributeMethods {
 
 	/**
 	 * Check if values from the given annotation can be safely accessed without causing
-	 * any {@link TypeNotPresentException TypeNotPresentExceptions}. In particular,
-	 * this method is designed to cover Google App Engine's late arrival of such
+	 * any {@link TypeNotPresentException TypeNotPresentExceptions}.
+	 * <p>This method is designed to cover Google App Engine's late arrival of such
 	 * exceptions for {@code Class} values (instead of the more typical early
-	 * {@code Class.getAnnotations() failure}).
+	 * {@code Class.getAnnotations() failure} on a regular JVM).
 	 * @param annotation the annotation to validate
 	 * @throws IllegalStateException if a declared {@code Class} attribute could not be read
-	 * @see #isValid(Annotation)
+	 * @see #canLoad(Annotation)
 	 */
 	void validate(Annotation annotation) {
 		assertAnnotation(annotation);
@@ -125,9 +131,12 @@ final class AttributeMethods {
 				try {
 					AnnotationUtils.invokeAnnotationMethod(get(i), annotation);
 				}
+				catch (IllegalStateException ex) {
+					throw ex;
+				}
 				catch (Throwable ex) {
 					throw new IllegalStateException("Could not obtain annotation attribute value for " +
-							get(i).getName() + " declared on " + annotation.annotationType(), ex);
+							get(i).getName() + " declared on @" + getName(annotation.annotationType()), ex);
 				}
 			}
 		}
@@ -146,10 +155,9 @@ final class AttributeMethods {
 	 * @param name the attribute name to find
 	 * @return the attribute method or {@code null}
 	 */
-	@Nullable
-	Method get(String name) {
+	@Nullable Method get(String name) {
 		int index = indexOf(name);
-		return index != -1 ? this.attributeMethods[index] : null;
+		return (index != -1 ? this.attributeMethods[index] : null);
 	}
 
 	/**
@@ -242,11 +250,13 @@ final class AttributeMethods {
 		return cache.computeIfAbsent(annotationType, AttributeMethods::compute);
 	}
 
+	@SuppressWarnings("NullAway") // Dataflow analysis limitation
 	private static AttributeMethods compute(Class<? extends Annotation> annotationType) {
 		Method[] methods = annotationType.getDeclaredMethods();
 		int size = methods.length;
 		for (int i = 0; i < methods.length; i++) {
 			if (!isAttributeMethod(methods[i])) {
+				//noinspection DataFlowIssue
 				methods[i] = null;
 				size--;
 			}
@@ -289,6 +299,11 @@ final class AttributeMethods {
 		}
 		String in = (annotationType != null ? " in annotation [" + annotationType.getName() + "]" : "");
 		return "attribute '" + attributeName + "'" + in;
+	}
+
+	private static String getName(Class<?> clazz) {
+		String canonicalName = clazz.getCanonicalName();
+		return (canonicalName != null ? canonicalName : clazz.getName());
 	}
 
 }

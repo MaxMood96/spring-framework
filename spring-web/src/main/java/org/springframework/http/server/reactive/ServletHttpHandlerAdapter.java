@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
@@ -42,7 +43,6 @@ import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.HttpLogging;
 import org.springframework.http.HttpMethod;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -67,8 +67,7 @@ public class ServletHttpHandlerAdapter implements Servlet {
 
 	private int bufferSize = DEFAULT_BUFFER_SIZE;
 
-	@Nullable
-	private String servletPath;
+	private @Nullable String servletPath;
 
 	private DataBufferFactory dataBufferFactory = DefaultDataBufferFactory.sharedInstance;
 
@@ -102,8 +101,7 @@ public class ServletHttpHandlerAdapter implements Servlet {
 	 * a prefix (i.e. "/" or "/*"), or {@code null} if this method is invoked
 	 * before the {@link #init(ServletConfig)} Servlet container callback.
 	 */
-	@Nullable
-	public String getServletPath() {
+	public @Nullable String getServletPath() {
 		return this.servletPath;
 	}
 
@@ -148,7 +146,7 @@ public class ServletHttpHandlerAdapter implements Servlet {
 
 		throw new IllegalArgumentException("Expected a single Servlet mapping: " +
 				"either the default Servlet mapping (i.e. '/'), " +
-				"or a path based mapping (e.g. '/*', '/foo/*'). " +
+				"or a path based mapping (for example, '/*', '/foo/*'). " +
 				"Actual mappings: " + mappings + " for Servlet '" + name + "'");
 	}
 
@@ -210,7 +208,7 @@ public class ServletHttpHandlerAdapter implements Servlet {
 	protected ServletServerHttpResponse createResponse(HttpServletResponse response,
 			AsyncContext context, ServletServerHttpRequest request) throws IOException {
 
-		return new ServletServerHttpResponse(response, context, getDataBufferFactory(), getBufferSize(), request);
+		return new ServletServerHttpResponse(response, context, getDataBufferFactory(), request);
 	}
 
 	@Override
@@ -219,8 +217,7 @@ public class ServletHttpHandlerAdapter implements Servlet {
 	}
 
 	@Override
-	@Nullable
-	public ServletConfig getServletConfig() {
+	public @Nullable ServletConfig getServletConfig() {
 		return null;
 	}
 
@@ -237,7 +234,7 @@ public class ServletHttpHandlerAdapter implements Servlet {
 		}
 		catch (IllegalStateException ex) {
 			// Ignore: AsyncContext recycled and should not be used
-			// e.g. TIMEOUT_LISTENER (above) may have completed the AsyncContext
+			// for example, TIMEOUT_LISTENER (above) may have completed the AsyncContext
 		}
 	}
 
@@ -273,6 +270,11 @@ public class ServletHttpHandlerAdapter implements Servlet {
 			this.handlerDisposeTask = handlerDisposeTask;
 			this.completionFlag = completionFlag;
 			this.logPrefix = logPrefix;
+		}
+
+		@Override
+		public void onStartAsync(AsyncEvent event) {
+			// no-op
 		}
 
 		@Override
@@ -341,11 +343,6 @@ public class ServletHttpHandlerAdapter implements Servlet {
 				}
 			});
 		}
-
-		@Override
-		public void onStartAsync(AsyncEvent event) {
-			// no-op
-		}
 	}
 
 
@@ -357,8 +354,7 @@ public class ServletHttpHandlerAdapter implements Servlet {
 
 		private final String logPrefix;
 
-		@Nullable
-		private volatile Subscription subscription;
+		private volatile @Nullable Subscription subscription;
 
 		public HandlerResultSubscriber(AsyncContext asyncContext, AtomicBoolean completionFlag, String logPrefix) {
 			this.asyncContext = asyncContext;

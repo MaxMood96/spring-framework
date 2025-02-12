@@ -11,7 +11,7 @@
 	</description>
 
 	<bean id="aapc" class="org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator">
-		<!-- This common interceptor will be applied always, before custom lockable advisor -->
+		<!-- This common interceptor will be applied before the custom lockable advisor -->
 		<property name="interceptorNames">
 			<value>nopInterceptor</value>
 		</property>
@@ -31,7 +31,7 @@
 	</bean>
 
 	<!-- Stateful mixin. Will apply to all objects. Note that singleton property is false. -->
-	<bean id="lockableAdvisor" class="test.mixin.LockMixinAdvisor" scope="prototype"/>
+	<bean id="lockableAdvisor" class="org.springframework.aop.testfixture.mixin.LockMixinAdvisor" scope="prototype"/>
 
 	<bean id="test1" class="org.springframework.beans.testfixture.beans.TestBean">
 		<property name="age" value="4"/>
@@ -44,4 +44,3 @@
 	<bean id="packageVisibleMethod" class="org.springframework.aop.framework.autoproxy.PackageVisibleMethod"/>
 
 </beans>
-

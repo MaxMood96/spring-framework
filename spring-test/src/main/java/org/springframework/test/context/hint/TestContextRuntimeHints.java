@@ -20,6 +20,8 @@ import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.ReflectionHints;
 import org.springframework.aot.hint.RuntimeHints;
@@ -39,7 +41,7 @@ import org.springframework.util.ClassUtils;
 class TestContextRuntimeHints implements RuntimeHintsRegistrar {
 
 	@Override
-	public void registerHints(RuntimeHints runtimeHints, ClassLoader classLoader) {
+	public void registerHints(RuntimeHints runtimeHints, @Nullable ClassLoader classLoader) {
 		boolean servletPresent = ClassUtils.isPresent("jakarta.servlet.Servlet", classLoader);
 		boolean groovyPresent = ClassUtils.isPresent("groovy.lang.Closure", classLoader);
 

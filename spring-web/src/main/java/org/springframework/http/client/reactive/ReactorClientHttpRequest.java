@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.NettyOutbound;
+import reactor.netty.channel.ChannelOperations;
 import reactor.netty.http.client.HttpClientRequest;
 
 import org.springframework.core.io.buffer.DataBuffer;
@@ -33,6 +34,7 @@ import org.springframework.core.io.buffer.NettyDataBufferFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ZeroCopyHttpOutputMessage;
+import org.springframework.http.support.Netty4HeadersAdapter;
 
 /**
  * {@link ClientHttpRequest} implementation for the Reactor-Netty HTTP client.
@@ -118,7 +120,9 @@ class ReactorClientHttpRequest extends AbstractClientHttpRequest implements Zero
 
 	@Override
 	public Mono<Void> setComplete() {
-		return doCommit(this.outbound::then);
+		// NettyOutbound#then() expects a body
+		// Use null as the write action for a more optimal send
+		return doCommit(null);
 	}
 
 	@Override
@@ -134,9 +138,22 @@ class ReactorClientHttpRequest extends AbstractClientHttpRequest implements Zero
 		}));
 	}
 
+	/**
+	 * Saves the {@link #getAttributes() request attributes} to the
+	 * {@link reactor.netty.channel.ChannelOperations#channel() channel} as a single map
+	 * attribute under the key {@link ReactorClientHttpConnector#ATTRIBUTES_KEY}.
+	 */
+	@Override
+	protected void applyAttributes() {
+		if (!getAttributes().isEmpty()) {
+			((ChannelOperations<?, ?>) this.request).channel()
+					.attr(ReactorClientHttpConnector.ATTRIBUTES_KEY).set(getAttributes());
+		}
+	}
+
 	@Override
 	protected HttpHeaders initReadOnlyHeaders() {
-		return HttpHeaders.readOnlyHttpHeaders(new NettyHeadersAdapter(this.request.requestHeaders()));
+		return HttpHeaders.readOnlyHttpHeaders(new Netty4HeadersAdapter(this.request.requestHeaders()));
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,11 @@
 
 package org.springframework.r2dbc.core;
 
+import java.util.List;
+import java.util.Map;
+
 import io.r2dbc.spi.ConnectionFactory;
+import io.r2dbc.spi.Parameters;
 import io.r2dbc.spi.Result;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,10 +37,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * @author Mark Paluch
  * @author Mingyuan Wu
+ * @author Juergen Hoeller
  */
-public abstract class AbstractDatabaseClientIntegrationTests {
+abstract class AbstractDatabaseClientIntegrationTests {
 
 	private ConnectionFactory connectionFactory;
+
 
 	@BeforeEach
 	public void before() {
@@ -45,15 +51,14 @@ public abstract class AbstractDatabaseClientIntegrationTests {
 		Mono.from(connectionFactory.create())
 				.flatMapMany(connection -> Flux.from(connection.createStatement("DROP TABLE legoset").execute())
 						.flatMap(Result::getRowsUpdated)
-						.onErrorResume(e -> Mono.empty())
+						.onErrorComplete()
 						.thenMany(connection.createStatement(getCreateTableStatement()).execute())
 						.flatMap(Result::getRowsUpdated).thenMany(connection.close())).as(StepVerifier::create)
 				.verifyComplete();
 	}
 
 	/**
-	 * Creates a {@link ConnectionFactory} to be used in this test.
-	 *
+	 * Create a {@link ConnectionFactory} to be used in this test.
 	 * @return the {@link ConnectionFactory} to be used in this test
 	 */
 	protected abstract ConnectionFactory createConnectionFactory();
@@ -66,13 +71,13 @@ public abstract class AbstractDatabaseClientIntegrationTests {
 	 * <li>name varchar(255), nullable</li>
 	 * <li>manual integer, nullable</li>
 	 * </ul>
-	 *
 	 * @return the CREATE TABLE statement for table {@code legoset} with three columns.
 	 */
 	protected abstract String getCreateTableStatement();
 
+
 	@Test
-	public void executeInsert() {
+	void executeInsert() {
 		DatabaseClient databaseClient = DatabaseClient.create(connectionFactory);
 
 		databaseClient.sql("INSERT INTO legoset (id, name, manual) VALUES(:id, :name, :manual)")
@@ -88,14 +93,71 @@ public abstract class AbstractDatabaseClientIntegrationTests {
 				.map(row -> row.get("id"))
 				.first()
 				.as(StepVerifier::create)
-				.assertNext(actual -> {
-							assertThat(actual).isInstanceOf(Number.class);
-							assertThat(((Number) actual).intValue()).isEqualTo(42055);
-						}).verifyComplete();
+				.assertNext(actual -> assertThat(actual).isInstanceOf(Number.class).isEqualTo(42055))
+				.verifyComplete();
 	}
 
 	@Test
-	public void shouldTranslateDuplicateKeyException() {
+	void executeInsertWithList() {
+		DatabaseClient databaseClient = DatabaseClient.create(connectionFactory);
+
+		databaseClient.sql("INSERT INTO legoset (id, name, manual) VALUES(:id, :name, :manual)")
+				.bindValues(List.of(42055, Parameters.in("SCHAUFELRADBAGGER"), Parameters.in(Integer.class)))
+				.fetch().rowsUpdated()
+				.as(StepVerifier::create)
+				.expectNext(1L)
+				.verifyComplete();
+
+		databaseClient.sql("SELECT id FROM legoset")
+				.mapValue(Integer.class)
+				.first()
+				.as(StepVerifier::create)
+				.assertNext(actual -> assertThat(actual).isEqualTo(42055))
+				.verifyComplete();
+	}
+
+	@Test
+	void executeInsertWithMap() {
+		DatabaseClient databaseClient = DatabaseClient.create(connectionFactory);
+
+		databaseClient.sql("INSERT INTO legoset (id, name, manual) VALUES(:id, :name, :manual)")
+				.bindValues(Map.of("id", 42055,
+						"name", Parameters.in("SCHAUFELRADBAGGER"),
+						"manual", Parameters.in(Integer.class)))
+				.fetch().rowsUpdated()
+				.as(StepVerifier::create)
+				.expectNext(1L)
+				.verifyComplete();
+
+		databaseClient.sql("SELECT id FROM legoset")
+				.mapValue(Integer.class)
+				.first()
+				.as(StepVerifier::create)
+				.assertNext(actual -> assertThat(actual).isEqualTo(42055))
+				.verifyComplete();
+	}
+
+	@Test
+	void executeInsertWithRecords() {
+		DatabaseClient databaseClient = DatabaseClient.create(connectionFactory);
+
+		databaseClient.sql("INSERT INTO legoset (id, name, manual) VALUES(:id, :name, :manual)")
+				.bindProperties(new ParameterRecord(42055, "SCHAUFELRADBAGGER", null))
+				.fetch().rowsUpdated()
+				.as(StepVerifier::create)
+				.expectNext(1L)
+				.verifyComplete();
+
+		databaseClient.sql("SELECT id FROM legoset")
+				.mapProperties(ResultRecord.class)
+				.first()
+				.as(StepVerifier::create)
+				.assertNext(actual -> assertThat(actual.id()).isEqualTo(42055))
+				.verifyComplete();
+	}
+
+	@Test
+	void shouldTranslateDuplicateKeyException() {
 		DatabaseClient databaseClient = DatabaseClient.create(connectionFactory);
 
 		executeInsert();
@@ -114,7 +176,7 @@ public abstract class AbstractDatabaseClientIntegrationTests {
 	}
 
 	@Test
-	public void executeDeferred() {
+	void executeDeferred() {
 		DatabaseClient databaseClient = DatabaseClient.create(connectionFactory);
 
 		databaseClient.sql(() -> "INSERT INTO legoset (id, name, manual) VALUES(:id, :name, :manual)")
@@ -134,7 +196,7 @@ public abstract class AbstractDatabaseClientIntegrationTests {
 	}
 
 	@Test
-	public void shouldEmitGeneratedKey() {
+	void shouldEmitGeneratedKey() {
 		DatabaseClient databaseClient = DatabaseClient.create(connectionFactory);
 
 		databaseClient.sql(
@@ -147,6 +209,13 @@ public abstract class AbstractDatabaseClientIntegrationTests {
 				.as(StepVerifier::create)
 				.expectNextCount(1)
 				.verifyComplete();
+	}
+
+
+	record ParameterRecord(int id, String name, Integer manual) {
+	}
+
+	record ResultRecord(int id) {
 	}
 
 }

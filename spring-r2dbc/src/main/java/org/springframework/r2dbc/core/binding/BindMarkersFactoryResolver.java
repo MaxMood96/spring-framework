@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,10 +22,10 @@ import java.util.Map;
 
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryMetadata;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.io.support.SpringFactoriesLoader;
 import org.springframework.dao.NonTransientDataAccessException;
-import org.springframework.lang.Nullable;
 import org.springframework.util.LinkedCaseInsensitiveMap;
 
 /**
@@ -83,8 +83,7 @@ public final class BindMarkersFactoryResolver {
 		 * @return the {@link BindMarkersFactory} if the {@link BindMarkerFactoryProvider}
 		 * can provide a bind marker factory object, otherwise {@code null}
 		 */
-		@Nullable
-		BindMarkersFactory getBindMarkers(ConnectionFactory connectionFactory);
+		@Nullable BindMarkersFactory getBindMarkers(ConnectionFactory connectionFactory);
 	}
 
 
@@ -129,7 +128,7 @@ public final class BindMarkersFactoryResolver {
 
 
 		@Override
-		public BindMarkersFactory getBindMarkers(ConnectionFactory connectionFactory) {
+		public @Nullable BindMarkersFactory getBindMarkers(ConnectionFactory connectionFactory) {
 			ConnectionFactoryMetadata metadata = connectionFactory.getMetadata();
 			BindMarkersFactory r2dbcDialect = BUILTIN.get(metadata.getName());
 			if (r2dbcDialect != null) {
@@ -152,7 +151,7 @@ public final class BindMarkersFactoryResolver {
 					builder.append(ch);
 				}
 			}
-			if (builder.length() == 0) {
+			if (builder.isEmpty()) {
 				return "";
 			}
 			return "_" + builder.toString();

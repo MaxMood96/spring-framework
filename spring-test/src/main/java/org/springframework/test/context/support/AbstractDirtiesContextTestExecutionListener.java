@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,10 @@ import java.lang.reflect.Method;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.annotation.AnnotatedElementUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.annotation.DirtiesContext.ClassMode;
 import org.springframework.test.annotation.DirtiesContext.HierarchyMode;
@@ -48,7 +48,7 @@ import org.springframework.util.Assert;
  */
 public abstract class AbstractDirtiesContextTestExecutionListener extends AbstractTestExecutionListener {
 
-	private static final Log logger = LogFactory.getLog(AbstractDirtiesContextTestExecutionListener.class);
+	private final Log logger = LogFactory.getLog(getClass());
 
 
 	@Override
@@ -84,6 +84,7 @@ public abstract class AbstractDirtiesContextTestExecutionListener extends Abstra
 	 * @since 4.2
 	 * @see #dirtyContext
 	 */
+	@SuppressWarnings("NullAway") // Dataflow analysis limitation
 	protected void beforeOrAfterTestMethod(TestContext testContext, MethodMode requiredMethodMode,
 			ClassMode requiredClassMode) throws Exception {
 
@@ -135,6 +136,7 @@ public abstract class AbstractDirtiesContextTestExecutionListener extends Abstra
 	 * @since 4.2
 	 * @see #dirtyContext
 	 */
+	@SuppressWarnings("NullAway") // Dataflow analysis limitation
 	protected void beforeOrAfterTestClass(TestContext testContext, ClassMode requiredClassMode) throws Exception {
 		Assert.notNull(testContext, "TestContext must not be null");
 		Assert.notNull(requiredClassMode, "requiredClassMode must not be null");

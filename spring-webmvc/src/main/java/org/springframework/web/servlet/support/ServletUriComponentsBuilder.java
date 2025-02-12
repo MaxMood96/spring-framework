@@ -17,8 +17,8 @@
 package org.springframework.web.servlet.support;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestAttributes;
@@ -44,8 +44,7 @@ import org.springframework.web.util.UrlPathHelper;
  */
 public class ServletUriComponentsBuilder extends UriComponentsBuilder {
 
-	@Nullable
-	private String originalPath;
+	private @Nullable String originalPath;
 
 
 	/**
@@ -85,8 +84,8 @@ public class ServletUriComponentsBuilder extends UriComponentsBuilder {
 	/**
 	 * Prepare a builder from the host, port, scheme, context path, and
 	 * servlet mapping of the given HttpServletRequest.
-	 * <p>If the servlet is mapped by name, e.g. {@code "/main/*"}, the path
-	 * will end with "/main". If the servlet is mapped otherwise, e.g.
+	 * <p>If the servlet is mapped by name, for example, {@code "/main/*"}, the path
+	 * will end with "/main". If the servlet is mapped otherwise, for example,
 	 * {@code "/"} or {@code "*.do"}, the result will be the same as
 	 * if calling {@link #fromContextPath(HttpServletRequest)}.
 	 */
@@ -201,8 +200,7 @@ public class ServletUriComponentsBuilder extends UriComponentsBuilder {
 	 * @return the removed path extension for possible re-use, or {@code null}
 	 * @since 4.0
 	 */
-	@Nullable
-	public String removePathExtension() {
+	public @Nullable String removePathExtension() {
 		String extension = null;
 		if (this.originalPath != null) {
 			extension = UriUtils.extractFileExtension(this.originalPath);

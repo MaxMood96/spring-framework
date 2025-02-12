@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ public abstract class AbstractExpressionTests {
 	protected static final boolean SHOULD_NOT_BE_WRITABLE = false;
 
 
-	protected final ExpressionParser parser = new SpelExpressionParser();
+	protected final SpelExpressionParser parser = new SpelExpressionParser();
 
 	protected final StandardEvaluationContext context = TestScenarioCreator.getTestEvaluationContext();
 
@@ -127,7 +127,7 @@ public abstract class AbstractExpressionTests {
 			}
 			assertThat(expectedValue).as("Expression returned null value, but expected '" + expectedValue + "'").isNull();
 		}
-		Class<? extends Object> resultType = value.getClass();
+		Class<?> resultType = value.getClass();
 		if (expectedValue instanceof String) {
 			assertThat(AbstractExpressionTests.stringValueOf(value)).as("Did not get expected value for expression '" + expression + "'.").isEqualTo(expectedValue);
 		}
@@ -258,9 +258,9 @@ public abstract class AbstractExpressionTests {
 		}
 		if (value.getClass().isArray()) {
 			StringBuilder sb = new StringBuilder();
-			if (value.getClass().getComponentType().isPrimitive()) {
-				Class<?> primitiveType = value.getClass().getComponentType();
-				if (primitiveType == Integer.TYPE) {
+			if (value.getClass().componentType().isPrimitive()) {
+				Class<?> primitiveType = value.getClass().componentType();
+				if (primitiveType == int.class) {
 					int[] l = (int[]) value;
 					sb.append("int[").append(l.length).append("]{");
 					for (int j = 0; j < l.length; j++) {
@@ -271,7 +271,7 @@ public abstract class AbstractExpressionTests {
 					}
 					sb.append('}');
 				}
-				else if (primitiveType == Long.TYPE) {
+				else if (primitiveType == long.class) {
 					long[] l = (long[]) value;
 					sb.append("long[").append(l.length).append("]{");
 					for (int j = 0; j < l.length; j++) {
@@ -287,10 +287,10 @@ public abstract class AbstractExpressionTests {
 							" in ExpressionTestCase.stringValueOf()");
 				}
 			}
-			else if (value.getClass().getComponentType().isArray()) {
+			else if (value.getClass().componentType().isArray()) {
 				List<Object> l = Arrays.asList((Object[]) value);
 				if (!isNested) {
-					sb.append(value.getClass().getComponentType().getName());
+					sb.append(value.getClass().componentType().getName());
 				}
 				sb.append('[').append(l.size()).append("]{");
 				int i = 0;
@@ -306,7 +306,7 @@ public abstract class AbstractExpressionTests {
 			else {
 				List<Object> l = Arrays.asList((Object[]) value);
 				if (!isNested) {
-					sb.append(value.getClass().getComponentType().getName());
+					sb.append(value.getClass().componentType().getName());
 				}
 				sb.append('[').append(l.size()).append("]{");
 				int i = 0;

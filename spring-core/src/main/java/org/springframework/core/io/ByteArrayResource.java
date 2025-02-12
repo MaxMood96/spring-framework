@@ -22,7 +22,8 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 
 /**
@@ -129,8 +130,8 @@ public class ByteArrayResource extends AbstractResource {
 	 * @see java.util.Arrays#equals(byte[], byte[])
 	 */
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return (this == obj || (obj instanceof ByteArrayResource that &&
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof ByteArrayResource that &&
 				Arrays.equals(this.byteArray, that.byteArray)));
 	}
 

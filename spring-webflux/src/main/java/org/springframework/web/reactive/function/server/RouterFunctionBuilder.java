@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package org.springframework.web.reactive.function.server;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -30,6 +31,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.util.Assert;
 
@@ -37,6 +39,7 @@ import org.springframework.util.Assert;
  * Default implementation of {@link RouterFunctions.Builder}.
  *
  * @author Arjen Poutsma
+ * @author Sebastien Deleuze
  * @since 5.1
  */
 class RouterFunctionBuilder implements RouterFunctions.Builder {
@@ -237,13 +240,38 @@ class RouterFunctionBuilder implements RouterFunctions.Builder {
 	}
 
 	@Override
+	public RouterFunctions.Builder resource(RequestPredicate predicate, Resource resource) {
+		return add(RouterFunctions.resource(predicate, resource));
+	}
+
+	@Override
+	public RouterFunctions.Builder resource(RequestPredicate predicate, Resource resource,
+			BiConsumer<Resource, HttpHeaders> headersConsumer) {
+		return add(RouterFunctions.resource(predicate, resource, headersConsumer));
+	}
+
+	@Override
 	public RouterFunctions.Builder resources(String pattern, Resource location) {
 		return add(RouterFunctions.resources(pattern, location));
 	}
 
 	@Override
+	public RouterFunctions.Builder resources(String pattern, Resource location,
+			BiConsumer<Resource, HttpHeaders> headersConsumer) {
+
+		return add(RouterFunctions.resources(pattern, location, headersConsumer));
+	}
+
+	@Override
 	public RouterFunctions.Builder resources(Function<ServerRequest, Mono<Resource>> lookupFunction) {
 		return add(RouterFunctions.resources(lookupFunction));
+	}
+
+	@Override
+	public RouterFunctions.Builder resources(Function<ServerRequest, Mono<Resource>> lookupFunction,
+			BiConsumer<Resource, HttpHeaders> headersConsumer) {
+
+		return add(RouterFunctions.resources(lookupFunction, headersConsumer));
 	}
 
 	@Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,40 +17,57 @@
 package org.springframework.web.server
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.reactor.mono
 import reactor.core.publisher.Mono
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Kotlin-specific implementation of the [WebFilter] interface that allows for
- * using co-routines.
+ * using coroutines, including [kotlin.coroutines.CoroutineContext] propagation.
  *
  * @author Arjen Poutsma
+ * @author Sebastien Deleuze
  * @since 6.0.5
  */
 abstract class CoWebFilter : WebFilter {
 
 	final override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
-		return mono(Dispatchers.Unconfined) {
+		val context = exchange.attributes[COROUTINE_CONTEXT_ATTRIBUTE] as CoroutineContext?
+		return mono(context ?: Dispatchers.Unconfined) {
 			filter(exchange, object : CoWebFilterChain {
 				override suspend fun filter(exchange: ServerWebExchange) {
-					return chain.filter(exchange).cast(Unit.javaClass).awaitSingleOrNull() ?: Unit
+					exchange.attributes[COROUTINE_CONTEXT_ATTRIBUTE] = currentCoroutineContext().minusKey(Job.Key)
+					chain.filter(exchange).awaitSingleOrNull()
 				}
 			})}.then()
 	}
 
 	/**
 	 * Process the Web request and (optionally) delegate to the next
-	 * `WebFilter` through the given [WebFilterChain].
+	 * [WebFilter] through the given [WebFilterChain].
 	 * @param exchange the current server exchange
 	 * @param chain provides a way to delegate to the next filter
 	 */
 	protected abstract suspend fun filter(exchange: ServerWebExchange, chain: CoWebFilterChain)
 
+	companion object {
+
+		/**
+		 * Name of the [ServerWebExchange] attribute that contains the
+		 * [kotlin.coroutines.CoroutineContext] to be passed to the
+		 * [org.springframework.web.reactive.result.method.InvocableHandlerMethod].
+		 */
+		@JvmField
+		val COROUTINE_CONTEXT_ATTRIBUTE = CoWebFilter::class.java.getName() + ".context"
+	}
+
 }
 
 /**
- * Kotlin-specific adaption of [WebFilterChain] that allows for co-routines.
+ * Kotlin-specific adaption of [WebFilterChain] that allows for coroutines.
  *
  * @author Arjen Poutsma
  * @since 6.0.5

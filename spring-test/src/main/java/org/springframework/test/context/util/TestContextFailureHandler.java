@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ class TestContextFailureHandler implements FailureHandler {
 				logger.debug("""
 						Skipping candidate %1$s [%2$s] due to a missing dependency. \
 						Specify custom %1$s classes or make the default %1$s classes \
-						and their required dependencies available. Offending class: [%3$s]"""
+						and their required dependencies available. Offending class: %3$s"""
 							.formatted(factoryType.getSimpleName(), factoryImplementationName, ex.getMessage()));
 			}
 		}

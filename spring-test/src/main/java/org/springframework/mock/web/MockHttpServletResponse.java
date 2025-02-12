@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -42,10 +43,10 @@ import java.util.TimeZone;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.LinkedCaseInsensitiveMap;
 import org.springframework.util.StringUtils;
@@ -72,6 +73,8 @@ public class MockHttpServletResponse implements HttpServletResponse {
 
 	private static final TimeZone GMT = TimeZone.getTimeZone("GMT");
 
+	private static final MediaType APPLICATION_PLUS_JSON = new MediaType("application", "*+json");
+
 
 	//---------------------------------------------------------------------
 	// ServletResponse properties
@@ -96,13 +99,11 @@ public class MockHttpServletResponse implements HttpServletResponse {
 
 	private final ServletOutputStream outputStream = new ResponseServletOutputStream(this.content);
 
-	@Nullable
-	private PrintWriter writer;
+	private @Nullable PrintWriter writer;
 
 	private long contentLength = 0;
 
-	@Nullable
-	private String contentType;
+	private @Nullable String contentType;
 
 	private int bufferSize = 4096;
 
@@ -121,16 +122,14 @@ public class MockHttpServletResponse implements HttpServletResponse {
 
 	private int status = HttpServletResponse.SC_OK;
 
-	@Nullable
-	private String errorMessage;
+	private @Nullable String errorMessage;
 
 
 	//---------------------------------------------------------------------
 	// Properties for MockRequestDispatcher
 	//---------------------------------------------------------------------
 
-	@Nullable
-	private String forwardedUrl;
+	private @Nullable String forwardedUrl;
 
 	private final List<String> includedUrls = new ArrayList<>();
 
@@ -223,7 +222,7 @@ public class MockHttpServletResponse implements HttpServletResponse {
 				}
 				catch (Exception ignored) {
 					String value = this.contentType;
-					int charsetIndex = value.toLowerCase().indexOf(CHARSET_PREFIX);
+					int charsetIndex = value.toLowerCase(Locale.ROOT).indexOf(CHARSET_PREFIX);
 					if (charsetIndex != -1) {
 						value = value.substring(0, charsetIndex).trim();
 						if (value.endsWith(";")) {
@@ -243,7 +242,7 @@ public class MockHttpServletResponse implements HttpServletResponse {
 	private void updateContentTypePropertyAndHeader() {
 		if (this.contentType != null) {
 			String value = this.contentType;
-			if (this.characterEncodingSet && !value.toLowerCase().contains(CHARSET_PREFIX)) {
+			if (this.characterEncodingSet && !value.toLowerCase(Locale.ROOT).contains(CHARSET_PREFIX)) {
 				value += ';' + CHARSET_PREFIX + getCharacterEncoding();
 				this.contentType = value;
 			}
@@ -316,18 +315,27 @@ public class MockHttpServletResponse implements HttpServletResponse {
 
 	@Override
 	public void setContentLength(int contentLength) {
-		this.contentLength = contentLength;
-		doAddHeaderValue(HttpHeaders.CONTENT_LENGTH, contentLength, true);
+		if (!this.committed) {
+			this.contentLength = contentLength;
+			doAddHeaderValue(HttpHeaders.CONTENT_LENGTH, contentLength, true);
+		}
 	}
 
+	/**
+	 * Get the length of the content body from the HTTP Content-Length header.
+	 * @return the value of the Content-Length header
+	 * @see #setContentLength(int)
+	 */
 	public int getContentLength() {
 		return (int) this.contentLength;
 	}
 
 	@Override
 	public void setContentLengthLong(long contentLength) {
-		this.contentLength = contentLength;
-		doAddHeaderValue(HttpHeaders.CONTENT_LENGTH, contentLength, true);
+		if (!this.committed) {
+			this.contentLength = contentLength;
+			doAddHeaderValue(HttpHeaders.CONTENT_LENGTH, contentLength, true);
+		}
 	}
 
 	public long getContentLengthLong() {
@@ -343,10 +351,14 @@ public class MockHttpServletResponse implements HttpServletResponse {
 				if (mediaType.getCharset() != null) {
 					setExplicitCharacterEncoding(mediaType.getCharset().name());
 				}
+				else if (mediaType.isCompatibleWith(MediaType.APPLICATION_JSON) ||
+						mediaType.isCompatibleWith(APPLICATION_PLUS_JSON)) {
+						this.characterEncoding = StandardCharsets.UTF_8.name();
+				}
 			}
 			catch (Exception ex) {
 				// Try to get charset value anyway
-				int charsetIndex = contentType.toLowerCase().indexOf(CHARSET_PREFIX);
+				int charsetIndex = contentType.toLowerCase(Locale.ROOT).indexOf(CHARSET_PREFIX);
 				if (charsetIndex != -1) {
 					setExplicitCharacterEncoding(contentType.substring(charsetIndex + CHARSET_PREFIX.length()));
 				}
@@ -356,8 +368,7 @@ public class MockHttpServletResponse implements HttpServletResponse {
 	}
 
 	@Override
-	@Nullable
-	public String getContentType() {
+	public @Nullable String getContentType() {
 		return this.contentType;
 	}
 
@@ -476,6 +487,9 @@ public class MockHttpServletResponse implements HttpServletResponse {
 		if (cookie.isHttpOnly()) {
 			buf.append("; HttpOnly");
 		}
+		if (cookie.getAttribute("Partitioned") != null) {
+			buf.append("; Partitioned");
+		}
 		if (cookie instanceof MockCookie mockCookie) {
 			if (StringUtils.hasText(mockCookie.getSameSite())) {
 				buf.append("; SameSite=").append(mockCookie.getSameSite());
@@ -491,8 +505,7 @@ public class MockHttpServletResponse implements HttpServletResponse {
 		return this.cookies.toArray(new Cookie[0]);
 	}
 
-	@Nullable
-	public Cookie getCookie(String name) {
+	public @Nullable Cookie getCookie(String name) {
 		Assert.notNull(name, "Cookie name must not be null");
 		for (Cookie cookie : this.cookies) {
 			if (name.equals(cookie.getName())) {
@@ -527,8 +540,7 @@ public class MockHttpServletResponse implements HttpServletResponse {
 	 * @see HttpServletResponse#getHeader(String)
 	 */
 	@Override
-	@Nullable
-	public String getHeader(String name) {
+	public @Nullable String getHeader(String name) {
 		HeaderValueHolder header = this.headers.get(name);
 		return (header != null ? header.getStringValue() : null);
 	}
@@ -558,8 +570,7 @@ public class MockHttpServletResponse implements HttpServletResponse {
 	 * @param name the name of the header
 	 * @return the associated header value, or {@code null} if none
 	 */
-	@Nullable
-	public Object getHeaderValue(String name) {
+	public @Nullable Object getHeaderValue(String name) {
 		HeaderValueHolder header = this.headers.get(name);
 		return (header != null ? header.getValue() : null);
 	}
@@ -618,15 +629,19 @@ public class MockHttpServletResponse implements HttpServletResponse {
 
 	@Override
 	public void sendRedirect(String url) throws IOException {
+		sendRedirect(url, HttpServletResponse.SC_MOVED_TEMPORARILY, true);
+	}
+
+	// @Override - on Servlet 6.1
+	public void sendRedirect(String url, int sc, boolean clearBuffer) throws IOException {
 		Assert.state(!isCommitted(), "Cannot send redirect - response is already committed");
 		Assert.notNull(url, "Redirect URL must not be null");
 		setHeader(HttpHeaders.LOCATION, url);
-		setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
+		setStatus(sc);
 		setCommitted(true);
 	}
 
-	@Nullable
-	public String getRedirectedUrl() {
+	public @Nullable String getRedirectedUrl() {
 		return getHeader(HttpHeaders.LOCATION);
 	}
 
@@ -770,7 +785,7 @@ public class MockHttpServletResponse implements HttpServletResponse {
 
 	@Override
 	public void setStatus(int status) {
-		if (!this.isCommitted()) {
+		if (!isCommitted()) {
 			this.status = status;
 		}
 	}
@@ -780,8 +795,10 @@ public class MockHttpServletResponse implements HttpServletResponse {
 		return this.status;
 	}
 
-	@Nullable
-	public String getErrorMessage() {
+	/**
+	 * Return the error message used when calling {@link HttpServletResponse#sendError(int, String)}.
+	 */
+	public @Nullable String getErrorMessage() {
 		return this.errorMessage;
 	}
 
@@ -794,8 +811,7 @@ public class MockHttpServletResponse implements HttpServletResponse {
 		this.forwardedUrl = forwardedUrl;
 	}
 
-	@Nullable
-	public String getForwardedUrl() {
+	public @Nullable String getForwardedUrl() {
 		return this.forwardedUrl;
 	}
 
@@ -806,8 +822,7 @@ public class MockHttpServletResponse implements HttpServletResponse {
 		}
 	}
 
-	@Nullable
-	public String getIncludedUrl() {
+	public @Nullable String getIncludedUrl() {
 		int count = this.includedUrls.size();
 		Assert.state(count <= 1,
 				() -> "More than 1 URL included - check getIncludedUrls instead: " + this.includedUrls);

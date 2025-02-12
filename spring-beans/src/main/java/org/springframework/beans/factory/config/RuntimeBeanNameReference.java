@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package org.springframework.beans.factory.config;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 
 /**
@@ -33,8 +34,7 @@ public class RuntimeBeanNameReference implements BeanReference {
 
 	private final String beanName;
 
-	@Nullable
-	private Object source;
+	private @Nullable Object source;
 
 
 	/**
@@ -60,21 +60,15 @@ public class RuntimeBeanNameReference implements BeanReference {
 	}
 
 	@Override
-	@Nullable
-	public Object getSource() {
+	public @Nullable Object getSource() {
 		return this.source;
 	}
 
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof RuntimeBeanNameReference that)) {
-			return false;
-		}
-		return this.beanName.equals(that.beanName);
+		return (this == other || (other instanceof RuntimeBeanNameReference that &&
+				this.beanName.equals(that.beanName)));
 	}
 
 	@Override

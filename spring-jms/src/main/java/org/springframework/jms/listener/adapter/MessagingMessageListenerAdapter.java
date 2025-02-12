@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,12 @@ package org.springframework.jms.listener.adapter;
 
 import jakarta.jms.JMSException;
 import jakarta.jms.Session;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.MethodParameter;
 import org.springframework.jms.listener.SubscriptionNameProvider;
 import org.springframework.jms.support.JmsHeaderMapper;
 import org.springframework.jms.support.converter.MessageConversionException;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessagingException;
 import org.springframework.messaging.core.AbstractMessageSendingTemplate;
@@ -43,7 +43,7 @@ import org.springframework.util.Assert;
  * are provided as additional arguments so that these can be injected as
  * method arguments if necessary.
  *
- * <p>As of Spring Framework 5.3.26, {@code MessagingMessageListenerAdapter} implements
+ * <p>Note that {@code MessagingMessageListenerAdapter} implements
  * {@link SubscriptionNameProvider} in order to provide a meaningful default
  * subscription name. See {@link #getSubscriptionName()} for details.
  *
@@ -57,8 +57,7 @@ import org.springframework.util.Assert;
 public class MessagingMessageListenerAdapter extends AbstractAdaptableMessageListener
 		implements SubscriptionNameProvider {
 
-	@Nullable
-	private InvocableHandlerMethod handlerMethod;
+	private @Nullable InvocableHandlerMethod handlerMethod;
 
 
 	/**
@@ -103,8 +102,7 @@ public class MessagingMessageListenerAdapter extends AbstractAdaptableMessageLis
 	 * Invoke the handler, wrapping any exception in a {@link ListenerExecutionFailedException}
 	 * with a dedicated error message.
 	 */
-	@Nullable
-	private Object invokeHandler(jakarta.jms.Message jmsMessage, @Nullable Session session, Message<?> message) {
+	private @Nullable Object invokeHandler(jakarta.jms.Message jmsMessage, @Nullable Session session, Message<?> message) {
 		InvocableHandlerMethod handlerMethod = getHandlerMethod();
 		try {
 			return handlerMethod.invoke(message, jmsMessage, session);

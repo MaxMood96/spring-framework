@@ -18,9 +18,10 @@ package org.springframework.context;
 
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.ResolvableType;
 import org.springframework.core.ResolvableTypeProvider;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -56,7 +57,7 @@ public class PayloadApplicationEvent<T> extends ApplicationEvent implements Reso
 	 * @param source the object on which the event initially occurred (never {@code null})
 	 * @param payload the payload object (never {@code null})
 	 * @param payloadType the type object of payload object (can be {@code null}).
-	 * Note that this is meant to indicate the payload type (e.g. {@code String}),
+	 * Note that this is meant to indicate the payload type (for example, {@code String}),
 	 * not the full event type (such as {@code PayloadApplicationEvent<&lt;String&gt;}).
 	 * @since 6.0
 	 */

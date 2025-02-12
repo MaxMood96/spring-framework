@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@ package org.springframework.web.servlet.resource;
 import java.util.Collections;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.io.Resource;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -36,13 +36,12 @@ import org.springframework.util.StringUtils;
  */
 public abstract class ResourceTransformerSupport implements ResourceTransformer {
 
-	@Nullable
-	private ResourceUrlProvider resourceUrlProvider;
+	private @Nullable ResourceUrlProvider resourceUrlProvider;
 
 
 	/**
 	 * Configure a {@link ResourceUrlProvider} to use when resolving the public
-	 * URL of links in a transformed resource (e.g. import links in a CSS file).
+	 * URL of links in a transformed resource (for example, import links in a CSS file).
 	 * This is required only for links expressed as full paths and not for
 	 * relative links.
 	 */
@@ -53,8 +52,7 @@ public abstract class ResourceTransformerSupport implements ResourceTransformer 
 	/**
 	 * Return the configured {@code ResourceUrlProvider}.
 	 */
-	@Nullable
-	public ResourceUrlProvider getResourceUrlProvider() {
+	public @Nullable ResourceUrlProvider getResourceUrlProvider() {
 		return this.resourceUrlProvider;
 	}
 
@@ -62,16 +60,15 @@ public abstract class ResourceTransformerSupport implements ResourceTransformer 
 	/**
 	 * A transformer can use this method when a resource being transformed
 	 * contains links to other resources. Such links need to be replaced with the
-	 * public facing link as determined by the resource resolver chain (e.g. the
+	 * public facing link as determined by the resource resolver chain (for example, the
 	 * public URL may have a version inserted).
 	 * @param resourcePath the path to a resource that needs to be re-written
 	 * @param request the current request
 	 * @param resource the resource being transformed
 	 * @param transformerChain the transformer chain
-	 * @return the resolved URL, or {@code} if not resolvable
+	 * @return the resolved URL, or {@code null} if not resolvable
 	 */
-	@Nullable
-	protected String resolveUrlPath(String resourcePath, HttpServletRequest request,
+	protected @Nullable String resolveUrlPath(String resourcePath, HttpServletRequest request,
 			Resource resource, ResourceTransformerChain transformerChain) {
 
 		if (resourcePath.startsWith("/")) {
@@ -94,6 +91,7 @@ public abstract class ResourceTransformerSupport implements ResourceTransformer 
 	 * @param request the referer request
 	 * @return the absolute request path for the given resource path
 	 */
+	@SuppressWarnings("removal")
 	protected String toAbsolutePath(String path, HttpServletRequest request) {
 		String absolutePath = path;
 		if (!path.startsWith("/")) {
@@ -105,8 +103,7 @@ public abstract class ResourceTransformerSupport implements ResourceTransformer 
 		return StringUtils.cleanPath(absolutePath);
 	}
 
-	@Nullable
-	private ResourceUrlProvider findResourceUrlProvider(HttpServletRequest request) {
+	private @Nullable ResourceUrlProvider findResourceUrlProvider(HttpServletRequest request) {
 		if (this.resourceUrlProvider != null) {
 			return this.resourceUrlProvider;
 		}

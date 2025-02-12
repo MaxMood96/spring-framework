@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Subscription;
 import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
@@ -41,7 +42,6 @@ import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferLimitException;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpHeaders;
-import org.springframework.lang.Nullable;
 
 /**
  * Subscribes to a buffer stream and produces a flux of {@link Token} instances.
@@ -99,7 +99,6 @@ final class MultipartParser extends BaseSubscriber<DataBuffer> {
 		return Flux.create(sink -> {
 			MultipartParser parser = new MultipartParser(sink, boundary, maxHeadersSize, headersCharset);
 			sink.onCancel(parser::onSinkCancel);
-			sink.onRequest(n -> parser.requestBuffer());
 			buffers.subscribe(parser);
 		});
 	}
@@ -111,16 +110,20 @@ final class MultipartParser extends BaseSubscriber<DataBuffer> {
 
 	@Override
 	protected void hookOnSubscribe(Subscription subscription) {
-		requestBuffer();
+		if (this.sink.requestedFromDownstream() > 0) {
+			requestBuffer();
+		}
 	}
 
 	@Override
+	@SuppressWarnings("NullAway") // Dataflow analysis limitation
 	protected void hookOnNext(DataBuffer value) {
 		this.requestOutstanding.set(false);
 		this.state.get().onNext(value);
 	}
 
 	@Override
+	@SuppressWarnings("NullAway") // Dataflow analysis limitation
 	protected void hookOnComplete() {
 		this.state.get().onComplete();
 	}
@@ -212,7 +215,7 @@ final class MultipartParser extends BaseSubscriber<DataBuffer> {
 	/**
 	 * Represents a token that contains {@link HttpHeaders}.
 	 */
-	public final static class HeadersToken extends Token {
+	public static final class HeadersToken extends Token {
 
 		private final HttpHeaders headers;
 
@@ -240,7 +243,7 @@ final class MultipartParser extends BaseSubscriber<DataBuffer> {
 	/**
 	 * Represents a token that contains {@link DataBuffer}.
 	 */
-	public final static class BodyToken extends Token {
+	public static final class BodyToken extends Token {
 
 		private final DataBuffer buffer;
 
@@ -523,7 +526,7 @@ final class MultipartParser extends BaseSubscriber<DataBuffer> {
 				if (logger.isTraceEnabled()) {
 					logger.trace("Boundary found @" + endIdx + " in " + buffer);
 				}
-				int len = endIdx - this.boundaryLength + 1;
+				int len = endIdx - this.boundaryLength + 1 - boundaryBuffer.readPosition();
 				if (len > 0) {
 					// whole boundary in buffer.
 					// slice off the body part, and flush
@@ -538,10 +541,11 @@ final class MultipartParser extends BaseSubscriber<DataBuffer> {
 					DataBufferUtils.release(boundaryBuffer);
 					DataBuffer prev;
 					while ((prev = this.queue.pollLast()) != null) {
-						int prevLen = prev.readableByteCount() + len;
-						if (prevLen > 0) {
+						int prevByteCount = prev.readableByteCount();
+						int prevLen = prevByteCount + len;
+						if (prevLen >= 0) {
 							// slice body part of previous buffer, and flush it
-							DataBuffer body = prev.split(prevLen);
+							DataBuffer body = prev.split(prevLen + prev.readPosition());
 							DataBufferUtils.release(prev);
 							enqueue(body);
 							flush();
@@ -550,12 +554,13 @@ final class MultipartParser extends BaseSubscriber<DataBuffer> {
 						else {
 							// previous buffer only contains boundary bytes
 							DataBufferUtils.release(prev);
-							len += prev.readableByteCount();
+							len += prevByteCount;
 						}
 					}
 				}
 				else /* if (len == 0) */ {
 					// buffer starts with complete delimiter, flush out the previous buffers
+					DataBufferUtils.release(boundaryBuffer);
 					flush();
 				}
 

@@ -19,6 +19,8 @@ package org.springframework.cache.jcache.interceptor;
 import java.util.Collection;
 import java.util.Collections;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.interceptor.AbstractCacheResolver;
 import org.springframework.cache.interceptor.BasicOperation;
@@ -41,7 +43,7 @@ public class SimpleExceptionCacheResolver extends AbstractCacheResolver {
 	}
 
 	@Override
-	protected Collection<String> getCacheNames(CacheOperationInvocationContext<?> context) {
+	protected @Nullable Collection<String> getCacheNames(CacheOperationInvocationContext<?> context) {
 		BasicOperation operation = context.getOperation();
 		if (!(operation instanceof CacheResultOperation cacheResultOperation)) {
 			throw new IllegalStateException("Could not extract exception cache name from " + operation);

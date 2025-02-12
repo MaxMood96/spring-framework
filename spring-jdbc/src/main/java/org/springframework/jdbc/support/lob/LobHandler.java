@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import java.io.Reader;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Abstraction for handling large binary fields and large text fields in
@@ -37,7 +37,7 @@ import org.springframework.lang.Nullable;
  * which by default delegates to JDBC's direct accessor methods, avoiding the
  * {@code java.sql.Blob} and {@code java.sql.Clob} API completely.
  * {@link DefaultLobHandler} can also be configured to access LOBs using
- * {@code PreparedStatement.setBlob/setClob} (e.g. for PostgreSQL), through
+ * {@code PreparedStatement.setBlob/setClob} (for example, for PostgreSQL), through
  * setting the {@link DefaultLobHandler#setWrapAsLob "wrapAsLob"} property.
  *
  * <p>Of course, you need to declare different field types for each database.
@@ -72,7 +72,10 @@ import org.springframework.lang.Nullable;
  * @see java.sql.ResultSet#getString
  * @see java.sql.ResultSet#getAsciiStream
  * @see java.sql.ResultSet#getCharacterStream
+ * @deprecated as of 6.2, in favor of {@link org.springframework.jdbc.core.support.SqlBinaryValue}
+ * and {@link org.springframework.jdbc.core.support.SqlCharacterValue}
  */
+@Deprecated(since = "6.2")
 public interface LobHandler {
 
 	/**
@@ -85,8 +88,7 @@ public interface LobHandler {
 	 * @throws SQLException if thrown by JDBC methods
 	 * @see java.sql.ResultSet#getBytes
 	 */
-	@Nullable
-	byte[] getBlobAsBytes(ResultSet rs, String columnName) throws SQLException;
+	byte @Nullable [] getBlobAsBytes(ResultSet rs, String columnName) throws SQLException;
 
 	/**
 	 * Retrieve the given column as bytes from the given ResultSet.
@@ -98,8 +100,7 @@ public interface LobHandler {
 	 * @throws SQLException if thrown by JDBC methods
 	 * @see java.sql.ResultSet#getBytes
 	 */
-	@Nullable
-	byte[] getBlobAsBytes(ResultSet rs, int columnIndex) throws SQLException;
+	byte @Nullable [] getBlobAsBytes(ResultSet rs, int columnIndex) throws SQLException;
 
 	/**
 	 * Retrieve the given column as binary stream from the given ResultSet.
@@ -111,8 +112,7 @@ public interface LobHandler {
 	 * @throws SQLException if thrown by JDBC methods
 	 * @see java.sql.ResultSet#getBinaryStream
 	 */
-	@Nullable
-	InputStream getBlobAsBinaryStream(ResultSet rs, String columnName) throws SQLException;
+	@Nullable InputStream getBlobAsBinaryStream(ResultSet rs, String columnName) throws SQLException;
 
 	/**
 	 * Retrieve the given column as binary stream from the given ResultSet.
@@ -124,8 +124,7 @@ public interface LobHandler {
 	 * @throws SQLException if thrown by JDBC methods
 	 * @see java.sql.ResultSet#getBinaryStream
 	 */
-	@Nullable
-	InputStream getBlobAsBinaryStream(ResultSet rs, int columnIndex) throws SQLException;
+	@Nullable InputStream getBlobAsBinaryStream(ResultSet rs, int columnIndex) throws SQLException;
 
 	/**
 	 * Retrieve the given column as String from the given ResultSet.
@@ -137,8 +136,7 @@ public interface LobHandler {
 	 * @throws SQLException if thrown by JDBC methods
 	 * @see java.sql.ResultSet#getString
 	 */
-	@Nullable
-	String getClobAsString(ResultSet rs, String columnName) throws SQLException;
+	@Nullable String getClobAsString(ResultSet rs, String columnName) throws SQLException;
 
 	/**
 	 * Retrieve the given column as String from the given ResultSet.
@@ -150,8 +148,7 @@ public interface LobHandler {
 	 * @throws SQLException if thrown by JDBC methods
 	 * @see java.sql.ResultSet#getString
 	 */
-	@Nullable
-	String getClobAsString(ResultSet rs, int columnIndex) throws SQLException;
+	@Nullable String getClobAsString(ResultSet rs, int columnIndex) throws SQLException;
 
 	/**
 	 * Retrieve the given column as ASCII stream from the given ResultSet.
@@ -163,8 +160,7 @@ public interface LobHandler {
 	 * @throws SQLException if thrown by JDBC methods
 	 * @see java.sql.ResultSet#getAsciiStream
 	 */
-	@Nullable
-	InputStream getClobAsAsciiStream(ResultSet rs, String columnName) throws SQLException;
+	@Nullable InputStream getClobAsAsciiStream(ResultSet rs, String columnName) throws SQLException;
 
 	/**
 	 * Retrieve the given column as ASCII stream from the given ResultSet.
@@ -176,8 +172,7 @@ public interface LobHandler {
 	 * @throws SQLException if thrown by JDBC methods
 	 * @see java.sql.ResultSet#getAsciiStream
 	 */
-	@Nullable
-	InputStream getClobAsAsciiStream(ResultSet rs, int columnIndex) throws SQLException;
+	@Nullable InputStream getClobAsAsciiStream(ResultSet rs, int columnIndex) throws SQLException;
 
 	/**
 	 * Retrieve the given column as character stream from the given ResultSet.

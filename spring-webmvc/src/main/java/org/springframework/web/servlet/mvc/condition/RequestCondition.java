@@ -17,8 +17,7 @@
 package org.springframework.web.servlet.mvc.condition;
 
 import jakarta.servlet.http.HttpServletRequest;
-
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Contract for request mapping conditions.
@@ -51,14 +50,13 @@ public interface RequestCondition<T> {
 	 * multiple URL patterns may return a new instance only with those patterns
 	 * that match the request.
 	 * <p>For CORS pre-flight requests, conditions should match to the would-be,
-	 * actual request (e.g. URL pattern, query parameters, and the HTTP method
+	 * actual request (for example, URL pattern, query parameters, and the HTTP method
 	 * from the "Access-Control-Request-Method" header). If a condition cannot
 	 * be matched to a pre-flight request it should return an instance with
 	 * empty content thus not causing a failure to match.
 	 * @return a condition instance in case of a match or {@code null} otherwise.
 	 */
-	@Nullable
-	T getMatchingCondition(HttpServletRequest request);
+	@Nullable T getMatchingCondition(HttpServletRequest request);
 
 	/**
 	 * Compare this condition to another condition in the context of

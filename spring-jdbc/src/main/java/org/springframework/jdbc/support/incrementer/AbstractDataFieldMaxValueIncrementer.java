@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,9 +34,11 @@ import org.springframework.util.Assert;
  */
 public abstract class AbstractDataFieldMaxValueIncrementer implements DataFieldMaxValueIncrementer, InitializingBean {
 
+	@SuppressWarnings("NullAway.Init")
 	private DataSource dataSource;
 
 	/** The name of the sequence/table containing the sequence. */
+	@SuppressWarnings("NullAway.Init")
 	private String incrementerName;
 
 	/** The length to which a string result should be pre-pended with zeroes. */

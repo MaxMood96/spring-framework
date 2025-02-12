@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package org.springframework.beans;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Utility methods for classes that perform bean property access
@@ -91,14 +91,14 @@ public abstract class PropertyAccessorUtils {
 		int i = (last ? length - 1 : 0);
 		while (last ? i >= 0 : i < length) {
 			switch (propertyPath.charAt(i)) {
-				case PropertyAccessor.PROPERTY_KEY_PREFIX_CHAR:
-				case PropertyAccessor.PROPERTY_KEY_SUFFIX_CHAR:
+				case PropertyAccessor.PROPERTY_KEY_PREFIX_CHAR, PropertyAccessor.PROPERTY_KEY_SUFFIX_CHAR -> {
 					inKey = !inKey;
-					break;
-				case PropertyAccessor.NESTED_PROPERTY_SEPARATOR_CHAR:
+				}
+				case PropertyAccessor.NESTED_PROPERTY_SEPARATOR_CHAR -> {
 					if (!inKey) {
 						return i;
 					}
+				}
 			}
 			if (last) {
 				i--;
@@ -173,8 +173,7 @@ public abstract class PropertyAccessorUtils {
 	 * (as array of the same size)
 	 * @see #canonicalPropertyName(String)
 	 */
-	@Nullable
-	public static String[] canonicalPropertyNames(@Nullable String[] propertyNames) {
+	public static String @Nullable [] canonicalPropertyNames(String @Nullable [] propertyNames) {
 		if (propertyNames == null) {
 			return null;
 		}

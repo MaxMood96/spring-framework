@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,23 +17,25 @@
 package org.springframework.http.client.observation;
 
 import io.micrometer.observation.transport.RequestReplySenderContext;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.client.ClientHttpRequest;
 import org.springframework.http.client.ClientHttpResponse;
-import org.springframework.lang.Nullable;
 
 /**
- * Context that holds information for metadata collection
- * during the {@link ClientHttpObservationDocumentation#HTTP_CLIENT_EXCHANGES client HTTP exchanges} observations.
+ * Context that holds information for metadata collection during the
+ * {@link ClientHttpObservationDocumentation#HTTP_CLIENT_EXCHANGES client HTTP exchanges} observations.
+ *
  * <p>This context also extends {@link RequestReplySenderContext} for propagating tracing
  * information with the HTTP client exchange.
+ *
  * @author Brian Clozel
  * @since 6.0
  */
 public class ClientRequestObservationContext extends RequestReplySenderContext<ClientHttpRequest, ClientHttpResponse> {
 
-	@Nullable
-	private String uriTemplate;
+	private @Nullable String uriTemplate;
+
 
 	/**
 	 * Create an observation context for {@link ClientHttpRequest} observations.
@@ -41,7 +43,7 @@ public class ClientRequestObservationContext extends RequestReplySenderContext<C
 	 */
 	public ClientRequestObservationContext(ClientHttpRequest request) {
 		super(ClientRequestObservationContext::setRequestHeader);
-		this.setCarrier(request);
+		setCarrier(request);
 	}
 
 	private static void setRequestHeader(@Nullable ClientHttpRequest request, String name, String value) {
@@ -50,19 +52,19 @@ public class ClientRequestObservationContext extends RequestReplySenderContext<C
 		}
 	}
 
-	/**
-	 * Return the URI template used for the current client exchange, {@code null} if none was used.
-	 */
-	@Nullable
-	public String getUriTemplate() {
-		return this.uriTemplate;
-	}
 
 	/**
 	 * Set the URI template used for the current client exchange.
 	 */
 	public void setUriTemplate(@Nullable String uriTemplate) {
 		this.uriTemplate = uriTemplate;
+	}
+
+	/**
+	 * Return the URI template used for the current client exchange, {@code null} if none was used.
+	 */
+	public @Nullable String getUriTemplate() {
+		return this.uriTemplate;
 	}
 
 }

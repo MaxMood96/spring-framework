@@ -18,11 +18,12 @@ package org.springframework.aop.support.annotation;
 
 import java.lang.annotation.Annotation;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aop.ClassFilter;
 import org.springframework.aop.MethodMatcher;
 import org.springframework.aop.Pointcut;
 import org.springframework.core.annotation.AnnotationUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -87,6 +88,7 @@ public class AnnotationMatchingPointcut implements Pointcut {
 	 * @see AnnotationClassFilter#AnnotationClassFilter(Class, boolean)
 	 * @see AnnotationMethodMatcher#AnnotationMethodMatcher(Class, boolean)
 	 */
+	@SuppressWarnings("NullAway") // Dataflow analysis limitation
 	public AnnotationMatchingPointcut(@Nullable Class<? extends Annotation> classAnnotationType,
 			@Nullable Class<? extends Annotation> methodAnnotationType, boolean checkInherited) {
 
@@ -121,14 +123,9 @@ public class AnnotationMatchingPointcut implements Pointcut {
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof AnnotationMatchingPointcut otherPointcut)) {
-			return false;
-		}
-		return (this.classFilter.equals(otherPointcut.classFilter) &&
-				this.methodMatcher.equals(otherPointcut.methodMatcher));
+		return (this == other || (other instanceof AnnotationMatchingPointcut otherPointcut &&
+				this.classFilter.equals(otherPointcut.classFilter) &&
+				this.methodMatcher.equals(otherPointcut.methodMatcher)));
 	}
 
 	@Override
@@ -183,14 +180,9 @@ public class AnnotationMatchingPointcut implements Pointcut {
 		}
 
 		@Override
-		public boolean equals(@Nullable Object obj) {
-			if (this == obj) {
-				return true;
-			}
-			if (!(obj instanceof AnnotationCandidateClassFilter that)) {
-				return false;
-			}
-			return this.annotationType.equals(that.annotationType);
+		public boolean equals(@Nullable Object other) {
+			return (this == other || (other instanceof AnnotationCandidateClassFilter that &&
+					this.annotationType.equals(that.annotationType)));
 		}
 
 		@Override

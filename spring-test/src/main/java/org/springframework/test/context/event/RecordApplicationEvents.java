@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,11 +24,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * {@code @RecordApplicationEvents} is a class-level annotation that is used to
- * instruct the <em>Spring TestContext Framework</em> to record all
+ * {@code @RecordApplicationEvents} is an annotation that can be applied to a test
+ * class to instruct the <em>Spring TestContext Framework</em> to record all
  * {@linkplain org.springframework.context.ApplicationEvent application events}
  * that are published in the {@link org.springframework.context.ApplicationContext
- * ApplicationContext} during the execution of a single test.
+ * ApplicationContext} during the execution of a single test, either from the
+ * test thread or its descendants.
  *
  * <p>The recorded events can be accessed via the {@link ApplicationEvents} API
  * within your tests.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,14 @@ import org.springframework.core.env.Profiles;
  * for web applications. Profiles may also be activated declaratively in
  * integration tests via the {@code @ActiveProfiles} annotation.
  *
+ * <p>If no profile is active using one of those options, a default profile is
+ * enabled as a fallback. The name of the default profile is
+ * {@value AbstractEnvironment#RESERVED_DEFAULT_PROFILE_NAME}. This can be changed
+ * via {@link ConfigurableEnvironment#setDefaultProfiles} or declaratively by
+ * setting the {@link AbstractEnvironment#DEFAULT_PROFILES_PROPERTY_NAME
+ * spring.profiles.default} property as a JVM system property, as an environment
+ * variable, or as a Servlet context parameter in {@code web.xml} for web applications.
+ *
  * <p>The {@code @Profile} annotation may be used in any of the following ways:
  * <ul>
  * <li>as a type-level annotation on any class directly or indirectly annotated with
@@ -55,7 +63,7 @@ import org.springframework.core.env.Profiles;
  * details about supported formats.
  *
  * <p>This is analogous to the behavior in Spring XML: if the {@code profile} attribute of
- * the {@code beans} element is supplied e.g., {@code <beans profile="p1,p2">}, the
+ * the {@code beans} element is supplied, for example, {@code <beans profile="p1,p2">}, the
  * {@code beans} element will not be parsed unless at least profile 'p1' or 'p2' has been
  * activated. Likewise, if a {@code @Component} or {@code @Configuration} class is marked
  * with {@code @Profile({"p1", "p2"})}, that class will not be registered or processed unless

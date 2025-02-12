@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
@@ -35,7 +36,6 @@ import org.springframework.core.codec.Decoder;
 import org.springframework.core.codec.StringDecoder;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -52,11 +52,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 
 /**
- * Unit tests for {@link PayloadMethodArgumentResolver}.
+ * Tests for {@link PayloadMethodArgumentResolver}.
  *
  * @author Rossen Stoyanchev
  */
-public class PayloadMethodArgumentResolverTests {
+class PayloadMethodArgumentResolverTests {
 
 	private final List<Decoder<?>> decoders = new ArrayList<>();
 
@@ -64,7 +64,7 @@ public class PayloadMethodArgumentResolverTests {
 
 
 	@Test
-	public void supportsParameter() {
+	void supportsParameter() {
 
 		boolean useDefaultResolution = true;
 		PayloadMethodArgumentResolver resolver = createResolver(null, useDefaultResolution);
@@ -80,7 +80,7 @@ public class PayloadMethodArgumentResolverTests {
 	}
 
 	@Test
-	public void emptyBodyWhenRequired() {
+	void emptyBodyWhenRequired() {
 		MethodParameter param = this.testMethod.arg(ResolvableType.forClassWithGenerics(Mono.class, String.class));
 		Mono<Object> mono = resolveValue(param, Mono.empty(), null);
 
@@ -93,13 +93,13 @@ public class PayloadMethodArgumentResolverTests {
 	}
 
 	@Test
-	public void emptyBodyWhenNotRequired() {
+	void emptyBodyWhenNotRequired() {
 		MethodParameter param = this.testMethod.annotPresent(Payload.class).arg();
 		assertThat(this.<Object>resolveValue(param, Mono.empty(), null)).isNull();
 	}
 
 	@Test
-	public void stringMono() {
+	void stringMono() {
 		String body = "foo";
 		MethodParameter param = this.testMethod.arg(ResolvableType.forClassWithGenerics(Mono.class, String.class));
 		Mono<Object> mono = resolveValue(param,
@@ -109,7 +109,7 @@ public class PayloadMethodArgumentResolverTests {
 	}
 
 	@Test
-	public void stringFlux() {
+	void stringFlux() {
 		List<String> body = Arrays.asList("foo", "bar");
 		ResolvableType type = ResolvableType.forClassWithGenerics(Flux.class, String.class);
 		MethodParameter param = this.testMethod.arg(type);
@@ -120,7 +120,7 @@ public class PayloadMethodArgumentResolverTests {
 	}
 
 	@Test
-	public void string() {
+	void string() {
 		String body = "foo";
 		MethodParameter param = this.testMethod.annotNotPresent(Payload.class).arg(String.class);
 		Object value = resolveValue(param, Mono.just(toDataBuffer(body)), null);
@@ -129,7 +129,7 @@ public class PayloadMethodArgumentResolverTests {
 	}
 
 	@Test
-	public void validateStringMono() {
+	void validateStringMono() {
 		TestValidator validator = new TestValidator();
 		ResolvableType type = ResolvableType.forClassWithGenerics(Mono.class, String.class);
 		MethodParameter param = this.testMethod.arg(type);
@@ -140,7 +140,7 @@ public class PayloadMethodArgumentResolverTests {
 	}
 
 	@Test
-	public void validateStringFlux() {
+	void validateStringFlux() {
 		TestValidator validator = new TestValidator();
 		ResolvableType type = ResolvableType.forClassWithGenerics(Flux.class, String.class);
 		MethodParameter param = this.testMethod.arg(type);
@@ -160,8 +160,7 @@ public class PayloadMethodArgumentResolverTests {
 
 
 	@SuppressWarnings("unchecked")
-	@Nullable
-	private <T> T resolveValue(MethodParameter param, Publisher<DataBuffer> content, Validator validator) {
+	private <T> @Nullable T resolveValue(MethodParameter param, Publisher<DataBuffer> content, Validator validator) {
 
 		Message<?> message = new GenericMessage<>(content,
 				Collections.singletonMap(MessageHeaders.CONTENT_TYPE, MimeTypeUtils.TEXT_PLAIN));

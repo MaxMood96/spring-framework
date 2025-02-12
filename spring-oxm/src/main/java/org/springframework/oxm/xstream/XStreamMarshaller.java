@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,6 +66,7 @@ import com.thoughtworks.xstream.mapper.Mapper;
 import com.thoughtworks.xstream.mapper.MapperWrapper;
 import com.thoughtworks.xstream.security.ForbiddenClassException;
 import com.thoughtworks.xstream.security.TypePermission;
+import org.jspecify.annotations.Nullable;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -76,7 +77,6 @@ import org.xml.sax.ext.LexicalHandler;
 
 import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.lang.Nullable;
 import org.springframework.oxm.MarshallingFailureException;
 import org.springframework.oxm.UncategorizedMappingException;
 import org.springframework.oxm.UnmarshallingFailureException;
@@ -109,9 +109,7 @@ import org.springframework.util.xml.StaxUtils;
  * Therefore, it has limited namespace support. As such, it is rather unsuitable for
  * usage within Web Services.
  *
- * <p>This marshaller requires XStream 1.4.7 or higher, as of Spring 5.2.17.
- * Note that {@link XStream} construction has been reworked in 4.0, with the
- * stream driver and the class loader getting passed into XStream itself now.
+ * <p>This marshaller requires XStream 1.4.7 or higher.
  *
  * <p>As of Spring Framework 6.0, the default {@link HierarchicalStreamDriver} is
  * a {@link DomDriver} that uses the configured {@linkplain #setEncoding(String)
@@ -132,60 +130,43 @@ public class XStreamMarshaller extends AbstractMarshaller implements BeanClassLo
 	public static final String DEFAULT_ENCODING = "UTF-8";
 
 
-	@Nullable
-	private ReflectionProvider reflectionProvider;
+	private @Nullable ReflectionProvider reflectionProvider;
 
-	@Nullable
-	private HierarchicalStreamDriver streamDriver;
+	private @Nullable HierarchicalStreamDriver streamDriver;
 
-	@Nullable
-	private HierarchicalStreamDriver defaultDriver;
+	private @Nullable HierarchicalStreamDriver defaultDriver;
 
-	@Nullable
-	private Mapper mapper;
+	private @Nullable Mapper mapper;
 
-	@Nullable
-	private Class<? extends MapperWrapper>[] mapperWrappers;
+	private Class<? extends MapperWrapper> @Nullable [] mapperWrappers;
 
 	private ConverterLookup converterLookup = new DefaultConverterLookup();
 
 	private ConverterRegistry converterRegistry = (ConverterRegistry) this.converterLookup;
 
-	@Nullable
-	private ConverterMatcher[] converters;
+	private ConverterMatcher @Nullable [] converters;
 
-	@Nullable
-	private TypePermission[] typePermissions;
+	private TypePermission @Nullable [] typePermissions;
 
-	@Nullable
-	private MarshallingStrategy marshallingStrategy;
+	private @Nullable MarshallingStrategy marshallingStrategy;
 
-	@Nullable
-	private Integer mode;
+	private @Nullable Integer mode;
 
-	@Nullable
-	private Map<String, ?> aliases;
+	private @Nullable Map<String, ?> aliases;
 
-	@Nullable
-	private Map<String, ?> aliasesByType;
+	private @Nullable Map<String, ?> aliasesByType;
 
-	@Nullable
-	private Map<String, String> fieldAliases;
+	private @Nullable Map<String, String> fieldAliases;
 
-	@Nullable
-	private Class<?>[] useAttributeForTypes;
+	private Class<?> @Nullable [] useAttributeForTypes;
 
-	@Nullable
-	private Map<?, ?> useAttributeFor;
+	private @Nullable Map<?, ?> useAttributeFor;
 
-	@Nullable
-	private Map<Class<?>, String> implicitCollections;
+	private @Nullable Map<Class<?>, String> implicitCollections;
 
-	@Nullable
-	private Map<Class<?>, String> omittedFields;
+	private @Nullable Map<Class<?>, String> omittedFields;
 
-	@Nullable
-	private Class<?>[] annotatedClasses;
+	private Class<?> @Nullable [] annotatedClasses;
 
 	private boolean autodetectAnnotations;
 
@@ -193,11 +174,9 @@ public class XStreamMarshaller extends AbstractMarshaller implements BeanClassLo
 
 	private NameCoder nameCoder = new XmlFriendlyNameCoder();
 
-	@Nullable
-	private Class<?>[] supportedClasses;
+	private Class<?> @Nullable [] supportedClasses;
 
-	@Nullable
-	private ClassLoader beanClassLoader = ClassUtils.getDefaultClassLoader();
+	private @Nullable ClassLoader beanClassLoader = ClassUtils.getDefaultClassLoader();
 
 	private final SingletonSupplier<XStream> xstream = SingletonSupplier.of(this::buildXStream);
 
@@ -641,11 +620,10 @@ public class XStreamMarshaller extends AbstractMarshaller implements BeanClassLo
 
 	/**
 	 * Return the native XStream delegate used by this marshaller.
-	 * <p><b>NOTE: This method has been marked as final as of Spring 4.0.</b>
-	 * It can be used to access the fully configured XStream for marshalling
-	 * but not configuration purposes anymore.
-	 * <p>As of Spring Framework 5.1.16, creation of the {@link XStream} instance
-	 * returned by this method is thread safe.
+	 * <p>The creation of the {@link XStream} instance returned by this method is
+	 * thread safe.
+	 * <p><b>NOTE: This method is marked as final.</b> It can be used to access
+	 * the fully configured XStream for marshalling but not configuration purposes.
 	 */
 	public final XStream getXStream() {
 		return this.xstream.obtain();
@@ -877,7 +855,7 @@ public class XStreamMarshaller extends AbstractMarshaller implements BeanClassLo
 		if (ex instanceof StreamException || ex instanceof CannotResolveClassException ||
 				ex instanceof ForbiddenClassException || ex instanceof ConversionException) {
 			if (marshalling) {
-				return new MarshallingFailureException("XStream marshalling exception",  ex);
+				return new MarshallingFailureException("XStream marshalling exception", ex);
 			}
 			else {
 				return new UnmarshallingFailureException("XStream unmarshalling exception", ex);

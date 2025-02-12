@@ -20,17 +20,17 @@ import java.io.Serializable;
 
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aop.Advisor;
 import org.springframework.aop.support.DefaultPointcutAdvisor;
 import org.springframework.core.NamedThreadLocal;
 import org.springframework.core.PriorityOrdered;
-import org.springframework.lang.Nullable;
 
 /**
  * Interceptor that exposes the current {@link org.aopalliance.intercept.MethodInvocation}
  * as a thread-local object. We occasionally need to do this; for example, when a pointcut
- * (e.g. an AspectJ expression pointcut) needs to know the full invocation context.
+ * (for example, an AspectJ expression pointcut) needs to know the full invocation context.
  *
  * <p>Don't use this interceptor unless this is really necessary. Target objects should
  * not normally know about Spring AOP, as this creates a dependency on Spring API.
@@ -89,8 +89,7 @@ public final class ExposeInvocationInterceptor implements MethodInterceptor, Pri
 	}
 
 	@Override
-	@Nullable
-	public Object invoke(MethodInvocation mi) throws Throwable {
+	public @Nullable Object invoke(MethodInvocation mi) throws Throwable {
 		MethodInvocation oldInvocation = invocation.get();
 		invocation.set(mi);
 		try {

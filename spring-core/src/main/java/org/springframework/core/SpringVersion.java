@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package org.springframework.core;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Class that exposes the Spring version. Fetches the
@@ -25,8 +25,8 @@ import org.springframework.lang.Nullable;
  * <p>Note that some ClassLoaders do not expose the package metadata,
  * hence this class might not be able to determine the Spring version
  * in all environments. Consider using a reflection-based check instead &mdash;
- * for example, checking for the presence of a specific Spring 5.2
- * method that you intend to call.
+ * for example, checking for the presence of a specific Spring method that you
+ * intend to call.
  *
  * @author Juergen Hoeller
  * @since 1.1
@@ -42,8 +42,7 @@ public final class SpringVersion {
 	 * or {@code null} if it cannot be determined.
 	 * @see Package#getImplementationVersion()
 	 */
-	@Nullable
-	public static String getVersion() {
+	public static @Nullable String getVersion() {
 		Package pkg = SpringVersion.class.getPackage();
 		return (pkg != null ? pkg.getImplementationVersion() : null);
 	}

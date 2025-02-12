@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package org.springframework.messaging.simp.config;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.SubscribableChannel;
 import org.springframework.messaging.simp.broker.SimpleBrokerMessageHandler;
@@ -26,18 +27,16 @@ import org.springframework.scheduling.TaskScheduler;
  * Registration class for configuring a {@link SimpleBrokerMessageHandler}.
  *
  * @author Rossen Stoyanchev
+ * @author Sam Brannen
  * @since 4.0
  */
 public class SimpleBrokerRegistration extends AbstractBrokerRegistration {
 
-	@Nullable
-	private TaskScheduler taskScheduler;
+	private @Nullable TaskScheduler taskScheduler;
 
-	@Nullable
-	private long[] heartbeat;
+	private long @Nullable [] heartbeat;
 
-	@Nullable
-	private String selectorHeaderName = "selector";
+	private @Nullable String selectorHeaderName;
 
 
 	/**
@@ -81,16 +80,19 @@ public class SimpleBrokerRegistration extends AbstractBrokerRegistration {
 
 	/**
 	 * Configure the name of a header that a subscription message can have for
-	 * the purpose of filtering messages matched to the subscription. The header
-	 * value is expected to be a Spring EL boolean expression to be applied to
-	 * the headers of messages matched to the subscription.
+	 * the purpose of filtering messages matched to the subscription.
+	 * <p>The header value is expected to be a Spring Expression Language (SpEL)
+	 * boolean expression to be applied to the headers of messages matched to the
+	 * subscription.
 	 * <p>For example:
-	 * <pre>
+	 * <pre style="code">
 	 * headers.foo == 'bar'
 	 * </pre>
-	 * <p>By default this is set to "selector". You can set it to a different
-	 * name, or to {@code null} to turn off support for a selector header.
-	 * @param selectorHeaderName the name to use for a selector header
+	 * <p>By default the selector header name is set to {@code null} which disables
+	 * this feature. You can set it to {@code "selector"} or a different name to
+	 * enable support for a selector header.
+	 * @param selectorHeaderName the name to use for a selector header, or {@code null}
+	 * or blank to disable selector header support
 	 * @since 4.3.17
 	 */
 	public void setSelectorHeaderName(@Nullable String selectorHeaderName) {

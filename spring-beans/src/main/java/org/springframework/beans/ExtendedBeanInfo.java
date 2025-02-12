@@ -30,17 +30,18 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 
 /**
- * Decorator for a standard {@link BeanInfo} object, e.g. as created by
+ * Decorator for a standard {@link BeanInfo} object, for example, as created by
  * {@link Introspector#getBeanInfo(Class)}, designed to discover and register
  * static and/or non-void returning setter methods. For example:
  *
@@ -184,22 +185,21 @@ class ExtendedBeanInfo implements BeanInfo {
 		}
 	}
 
-	@Nullable
-	private PropertyDescriptor findExistingPropertyDescriptor(String propertyName, Class<?> propertyType) {
+	private @Nullable PropertyDescriptor findExistingPropertyDescriptor(String propertyName, Class<?> propertyType) {
 		for (PropertyDescriptor pd : this.propertyDescriptors) {
 			final Class<?> candidateType;
 			final String candidateName = pd.getName();
 			if (pd instanceof IndexedPropertyDescriptor indexedPd) {
 				candidateType = indexedPd.getIndexedPropertyType();
 				if (candidateName.equals(propertyName) &&
-						(candidateType.equals(propertyType) || candidateType.equals(propertyType.getComponentType()))) {
+						(candidateType.equals(propertyType) || candidateType.equals(propertyType.componentType()))) {
 					return pd;
 				}
 			}
 			else {
 				candidateType = pd.getPropertyType();
 				if (candidateName.equals(propertyName) &&
-						(candidateType.equals(propertyType) || propertyType.equals(candidateType.getComponentType()))) {
+						(candidateType.equals(propertyType) || propertyType.equals(candidateType.componentType()))) {
 					return pd;
 				}
 			}
@@ -264,17 +264,13 @@ class ExtendedBeanInfo implements BeanInfo {
 	 */
 	static class SimplePropertyDescriptor extends PropertyDescriptor {
 
-		@Nullable
-		private Method readMethod;
+		private @Nullable Method readMethod;
 
-		@Nullable
-		private Method writeMethod;
+		private @Nullable Method writeMethod;
 
-		@Nullable
-		private Class<?> propertyType;
+		private @Nullable Class<?> propertyType;
 
-		@Nullable
-		private Class<?> propertyEditorClass;
+		private @Nullable Class<?> propertyEditorClass;
 
 		public SimplePropertyDescriptor(PropertyDescriptor original) throws IntrospectionException {
 			this(original.getName(), original.getReadMethod(), original.getWriteMethod());
@@ -291,8 +287,7 @@ class ExtendedBeanInfo implements BeanInfo {
 		}
 
 		@Override
-		@Nullable
-		public Method getReadMethod() {
+		public @Nullable Method getReadMethod() {
 			return this.readMethod;
 		}
 
@@ -302,8 +297,7 @@ class ExtendedBeanInfo implements BeanInfo {
 		}
 
 		@Override
-		@Nullable
-		public Method getWriteMethod() {
+		public @Nullable Method getWriteMethod() {
 			return this.writeMethod;
 		}
 
@@ -313,8 +307,7 @@ class ExtendedBeanInfo implements BeanInfo {
 		}
 
 		@Override
-		@Nullable
-		public Class<?> getPropertyType() {
+		public @Nullable Class<?> getPropertyType() {
 			if (this.propertyType == null) {
 				try {
 					this.propertyType = PropertyDescriptorUtils.findPropertyType(this.readMethod, this.writeMethod);
@@ -327,8 +320,7 @@ class ExtendedBeanInfo implements BeanInfo {
 		}
 
 		@Override
-		@Nullable
-		public Class<?> getPropertyEditorClass() {
+		public @Nullable Class<?> getPropertyEditorClass() {
 			return this.propertyEditorClass;
 		}
 
@@ -338,14 +330,14 @@ class ExtendedBeanInfo implements BeanInfo {
 		}
 
 		@Override
-		public boolean equals(@Nullable Object obj) {
-			return (this == obj || (obj instanceof PropertyDescriptor that &&
+		public boolean equals(@Nullable Object other) {
+			return (this == other || (other instanceof PropertyDescriptor that &&
 					PropertyDescriptorUtils.equals(this, that)));
 		}
 
 		@Override
 		public int hashCode() {
-			return (ObjectUtils.nullSafeHashCode(getReadMethod()) * 29 + ObjectUtils.nullSafeHashCode(getWriteMethod()));
+			return Objects.hash(getReadMethod(), getWriteMethod());
 		}
 
 		@Override
@@ -361,26 +353,19 @@ class ExtendedBeanInfo implements BeanInfo {
 	 */
 	static class SimpleIndexedPropertyDescriptor extends IndexedPropertyDescriptor {
 
-		@Nullable
-		private Method readMethod;
+		private @Nullable Method readMethod;
 
-		@Nullable
-		private Method writeMethod;
+		private @Nullable Method writeMethod;
 
-		@Nullable
-		private Class<?> propertyType;
+		private @Nullable Class<?> propertyType;
 
-		@Nullable
-		private Method indexedReadMethod;
+		private @Nullable Method indexedReadMethod;
 
-		@Nullable
-		private Method indexedWriteMethod;
+		private @Nullable Method indexedWriteMethod;
 
-		@Nullable
-		private Class<?> indexedPropertyType;
+		private @Nullable Class<?> indexedPropertyType;
 
-		@Nullable
-		private Class<?> propertyEditorClass;
+		private @Nullable Class<?> propertyEditorClass;
 
 		public SimpleIndexedPropertyDescriptor(IndexedPropertyDescriptor original) throws IntrospectionException {
 			this(original.getName(), original.getReadMethod(), original.getWriteMethod(),
@@ -403,8 +388,7 @@ class ExtendedBeanInfo implements BeanInfo {
 		}
 
 		@Override
-		@Nullable
-		public Method getReadMethod() {
+		public @Nullable Method getReadMethod() {
 			return this.readMethod;
 		}
 
@@ -414,8 +398,7 @@ class ExtendedBeanInfo implements BeanInfo {
 		}
 
 		@Override
-		@Nullable
-		public Method getWriteMethod() {
+		public @Nullable Method getWriteMethod() {
 			return this.writeMethod;
 		}
 
@@ -425,8 +408,7 @@ class ExtendedBeanInfo implements BeanInfo {
 		}
 
 		@Override
-		@Nullable
-		public Class<?> getPropertyType() {
+		public @Nullable Class<?> getPropertyType() {
 			if (this.propertyType == null) {
 				try {
 					this.propertyType = PropertyDescriptorUtils.findPropertyType(this.readMethod, this.writeMethod);
@@ -439,8 +421,7 @@ class ExtendedBeanInfo implements BeanInfo {
 		}
 
 		@Override
-		@Nullable
-		public Method getIndexedReadMethod() {
+		public @Nullable Method getIndexedReadMethod() {
 			return this.indexedReadMethod;
 		}
 
@@ -450,8 +431,7 @@ class ExtendedBeanInfo implements BeanInfo {
 		}
 
 		@Override
-		@Nullable
-		public Method getIndexedWriteMethod() {
+		public @Nullable Method getIndexedWriteMethod() {
 			return this.indexedWriteMethod;
 		}
 
@@ -461,8 +441,7 @@ class ExtendedBeanInfo implements BeanInfo {
 		}
 
 		@Override
-		@Nullable
-		public Class<?> getIndexedPropertyType() {
+		public @Nullable Class<?> getIndexedPropertyType() {
 			if (this.indexedPropertyType == null) {
 				try {
 					this.indexedPropertyType = PropertyDescriptorUtils.findIndexedPropertyType(
@@ -476,8 +455,7 @@ class ExtendedBeanInfo implements BeanInfo {
 		}
 
 		@Override
-		@Nullable
-		public Class<?> getPropertyEditorClass() {
+		public @Nullable Class<?> getPropertyEditorClass() {
 			return this.propertyEditorClass;
 		}
 
@@ -491,25 +469,17 @@ class ExtendedBeanInfo implements BeanInfo {
 		 */
 		@Override
 		public boolean equals(@Nullable Object other) {
-			if (this == other) {
-				return true;
-			}
-			if (!(other instanceof IndexedPropertyDescriptor otherPd)) {
-				return false;
-			}
-			return (ObjectUtils.nullSafeEquals(getIndexedReadMethod(), otherPd.getIndexedReadMethod()) &&
-					ObjectUtils.nullSafeEquals(getIndexedWriteMethod(), otherPd.getIndexedWriteMethod()) &&
-					ObjectUtils.nullSafeEquals(getIndexedPropertyType(), otherPd.getIndexedPropertyType()) &&
-					PropertyDescriptorUtils.equals(this, otherPd));
+			return (this == other || (other instanceof IndexedPropertyDescriptor that &&
+					ObjectUtils.nullSafeEquals(getIndexedReadMethod(), that.getIndexedReadMethod()) &&
+					ObjectUtils.nullSafeEquals(getIndexedWriteMethod(), that.getIndexedWriteMethod()) &&
+					ObjectUtils.nullSafeEquals(getIndexedPropertyType(), that.getIndexedPropertyType()) &&
+					PropertyDescriptorUtils.equals(this, that)));
 		}
 
 		@Override
 		public int hashCode() {
-			int hashCode = ObjectUtils.nullSafeHashCode(getReadMethod());
-			hashCode = 29 * hashCode + ObjectUtils.nullSafeHashCode(getWriteMethod());
-			hashCode = 29 * hashCode + ObjectUtils.nullSafeHashCode(getIndexedReadMethod());
-			hashCode = 29 * hashCode + ObjectUtils.nullSafeHashCode(getIndexedWriteMethod());
-			return hashCode;
+			return Objects.hash(getReadMethod(), getWriteMethod(),
+					getIndexedReadMethod(), getIndexedWriteMethod());
 		}
 
 		@Override
@@ -531,20 +501,7 @@ class ExtendedBeanInfo implements BeanInfo {
 
 		@Override
 		public int compare(PropertyDescriptor desc1, PropertyDescriptor desc2) {
-			String left = desc1.getName();
-			String right = desc2.getName();
-			byte[] leftBytes = left.getBytes();
-			byte[] rightBytes = right.getBytes();
-			for (int i = 0; i < left.length(); i++) {
-				if (right.length() == i) {
-					return 1;
-				}
-				int result = leftBytes[i] - rightBytes[i];
-				if (result != 0) {
-					return result;
-				}
-			}
-			return left.length() - right.length();
+			return desc1.getName().compareTo(desc2.getName());
 		}
 	}
 

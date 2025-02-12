@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,34 +18,29 @@ package org.springframework.web.service.invoker;
 
 import java.util.List;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.service.annotation.GetExchange;
+import org.springframework.web.service.annotation.HttpExchange;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Unit tests for {@link RequestHeaderArgumentResolver}.
+ * Tests for {@link RequestHeaderArgumentResolver}.
  * <p>For base class functionality, see {@link NamedValueArgumentResolverTests}.
  *
  * @author Olga Maciaszek-Sharma
  * @author Rossen Stoyanchev
+ * @author Yanming Zhou
  */
 class RequestHeaderArgumentResolverTests {
 
-	private final TestHttpClientAdapter client = new TestHttpClientAdapter();
+	private final TestExchangeAdapter client = new TestExchangeAdapter();
 
-	private Service service;
-
-
-	@BeforeEach
-	void setUp() throws Exception {
-		HttpServiceProxyFactory proxyFactory = HttpServiceProxyFactory.builder(this.client).build();
-		this.service = proxyFactory.createClient(Service.class);
-	}
+	private final Service service =
+			HttpServiceProxyFactory.builderFor(this.client).build().createClient(Service.class);
 
 
 	// Base class functionality should be tested in NamedValueArgumentResolverTests.
@@ -54,6 +49,12 @@ class RequestHeaderArgumentResolverTests {
 	void header() {
 		this.service.execute("test");
 		assertRequestHeaders("id", "test");
+	}
+
+	@Test
+	void doesNotOverrideAnnotationHeaders() {
+		this.service.executeWithAnnotationHeaders("2");
+		assertRequestHeaders("myHeader", "1", "2");
 	}
 
 	private void assertRequestHeaders(String key, String... values) {
@@ -71,6 +72,9 @@ class RequestHeaderArgumentResolverTests {
 
 		@GetExchange
 		void execute(@RequestHeader String id);
+
+		@HttpExchange(method = "GET", headers = "myHeader=1")
+		void executeWithAnnotationHeaders(@RequestHeader String myHeader);
 
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ import static java.time.temporal.TemporalAdjusters.next;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
+ * Tests for {@link CronExpression}.
  * @author Arjen Poutsma
  */
 class CronExpressionTests {
@@ -53,7 +54,7 @@ class CronExpressionTests {
 	};
 
 	@Test
-	public void isValidExpression() {
+	void isValidExpression() {
 		assertThat(CronExpression.isValidExpression(null)).isFalse();
 		assertThat(CronExpression.isValidExpression("")).isFalse();
 		assertThat(CronExpression.isValidExpression("*")).isFalse();
@@ -479,7 +480,7 @@ class CronExpressionTests {
 	}
 
 	@Test
-	public void fixedDays() {
+	void fixedDays() {
 		CronExpression expression = CronExpression.parse("0 0 0 29 2 WED");
 
 		LocalDateTime last = LocalDateTime.of(2012, 2, 29, 1, 0);
@@ -509,7 +510,7 @@ class CronExpressionTests {
 	}
 
 	@Test
-	public void everyTenDays() {
+	void everyTenDays() {
 		CronExpression cronExpression = CronExpression.parse("0 15 12 */10 1-8 5");
 
 		LocalDateTime last = LocalDateTime.parse("2021-04-30T12:14:59");
@@ -806,7 +807,7 @@ class CronExpressionTests {
 	}
 
 	@Test
-	public void quartzLastDayOfWeekOffset() {
+	void quartzLastDayOfWeekOffset() {
 		// last Friday (5) of the month
 		CronExpression expression = CronExpression.parse("0 0 0 * * 5L");
 
@@ -1093,6 +1094,20 @@ class CronExpressionTests {
 	}
 
 	@Test
+	void quartz5thMondayOfTheMonthDayName() {
+		CronExpression expression = CronExpression.parse("0 0 0 ? * MON#5");
+
+		LocalDateTime last = LocalDateTime.of(2025, 1, 1, 0, 0, 0);
+
+		// first occurrence of 5 mondays in a month from last
+		LocalDateTime expected = LocalDateTime.of(2025, 3, 31, 0, 0, 0);
+		LocalDateTime actual = expression.next(last);
+		assertThat(actual).isNotNull();
+		assertThat(actual).isEqualTo(expected);
+		assertThat(actual.getDayOfWeek()).isEqualTo(MONDAY);
+	}
+
+	@Test
 	void quartzFifthWednesdayOfTheMonth() {
 		CronExpression expression = CronExpression.parse("0 0 0 ? * 3#5");
 
@@ -1295,7 +1310,7 @@ class CronExpressionTests {
 	}
 
 	@Test
-	public void sundayToFriday() {
+	void sundayToFriday() {
 		CronExpression expression = CronExpression.parse("0 0 0 ? * SUN-FRI");
 
 		LocalDateTime last = LocalDateTime.of(2021, 2, 25, 15, 0);
@@ -1314,7 +1329,7 @@ class CronExpressionTests {
 	}
 
 	@Test
-	public void daylightSaving() {
+	void daylightSaving() {
 		CronExpression cronExpression = CronExpression.parse("0 0 9 * * *");
 
 		ZonedDateTime last = ZonedDateTime.parse("2021-03-27T09:00:00+01:00[Europe/Amsterdam]");
@@ -1355,9 +1370,9 @@ class CronExpressionTests {
 	}
 
 	@Test
-	public void various() {
+	void various() {
 		CronExpression cronExpression = CronExpression.parse("3-57 13-28 17,18 1,15 3-12 6#1");
-		LocalDateTime last =     LocalDateTime.of(2022, 9, 15, 17, 44, 11);
+		LocalDateTime last = LocalDateTime.of(2022, 9, 15, 17, 44, 11);
 		LocalDateTime expected = LocalDateTime.of(2022, 10, 1, 17, 13, 3);
 		LocalDateTime actual = cronExpression.next(last);
 		assertThat(actual).isNotNull();

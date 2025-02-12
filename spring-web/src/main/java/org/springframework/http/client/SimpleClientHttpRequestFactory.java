@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,9 +22,12 @@ import java.net.Proxy;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
+import java.time.Duration;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.HttpMethod;
-import org.springframework.lang.Nullable;
+import org.springframework.util.Assert;
 
 /**
  * {@link ClientHttpRequestFactory} implementation that uses standard JDK facilities.
@@ -40,8 +43,7 @@ public class SimpleClientHttpRequestFactory implements ClientHttpRequestFactory 
 	private static final int DEFAULT_CHUNK_SIZE = 4096;
 
 
-	@Nullable
-	private Proxy proxy;
+	private @Nullable Proxy proxy;
 
 	private int chunkSize = DEFAULT_CHUNK_SIZE;
 
@@ -58,31 +60,8 @@ public class SimpleClientHttpRequestFactory implements ClientHttpRequestFactory 
 	}
 
 	/**
-	 * Indicate whether this request factory should buffer the
-	 * {@linkplain ClientHttpRequest#getBody() request body} internally.
-	 * <p>Default is {@code true}. When sending large amounts of data via POST or PUT,
-	 * it is recommended to change this property to {@code false}, so as not to run
-	 * out of memory. This will result in a {@link ClientHttpRequest} that either
-	 * streams directly to the underlying {@link HttpURLConnection} (if the
-	 * {@link org.springframework.http.HttpHeaders#getContentLength() Content-Length}
-	 * is known in advance), or that will use "Chunked transfer encoding"
-	 * (if the {@code Content-Length} is not known in advance).
-	 * @see #setChunkSize(int)
-	 * @see HttpURLConnection#setFixedLengthStreamingMode(int)
-	 * @deprecated since 6.1 requests are never buffered, as if this property is {@code false}
-	 */
-	@Deprecated(since = "6.1", forRemoval = true)
-	public void setBufferRequestBody(boolean bufferRequestBody) {
-	}
-
-	/**
 	 * Set the number of bytes to write in each chunk when not buffering request
 	 * bodies locally.
-	 * <p>Note that this parameter is only used when
-	 * {@link #setBufferRequestBody(boolean) bufferRequestBody} is set to {@code false},
-	 * and the {@link org.springframework.http.HttpHeaders#getContentLength() Content-Length}
-	 * is not known in advance.
-	 * @see #setBufferRequestBody(boolean)
 	 */
 	public void setChunkSize(int chunkSize) {
 		this.chunkSize = chunkSize;
@@ -99,6 +78,18 @@ public class SimpleClientHttpRequestFactory implements ClientHttpRequestFactory 
 	}
 
 	/**
+	 * Set the underlying URLConnection's connect timeout as {@code Duration}.
+	 * A timeout value of 0 specifies an infinite timeout.
+	 * <p>Default is the system's default timeout.
+	 * @since 6.1
+	 * @see URLConnection#setConnectTimeout(int)
+	 */
+	public void setConnectTimeout(Duration connectTimeout) {
+		Assert.notNull(connectTimeout, "ConnectTimeout must not be null");
+		this.connectTimeout = (int) connectTimeout.toMillis();
+	}
+
+	/**
 	 * Set the underlying URLConnection's read timeout (in milliseconds).
 	 * A timeout value of 0 specifies an infinite timeout.
 	 * <p>Default is the system's default timeout.
@@ -109,18 +100,15 @@ public class SimpleClientHttpRequestFactory implements ClientHttpRequestFactory 
 	}
 
 	/**
-	 * Set if the underlying URLConnection can be set to 'output streaming' mode.
-	 * Default is {@code true}.
-	 * <p>When output streaming is enabled, authentication and redirection cannot be handled automatically.
-	 * If output streaming is disabled, the {@link HttpURLConnection#setFixedLengthStreamingMode} and
-	 * {@link HttpURLConnection#setChunkedStreamingMode} methods of the underlying connection will never
-	 * be called.
-	 * @param outputStreaming if output streaming is enabled
-	 * @deprecated as of 6.1, this property is ignored with no direct replacement.
-	 * @deprecated since 6.1 requests are always streamed, as if this property is {@code true}
+	 * Set the underlying URLConnection's read timeout (in milliseconds).
+	 * A timeout value of 0 specifies an infinite timeout.
+	 * <p>Default is the system's default timeout.
+	 * @since 6.1
+	 * @see URLConnection#setReadTimeout(int)
 	 */
-	@Deprecated(since = "6.1", forRemoval = true)
-	public void setOutputStreaming(boolean outputStreaming) {
+	public void setReadTimeout(Duration readTimeout) {
+		Assert.notNull(readTimeout, "ReadTimeout must not be null");
+		this.readTimeout = (int) readTimeout.toMillis();
 	}
 
 

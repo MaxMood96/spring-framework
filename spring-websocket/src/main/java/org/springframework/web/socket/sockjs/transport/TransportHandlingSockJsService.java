@@ -30,6 +30,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.context.Lifecycle;
 import org.springframework.core.log.LogFormatUtils;
 import org.springframework.http.HttpMethod;
@@ -38,7 +40,6 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
@@ -75,15 +76,13 @@ public class TransportHandlingSockJsService extends AbstractSockJsService implem
 
 	private final Map<TransportType, TransportHandler> handlers = new EnumMap<>(TransportType.class);
 
-	@Nullable
-	private SockJsMessageCodec messageCodec;
+	private @Nullable SockJsMessageCodec messageCodec;
 
 	private final List<HandshakeInterceptor> interceptors = new ArrayList<>();
 
 	private final Map<String, SockJsSession> sessions = new ConcurrentHashMap<>();
 
-	@Nullable
-	private ScheduledFuture<?> sessionCleanupTask;
+	private @Nullable ScheduledFuture<?> sessionCleanupTask;
 
 	private volatile boolean running;
 
@@ -289,7 +288,7 @@ public class TransportHandlingSockJsService extends AbstractSockJsService implem
 					if (logger.isDebugEnabled()) {
 						logger.debug("Session not found, sessionId=" + sessionId +
 								". The session may have been closed " +
-								"(e.g. missed heart-beat) while a message was coming in.");
+								"(for example, missed heart-beat) while a message was coming in.");
 					}
 					return;
 				}
@@ -346,8 +345,8 @@ public class TransportHandlingSockJsService extends AbstractSockJsService implem
 			return false;
 		}
 
-		if (!getAllowedOrigins().isEmpty() && !getAllowedOrigins().contains("*") ||
-				!getAllowedOriginPatterns().isEmpty()) {
+		if (!CollectionUtils.isEmpty(getAllowedOrigins()) && !getAllowedOrigins().contains("*") ||
+				!CollectionUtils.isEmpty(getAllowedOriginPatterns())) {
 			TransportType transportType = TransportType.fromValue(transport);
 			if (transportType == null || !transportType.supportsOrigin()) {
 				if (logger.isWarnEnabled()) {
@@ -392,7 +391,7 @@ public class TransportHandlingSockJsService extends AbstractSockJsService implem
 						}
 					}
 					catch (Throwable ex) {
-						// Could be part of normal workflow (e.g. browser tab closed)
+						// Could be part of normal workflow (for example, browser tab closed)
 						logger.debug("Failed to close " + session, ex);
 					}
 				}

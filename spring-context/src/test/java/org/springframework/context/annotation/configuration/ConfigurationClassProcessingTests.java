@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.config.DependencyDescriptor;
 import org.springframework.beans.factory.config.ListFactoryBean;
 import org.springframework.beans.factory.parsing.BeanDefinitionParsingException;
+import org.springframework.beans.factory.support.BeanDefinitionOverrideException;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.beans.testfixture.beans.ITestBean;
@@ -82,7 +83,7 @@ class ConfigurationClassProcessingTests {
 				() -> ConfigWithBeanWithCustomNameConfiguredViaValueAttribute.testBean, "enigma");
 	}
 
-	private void customBeanNameIsRespected(Class<?> testClass, Supplier<TestBean> testBeanSupplier, String beanName) {
+	private static void customBeanNameIsRespected(Class<?> testClass, Supplier<TestBean> testBeanSupplier, String beanName) {
 		GenericApplicationContext ac = new GenericApplicationContext();
 		AnnotationConfigUtils.registerAnnotationConfigProcessors(ac);
 		ac.registerBeanDefinition("config", new RootBeanDefinition(testClass));
@@ -91,8 +92,8 @@ class ConfigurationClassProcessingTests {
 		assertThat(ac.getBean(beanName)).isSameAs(testBeanSupplier.get());
 
 		// method name should not be registered
-		assertThatExceptionOfType(NoSuchBeanDefinitionException.class).isThrownBy(() ->
-				ac.getBean("methodName"));
+		assertThatExceptionOfType(NoSuchBeanDefinitionException.class)
+				.isThrownBy(() -> ac.getBean("methodName"));
 	}
 
 	@Test
@@ -109,14 +110,15 @@ class ConfigurationClassProcessingTests {
 
 	private void aliasesAreRespected(Class<?> testClass, Supplier<TestBean> testBeanSupplier, String beanName) {
 		TestBean testBean = testBeanSupplier.get();
-		BeanFactory factory = initBeanFactory(testClass);
+		BeanFactory factory = initBeanFactory(false, testClass);
 
 		assertThat(factory.getBean(beanName)).isSameAs(testBean);
-		Arrays.stream(factory.getAliases(beanName)).map(factory::getBean).forEach(alias -> assertThat(alias).isSameAs(testBean));
+		assertThat(factory.getAliases(beanName)).extracting(factory::getBean)
+				.allMatch(alias -> alias == testBean);
 
 		// method name should not be registered
-		assertThatExceptionOfType(NoSuchBeanDefinitionException.class).isThrownBy(() ->
-				factory.getBean("methodName"));
+		assertThatExceptionOfType(NoSuchBeanDefinitionException.class)
+				.isThrownBy(() -> factory.getBean("methodName"));
 	}
 
 	@Test  // SPR-11830
@@ -139,20 +141,31 @@ class ConfigurationClassProcessingTests {
 
 	@Test
 	void finalBeanMethod() {
-		assertThatExceptionOfType(BeanDefinitionParsingException.class).isThrownBy(() ->
-				initBeanFactory(ConfigWithFinalBean.class));
+		assertThatExceptionOfType(BeanDefinitionParsingException.class)
+				.isThrownBy(() -> initBeanFactory(false, ConfigWithFinalBean.class));
+	}
+
+	@Test
+	void finalBeanMethodWithoutProxy() {
+		initBeanFactory(false, ConfigWithFinalBeanWithoutProxy.class);
+	}
+
+	@Test  // gh-31007
+	void voidBeanMethod() {
+		assertThatExceptionOfType(BeanDefinitionParsingException.class)
+				.isThrownBy(() -> initBeanFactory(false, ConfigWithVoidBean.class));
 	}
 
 	@Test
 	void simplestPossibleConfig() {
-		BeanFactory factory = initBeanFactory(SimplestPossibleConfig.class);
+		BeanFactory factory = initBeanFactory(false, SimplestPossibleConfig.class);
 		String stringBean = factory.getBean("stringBean", String.class);
 		assertThat(stringBean).isEqualTo("foo");
 	}
 
 	@Test
 	void configWithObjectReturnType() {
-		BeanFactory factory = initBeanFactory(ConfigWithNonSpecificReturnTypes.class);
+		BeanFactory factory = initBeanFactory(false, ConfigWithNonSpecificReturnTypes.class);
 		assertThat(factory.getType("stringBean")).isEqualTo(Object.class);
 		assertThat(factory.isTypeMatch("stringBean", String.class)).isFalse();
 		String stringBean = factory.getBean("stringBean", String.class);
@@ -161,35 +174,31 @@ class ConfigurationClassProcessingTests {
 
 	@Test
 	void configWithFactoryBeanReturnType() {
-		ListableBeanFactory factory = initBeanFactory(ConfigWithNonSpecificReturnTypes.class);
+		ListableBeanFactory factory = initBeanFactory(false, ConfigWithNonSpecificReturnTypes.class);
 		assertThat(factory.getType("factoryBean")).isEqualTo(List.class);
 		assertThat(factory.isTypeMatch("factoryBean", List.class)).isTrue();
 		assertThat(factory.getType("&factoryBean")).isEqualTo(FactoryBean.class);
 		assertThat(factory.isTypeMatch("&factoryBean", FactoryBean.class)).isTrue();
 		assertThat(factory.isTypeMatch("&factoryBean", BeanClassLoaderAware.class)).isFalse();
 		assertThat(factory.isTypeMatch("&factoryBean", ListFactoryBean.class)).isFalse();
-		boolean condition = factory.getBean("factoryBean") instanceof List;
-		assertThat(condition).isTrue();
+		assertThat(factory.getBean("factoryBean")).isInstanceOf(List.class);
 
 		String[] beanNames = factory.getBeanNamesForType(FactoryBean.class);
-		assertThat(beanNames).hasSize(1);
-		assertThat(beanNames[0]).isEqualTo("&factoryBean");
+		assertThat(beanNames).containsExactly("&factoryBean");
 
 		beanNames = factory.getBeanNamesForType(BeanClassLoaderAware.class);
-		assertThat(beanNames).hasSize(1);
-		assertThat(beanNames[0]).isEqualTo("&factoryBean");
+		assertThat(beanNames).containsExactly("&factoryBean");
 
 		beanNames = factory.getBeanNamesForType(ListFactoryBean.class);
-		assertThat(beanNames).hasSize(1);
-		assertThat(beanNames[0]).isEqualTo("&factoryBean");
+		assertThat(beanNames).containsExactly("&factoryBean");
 
 		beanNames = factory.getBeanNamesForType(List.class);
-		assertThat(beanNames[0]).isEqualTo("factoryBean");
+		assertThat(beanNames).containsExactly("factoryBean");
 	}
 
 	@Test
 	void configurationWithPrototypeScopedBeans() {
-		BeanFactory factory = initBeanFactory(ConfigWithPrototypeBean.class);
+		BeanFactory factory = initBeanFactory(false, ConfigWithPrototypeBean.class);
 
 		TestBean foo = factory.getBean("foo", TestBean.class);
 		ITestBean bar = factory.getBean("bar", ITestBean.class);
@@ -201,11 +210,25 @@ class ConfigurationClassProcessingTests {
 
 	@Test
 	void configurationWithNullReference() {
-		BeanFactory factory = initBeanFactory(ConfigWithNullReference.class);
+		BeanFactory factory = initBeanFactory(false, ConfigWithNullReference.class);
 
 		TestBean foo = factory.getBean("foo", TestBean.class);
-		assertThat(factory.getBean("bar").equals(null)).isTrue();
+		assertThat(factory.getBean("bar")).isEqualTo(null);
 		assertThat(foo.getSpouse()).isNull();
+	}
+
+	@Test  // gh-33330
+	void configurationWithMethodNameMismatch() {
+		assertThatExceptionOfType(BeanDefinitionOverrideException.class)
+				.isThrownBy(() -> initBeanFactory(false, ConfigWithMethodNameMismatch.class));
+	}
+
+	@Test  // gh-33920
+	void configurationWithMethodNameMismatchAndOverridingAllowed() {
+		BeanFactory factory = initBeanFactory(true, ConfigWithMethodNameMismatch.class);
+
+		SpousyTestBean foo = factory.getBean("foo", SpousyTestBean.class);
+		assertThat(foo.getName()).isEqualTo("foo1");
 	}
 
 	@Test
@@ -335,12 +358,13 @@ class ConfigurationClassProcessingTests {
 	 * When complete, the factory is ready to service requests for any {@link Bean} methods
 	 * declared by {@code configClasses}.
 	 */
-	private DefaultListableBeanFactory initBeanFactory(Class<?>... configClasses) {
+	private DefaultListableBeanFactory initBeanFactory(boolean allowOverriding, Class<?>... configClasses) {
 		DefaultListableBeanFactory factory = new DefaultListableBeanFactory();
 		for (Class<?> configClass : configClasses) {
 			String configBeanName = configClass.getName();
 			factory.registerBeanDefinition(configBeanName, new RootBeanDefinition(configClass));
 		}
+		factory.setAllowBeanDefinitionOverriding(allowOverriding);
 		ConfigurationClassPostProcessor ccpp = new ConfigurationClassPostProcessor();
 		ccpp.postProcessBeanDefinitionRegistry(factory);
 		ccpp.postProcessBeanFactory(factory);
@@ -354,7 +378,7 @@ class ConfigurationClassProcessingTests {
 
 		static TestBean testBean = new TestBean(ConfigWithBeanWithCustomName.class.getSimpleName());
 
-		@Bean(name = "customName")
+		@Bean("customName")
 		public TestBean methodName() {
 			return testBean;
 		}
@@ -378,7 +402,7 @@ class ConfigurationClassProcessingTests {
 
 		static TestBean testBean = new TestBean(ConfigWithBeanWithAliases.class.getSimpleName());
 
-		@Bean(name = {"name1", "alias1", "alias2", "alias3"})
+		@Bean({"name1", "alias1", "alias2", "alias3"})
 		public TestBean methodName() {
 			return testBean;
 		}
@@ -403,7 +427,7 @@ class ConfigurationClassProcessingTests {
 		static TestBean testBean = new TestBean(ConfigWithBeanWithProviderImplementation.class.getSimpleName());
 
 		@Override
-		@Bean(name = "customName")
+		@Bean("customName")
 		public TestBean get() {
 			return testBean;
 		}
@@ -416,7 +440,7 @@ class ConfigurationClassProcessingTests {
 		static Set<String> set = Collections.singleton("value");
 
 		@Override
-		@Bean(name = "customName")
+		@Bean("customName")
 		public Set<String> get() {
 			return set;
 		}
@@ -426,8 +450,28 @@ class ConfigurationClassProcessingTests {
 	@Configuration
 	static class ConfigWithFinalBean {
 
-		public final @Bean TestBean testBean() {
+		@Bean
+		public final TestBean testBean() {
 			return new TestBean();
+		}
+	}
+
+
+	@Configuration(proxyBeanMethods = false)
+	static class ConfigWithFinalBeanWithoutProxy {
+
+		@Bean
+		public final TestBean testBean() {
+			return new TestBean();
+		}
+	}
+
+
+	@Configuration
+	static class ConfigWithVoidBean {
+
+		@Bean
+		public void testBean() {
 		}
 	}
 
@@ -435,7 +479,8 @@ class ConfigurationClassProcessingTests {
 	@Configuration
 	static class SimplestPossibleConfig {
 
-		public @Bean String stringBean() {
+		@Bean
+		public String stringBean() {
 			return "foo";
 		}
 	}
@@ -444,11 +489,13 @@ class ConfigurationClassProcessingTests {
 	@Configuration
 	static class ConfigWithNonSpecificReturnTypes {
 
-		public @Bean Object stringBean() {
+		@Bean
+		public Object stringBean() {
 			return "foo";
 		}
 
-		public @Bean FactoryBean<?> factoryBean() {
+		@Bean
+		public FactoryBean<?> factoryBean() {
 			ListFactoryBean fb = new ListFactoryBean();
 			fb.setSourceList(Arrays.asList("element1", "element2"));
 			return fb;
@@ -459,29 +506,34 @@ class ConfigurationClassProcessingTests {
 	@Configuration
 	static class ConfigWithPrototypeBean {
 
-		public @Bean TestBean foo() {
+		@Bean
+		public TestBean foo() {
 			TestBean foo = new SpousyTestBean("foo");
 			foo.setSpouse(bar());
 			return foo;
 		}
 
-		public @Bean TestBean bar() {
+		@Bean
+		public TestBean bar() {
 			TestBean bar = new SpousyTestBean("bar");
 			bar.setSpouse(baz());
 			return bar;
 		}
 
-		@Bean @Scope("prototype")
+		@Bean
+		@Scope("prototype")
 		public TestBean baz() {
 			return new TestBean("baz");
 		}
 
-		@Bean @Scope("prototype")
+		@Bean
+		@Scope("prototype")
 		public TestBean adaptive1(InjectionPoint ip) {
 			return new TestBean(ip.getMember().getName());
 		}
 
-		@Bean @Scope("prototype")
+		@Bean
+		@Scope("prototype")
 		public TestBean adaptive2(DependencyDescriptor dd) {
 			return new TestBean(dd.getMember().getName());
 		}
@@ -498,15 +550,33 @@ class ConfigurationClassProcessingTests {
 	}
 
 
+	@SuppressWarnings("deprecation")
+	@Configuration(enforceUniqueMethods = false)
+	static class ConfigWithMethodNameMismatch {
+
+		@Bean("foo")
+		public TestBean foo1() {
+			return new SpousyTestBean("foo1");
+		}
+
+		@Bean("foo")
+		public TestBean foo2() {
+			return new SpousyTestBean("foo2");
+		}
+	}
+
+
 	@Scope("prototype")
 	static class AdaptiveInjectionPoints {
 
-		@Autowired @Qualifier("adaptive1")
+		@Autowired
+		@Qualifier("adaptive1")
 		public TestBean adaptiveInjectionPoint1;
 
 		public TestBean adaptiveInjectionPoint2;
 
-		@Autowired @Qualifier("adaptive2")
+		@Autowired
+		@Qualifier("adaptive2")
 		public void setAdaptiveInjectionPoint2(TestBean adaptiveInjectionPoint2) {
 			this.adaptiveInjectionPoint2 = adaptiveInjectionPoint2;
 		}
@@ -605,15 +675,15 @@ class ConfigurationClassProcessingTests {
 		void register(GenericApplicationContext ctx) {
 			ctx.registerBean("spouse", TestBean.class,
 					() -> new TestBean("functional"));
-			Supplier<TestBean> testBeanSupplier = () -> new TestBean(ctx.getBean("spouse", TestBean.class));
-			ctx.registerBean(TestBean.class,
-					testBeanSupplier,
+			Supplier<TestBean> testBeanSupplier =
+					() -> new TestBean(ctx.getBean("spouse", TestBean.class));
+			ctx.registerBean(TestBean.class, testBeanSupplier,
 					bd -> bd.setPrimary(true));
 		}
 
 		@Bean
-		public NestedTestBean nestedTestBean(TestBean testBean) {
-			return new NestedTestBean(testBean.getSpouse().getName());
+		public NestedTestBean nestedTestBean(TestBean spouse) {
+			return new NestedTestBean(spouse.getSpouse().getName());
 		}
 	}
 
@@ -630,15 +700,16 @@ class ConfigurationClassProcessingTests {
 	}
 
 
+	@SuppressWarnings("deprecation")
 	@Configuration(enforceUniqueMethods = false)
 	public static class OverloadedBeanMismatch {
 
-		@Bean(name = "other")
+		@Bean("other")
 		public NestedTestBean foo() {
 			return new NestedTestBean();
 		}
 
-		@Bean(name = "foo")
+		@Bean("foo")
 		public TestBean foo(@Qualifier("other") NestedTestBean other) {
 			TestBean tb = new TestBean();
 			tb.setLawyer(other);
@@ -671,7 +742,7 @@ class ConfigurationClassProcessingTests {
 	static class ConfigWithDynamicPrototype {
 
 		@Bean
-		@Scope(value = "prototype")
+		@Scope("prototype")
 		public PrototypeInterface getDemoBean(int i) {
 			return switch (i) {
 				case 1 -> new PrototypeOne();

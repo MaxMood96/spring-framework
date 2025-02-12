@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -42,7 +43,6 @@ import org.yaml.snakeyaml.representer.Representer;
 
 import org.springframework.core.CollectionFactory;
 import org.springframework.core.io.Resource;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -50,7 +50,7 @@ import org.springframework.util.StringUtils;
 /**
  * Base class for YAML factories.
  *
- * <p>Requires SnakeYAML 2.0 or higher, as of Spring Framework 6.1.0.
+ * <p>Requires SnakeYAML 2.0 or higher, as of Spring Framework 6.1.
  *
  * @author Dave Syer
  * @author Juergen Hoeller
@@ -77,7 +77,7 @@ public abstract class YamlProcessor {
 	 * A map of document matchers allowing callers to selectively use only
 	 * some of the documents in a YAML resource. In YAML documents are
 	 * separated by {@code ---} lines, and each document is converted
-	 * to properties before the match is made. E.g.
+	 * to properties before the match is made. For example,
 	 * <pre class="code">
 	 * environment: dev
 	 * url: https://dev.bar.com
@@ -135,7 +135,7 @@ public abstract class YamlProcessor {
 	 * <p>If no supported types are configured, only Java standard classes
 	 * (as defined in {@link org.yaml.snakeyaml.constructor.SafeConstructor})
 	 * encountered in YAML documents will be supported.
-	 * If an unsupported type is encountered, an {@link ComposerException}
+	 * If an unsupported type is encountered, a {@link ComposerException}
 	 * will be thrown when the corresponding YAML node is processed.
 	 * @param supportedTypes the supported types, or an empty array to clear the
 	 * supported types
@@ -180,7 +180,7 @@ public abstract class YamlProcessor {
 	 * <p>If custom {@linkplain #setSupportedTypes supported types} have been configured,
 	 * the default implementation creates a {@code Yaml} instance that filters out
 	 * unsupported types encountered in YAML documents.
-	 * If an unsupported type is encountered, an {@link ComposerException} will be
+	 * If an unsupported type is encountered, a {@link ComposerException} will be
 	 * thrown when the node is processed.
 	 * @see LoaderOptions#setAllowDuplicateKeys(boolean)
 	 */
@@ -230,7 +230,7 @@ public abstract class YamlProcessor {
 		}
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings({"rawtypes", "unchecked"})
 	private Map<String, Object> asMap(Object object) {
 		// YAML can have numbers as keys
 		Map<String, Object> result = new LinkedHashMap<>();
@@ -309,7 +309,7 @@ public abstract class YamlProcessor {
 		return result;
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@SuppressWarnings({"rawtypes", "unchecked"})
 	private void buildFlattenedMap(Map<String, Object> result, Map<String, Object> source, @Nullable String path) {
 		source.forEach((key, value) -> {
 			if (StringUtils.hasText(path)) {

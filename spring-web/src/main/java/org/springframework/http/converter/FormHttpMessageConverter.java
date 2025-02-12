@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.springframework.http.converter;
 
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URLDecoder;
@@ -28,6 +29,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpEntity;
@@ -36,7 +39,6 @@ import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpOutputMessage;
 import org.springframework.http.MediaType;
 import org.springframework.http.StreamingHttpOutputMessage;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
@@ -47,7 +49,7 @@ import org.springframework.util.StringUtils;
 
 /**
  * Implementation of {@link HttpMessageConverter} to read and write 'normal' HTML
- * forms and also to write (but not read) multipart data (e.g. file uploads).
+ * forms and also to write (but not read) multipart data (for example, file uploads).
  *
  * <p>In other words, this converter can read and write the
  * {@code "application/x-www-form-urlencoded"} media type as
@@ -59,14 +61,13 @@ import org.springframework.util.StringUtils;
  * <h3>Multipart Data</h3>
  *
  * <p>By default, {@code "multipart/form-data"} is used as the content type when
- * {@linkplain #write writing} multipart data. As of Spring Framework 5.2 it is
- * also possible to write multipart data using other multipart subtypes such as
- * {@code "multipart/mixed"} and {@code "multipart/related"}, as long as the
- * multipart subtype is registered as a {@linkplain #getSupportedMediaTypes
- * supported media type} <em>and</em> the desired multipart subtype is specified
- * as the content type when {@linkplain #write writing} the multipart data. Note
- * that {@code "multipart/mixed"} is registered as a supported media type by
- * default.
+ * {@linkplain #write writing} multipart data. It is also possible to write
+ * multipart data using other multipart subtypes such as {@code "multipart/mixed"}
+ * and {@code "multipart/related"}, as long as the multipart subtype is registered
+ * as a {@linkplain #getSupportedMediaTypes supported media type} <em>and</em> the
+ * desired multipart subtype is specified as the content type when
+ * {@linkplain #write writing} the multipart data. Note that {@code "multipart/mixed"}
+ * is registered as a supported media type by default.
  *
  * <p>When writing multipart data, this converter uses other
  * {@link HttpMessageConverter HttpMessageConverters} to write the respective
@@ -80,7 +81,7 @@ import org.springframework.util.StringUtils;
  * {@code "multipart/form-data"} content type.
  *
  * <pre class="code">
- * RestTemplate restTemplate = new RestTemplate();
+ * RestClient restClient = RestClient.create();
  * // AllEncompassingFormHttpMessageConverter is configured by default
  *
  * MultiValueMap&lt;String, Object&gt; form = new LinkedMultiValueMap&lt;&gt;();
@@ -89,7 +90,12 @@ import org.springframework.util.StringUtils;
  * form.add("field 2", "value 3");
  * form.add("field 3", 4);  // non-String form values supported as of 5.1.4
  *
- * restTemplate.postForLocation("https://example.com/myForm", form);</pre>
+ * ResponseEntity&lt;Void&gt; response = restClient.post()
+ *   .uri("https://example.com/myForm")
+ *   .contentType(MULTIPART_FORM_DATA)
+ *   .body(form)
+ *   .retrieve()
+ *   .toBodilessEntity();</pre>
  *
  * <p>The following snippet shows how to do a file upload using the
  * {@code "multipart/form-data"} content type.
@@ -99,7 +105,12 @@ import org.springframework.util.StringUtils;
  * parts.add("field 1", "value 1");
  * parts.add("file", new ClassPathResource("myFile.jpg"));
  *
- * restTemplate.postForLocation("https://example.com/myFileUpload", parts);</pre>
+ * ResponseEntity&lt;Void&gt; response = restClient.post()
+ *   .uri("https://example.com/myForm")
+ *   .contentType(MULTIPART_FORM_DATA)
+ *   .body(parts)
+ *   .retrieve()
+ *   .toBodilessEntity();</pre>
  *
  * <p>The following snippet shows how to do a file upload using the
  * {@code "multipart/mixed"} content type.
@@ -109,34 +120,35 @@ import org.springframework.util.StringUtils;
  * parts.add("field 1", "value 1");
  * parts.add("file", new ClassPathResource("myFile.jpg"));
  *
- * HttpHeaders requestHeaders = new HttpHeaders();
- * requestHeaders.setContentType(MediaType.MULTIPART_MIXED);
- *
- * restTemplate.postForLocation("https://example.com/myFileUpload",
- *     new HttpEntity&lt;&gt;(parts, requestHeaders));</pre>
+ * ResponseEntity&lt;Void&gt; response = restClient.post()
+ *   .uri("https://example.com/myForm")
+ *   .contentType(MULTIPART_MIXED)
+ *   .body(form)
+ *   .retrieve()
+ *   .toBodilessEntity();</pre>
  *
  * <p>The following snippet shows how to do a file upload using the
  * {@code "multipart/related"} content type.
  *
  * <pre class="code">
- * MediaType multipartRelated = new MediaType("multipart", "related");
- *
- * restTemplate.getMessageConverters().stream()
- *     .filter(FormHttpMessageConverter.class::isInstance)
+ * restClient = restClient.mutate()
+ *   .messageConverters(l -> l.stream()
+  *    .filter(FormHttpMessageConverter.class::isInstance)
  *     .map(FormHttpMessageConverter.class::cast)
  *     .findFirst()
  *     .orElseThrow(() -&gt; new IllegalStateException("Failed to find FormHttpMessageConverter"))
- *     .addSupportedMediaTypes(multipartRelated);
+ *     .addSupportedMediaTypes(MULTIPART_RELATED);
  *
  * MultiValueMap&lt;String, Object&gt; parts = new LinkedMultiValueMap&lt;&gt;();
  * parts.add("field 1", "value 1");
  * parts.add("file", new ClassPathResource("myFile.jpg"));
  *
- * HttpHeaders requestHeaders = new HttpHeaders();
- * requestHeaders.setContentType(multipartRelated);
- *
- * restTemplate.postForLocation("https://example.com/myFileUpload",
- *     new HttpEntity&lt;&gt;(parts, requestHeaders));</pre>
+ * ResponseEntity&lt;Void&gt; response = restClient.post()
+ *   .uri("https://example.com/myForm")
+ *   .contentType(MULTIPART_RELATED)
+ *   .body(form)
+ *   .retrieve()
+ *   .toBodilessEntity();</pre>
  *
  * <h3>Miscellaneous</h3>
  *
@@ -153,13 +165,8 @@ import org.springframework.util.StringUtils;
  */
 public class FormHttpMessageConverter implements HttpMessageConverter<MultiValueMap<String, ?>> {
 
-	/**
-	 * The default charset used by the converter.
-	 */
+	/** The default charset used by the converter. */
 	public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
-
-	private static final MediaType DEFAULT_FORM_DATA_MEDIA_TYPE =
-			new MediaType(MediaType.APPLICATION_FORM_URLENCODED, DEFAULT_CHARSET);
 
 
 	private List<MediaType> supportedMediaTypes = new ArrayList<>();
@@ -168,8 +175,7 @@ public class FormHttpMessageConverter implements HttpMessageConverter<MultiValue
 
 	private Charset charset = DEFAULT_CHARSET;
 
-	@Nullable
-	private Charset multipartCharset;
+	private @Nullable Charset multipartCharset;
 
 
 	public FormHttpMessageConverter() {
@@ -386,20 +392,19 @@ public class FormHttpMessageConverter implements HttpMessageConverter<MultiValue
 		return false;
 	}
 
-	private void writeForm(MultiValueMap<String, Object> formData, @Nullable MediaType contentType,
+	private void writeForm(MultiValueMap<String, Object> formData, @Nullable MediaType mediaType,
 			HttpOutputMessage outputMessage) throws IOException {
 
-		contentType = getFormContentType(contentType);
-		outputMessage.getHeaders().setContentType(contentType);
+		mediaType = getFormContentType(mediaType);
+		outputMessage.getHeaders().setContentType(mediaType);
 
-		Charset charset = contentType.getCharset();
-		Assert.notNull(charset, "No charset"); // should never occur
+		Charset charset = (mediaType.getCharset() != null ? mediaType.getCharset() : this.charset);
 
 		byte[] bytes = serializeForm(formData, charset).getBytes(charset);
 		outputMessage.getHeaders().setContentLength(bytes.length);
 
 		if (outputMessage instanceof StreamingHttpOutputMessage streamingOutputMessage) {
-			streamingOutputMessage.setBody(outputStream -> StreamUtils.copy(bytes, outputStream));
+			streamingOutputMessage.setBody(bytes);
 		}
 		else {
 			StreamUtils.copy(bytes, outputMessage.getBody());
@@ -407,26 +412,22 @@ public class FormHttpMessageConverter implements HttpMessageConverter<MultiValue
 	}
 
 	/**
-	 * Return the content type used to write forms, given the preferred content type.
-	 * By default, this method returns the given content type, but adds the
-	 * {@linkplain #setCharset(Charset) charset} if it does not have one.
-	 * If {@code contentType} is {@code null},
-	 * {@code application/x-www-form-urlencoded; charset=UTF-8} is returned.
-	 * <p>Subclasses can override this method to change this behavior.
-	 * @param contentType the preferred content type (can be {@code null})
-	 * @return the content type to be used
+	 * Return the content type used to write forms, either the given content type
+	 * or otherwise {@code application/x-www-form-urlencoded}.
+	 * @param contentType the content type passed to {@link #write}, or {@code null}
+	 * @return the content type to use
 	 * @since 5.2.2
 	 */
 	protected MediaType getFormContentType(@Nullable MediaType contentType) {
 		if (contentType == null) {
-			return DEFAULT_FORM_DATA_MEDIA_TYPE;
+			return MediaType.APPLICATION_FORM_URLENCODED;
 		}
-		else if (contentType.getCharset() == null) {
+		// Some servers don't handle charset parameter and spec is unclear,
+		// Add it only if it is not DEFAULT_CHARSET.
+		if (contentType.getCharset() == null && this.charset != DEFAULT_CHARSET) {
 			return new MediaType(contentType, this.charset);
 		}
-		else {
-			return contentType;
-		}
+		return contentType;
 	}
 
 	protected String serializeForm(MultiValueMap<String, Object> formData, Charset charset) {
@@ -570,8 +571,7 @@ public class FormHttpMessageConverter implements HttpMessageConverter<MultiValue
 	 * @param part the part to determine the file name for
 	 * @return the filename, or {@code null} if not known
 	 */
-	@Nullable
-	protected String getFilename(Object part) {
+	protected @Nullable String getFilename(Object part) {
 		if (part instanceof Resource resource) {
 			return resource.getFilename();
 		}
@@ -618,7 +618,7 @@ public class FormHttpMessageConverter implements HttpMessageConverter<MultiValue
 		private boolean headersWritten = false;
 
 		public MultipartHttpOutputMessage(OutputStream outputStream, Charset charset) {
-			this.outputStream = outputStream;
+			this.outputStream = new MultipartOutputStream(outputStream);
 			this.charset = charset;
 		}
 
@@ -635,7 +635,7 @@ public class FormHttpMessageConverter implements HttpMessageConverter<MultiValue
 
 		private void writeHeaders() throws IOException {
 			if (!this.headersWritten) {
-				for (Map.Entry<String, List<String>> entry : this.headers.entrySet()) {
+				for (Map.Entry<String, List<String>> entry : this.headers.headerSet()) {
 					byte[] headerName = getBytes(entry.getKey());
 					for (String headerValueString : entry.getValue()) {
 						byte[] headerValue = getBytes(headerValueString);
@@ -654,6 +654,32 @@ public class FormHttpMessageConverter implements HttpMessageConverter<MultiValue
 		private byte[] getBytes(String name) {
 			return name.getBytes(this.charset);
 		}
+
 	}
+
+
+	/**
+	 * OutputStream that neither flushes nor closes.
+	 */
+	private static class MultipartOutputStream extends FilterOutputStream {
+
+		public MultipartOutputStream(OutputStream out) {
+			super(out);
+		}
+
+		@Override
+		public void write(byte[] b, int off, int let) throws IOException {
+			this.out.write(b, off, let);
+		}
+
+		@Override
+		public void flush() {
+		}
+
+		@Override
+		public void close() {
+		}
+	}
+
 
 }

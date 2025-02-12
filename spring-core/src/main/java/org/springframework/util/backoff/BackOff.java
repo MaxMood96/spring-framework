@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,13 +31,12 @@ package org.springframework.util.backoff;
  *     // do not retry operation
  * }
  * else {
- *     // sleep, e.g. Thread.sleep(waitInterval)
+ *     // sleep, for example, Thread.sleep(waitInterval)
  *     // retry operation
- * }
  * }</pre>
  *
  * Once the underlying operation has completed successfully,
- * the execution instance can be simply discarded.
+ * the execution instance can be discarded.
  *
  * @author Stephane Nicoll
  * @since 4.1

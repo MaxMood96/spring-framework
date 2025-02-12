@@ -19,7 +19,7 @@ package org.springframework.messaging.handler;
 import java.util.Collection;
 import java.util.StringJoiner;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Base class for {@code MessageCondition's} that pre-declares abstract methods
@@ -61,7 +61,7 @@ public abstract class AbstractMessageCondition<T extends AbstractMessageConditio
 
 	/**
 	 * Return the collection of objects the message condition is composed of
-	 * (e.g. destination patterns), never {@code null}.
+	 * (for example, destination patterns), never {@code null}.
 	 */
 	protected abstract Collection<?> getContent();
 

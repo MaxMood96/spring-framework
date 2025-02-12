@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,8 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.Characters;
 import javax.xml.stream.events.XMLEvent;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 
 /**
@@ -40,8 +41,7 @@ class ListBasedXMLEventReader extends AbstractXMLEventReader {
 
 	private final List<XMLEvent> events;
 
-	@Nullable
-	private XMLEvent currentEvent;
+	private @Nullable XMLEvent currentEvent;
 
 	private int cursor = 0;
 
@@ -70,8 +70,7 @@ class ListBasedXMLEventReader extends AbstractXMLEventReader {
 	}
 
 	@Override
-	@Nullable
-	public XMLEvent peek() {
+	public @Nullable XMLEvent peek() {
 		if (hasNext()) {
 			return this.events.get(this.cursor);
 		}
@@ -105,31 +104,28 @@ class ListBasedXMLEventReader extends AbstractXMLEventReader {
 	}
 
 	@Override
-	@Nullable
-	public XMLEvent nextTag() throws XMLStreamException {
+	public @Nullable XMLEvent nextTag() throws XMLStreamException {
 		checkIfClosed();
 
 		while (true) {
 			XMLEvent event = nextEvent();
 			switch (event.getEventType()) {
-				case XMLStreamConstants.START_ELEMENT:
-				case XMLStreamConstants.END_ELEMENT:
+				case XMLStreamConstants.START_ELEMENT, XMLStreamConstants.END_ELEMENT -> {
 					return event;
-				case XMLStreamConstants.END_DOCUMENT:
+				}
+				case XMLStreamConstants.END_DOCUMENT -> {
 					return null;
-				case XMLStreamConstants.SPACE:
-				case XMLStreamConstants.COMMENT:
-				case XMLStreamConstants.PROCESSING_INSTRUCTION:
+				}
+				case XMLStreamConstants.SPACE, XMLStreamConstants.COMMENT, XMLStreamConstants.PROCESSING_INSTRUCTION -> {
 					continue;
-				case XMLStreamConstants.CDATA:
-				case XMLStreamConstants.CHARACTERS:
+				}
+				case XMLStreamConstants.CDATA, XMLStreamConstants.CHARACTERS -> {
 					if (!event.asCharacters().isWhiteSpace()) {
 						throw new XMLStreamException(
 								"Non-ignorable whitespace CDATA or CHARACTERS event: " + event);
 					}
-					break;
-				default:
-					throw new XMLStreamException("Expected START_ELEMENT or END_ELEMENT: " + event);
+				}
+				default -> throw new XMLStreamException("Expected START_ELEMENT or END_ELEMENT: " + event);
 			}
 		}
 	}

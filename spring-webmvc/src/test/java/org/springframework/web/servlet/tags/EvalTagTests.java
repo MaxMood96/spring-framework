@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,26 +21,34 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
+import jakarta.el.ELContext;
+import jakarta.el.ELResolver;
 import jakarta.servlet.jsp.tagext.Tag;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.format.annotation.NumberFormat;
 import org.springframework.format.annotation.NumberFormat.Style;
-import org.springframework.format.number.PercentStyleFormatter;
 import org.springframework.format.support.FormattingConversionServiceFactoryBean;
 import org.springframework.web.servlet.DispatcherServlet;
 import org.springframework.web.testfixture.servlet.MockHttpServletResponse;
 import org.springframework.web.testfixture.servlet.MockPageContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 /**
  * @author Keith Donald
  */
-public class EvalTagTests extends AbstractTagTests {
+class EvalTagTests extends AbstractTagTests {
 
 	private EvalTag tag;
 
@@ -48,19 +56,27 @@ public class EvalTagTests extends AbstractTagTests {
 
 
 	@BeforeEach
-	public void setup() throws Exception {
-		context = createPageContext();
+	void setup() {
+		LocaleContextHolder.setDefaultLocale(Locale.UK);
+
 		FormattingConversionServiceFactoryBean factory = new FormattingConversionServiceFactoryBean();
 		factory.afterPropertiesSet();
+		context = createPageContext();
 		context.getRequest().setAttribute("org.springframework.core.convert.ConversionService", factory.getObject());
 		context.getRequest().setAttribute("bean", new Bean());
+
 		tag = new EvalTag();
 		tag.setPageContext(context);
 	}
 
+	@AfterEach
+	void reset() {
+		LocaleContextHolder.setDefaultLocale(null);
+	}
+
 
 	@Test
-	public void printScopedAttributeResult() throws Exception {
+	void printScopedAttributeResult() throws Exception {
 		tag.setExpression("bean.method()");
 		int action = tag.doStartTag();
 		assertThat(action).isEqualTo(Tag.EVAL_BODY_INCLUDE);
@@ -70,7 +86,7 @@ public class EvalTagTests extends AbstractTagTests {
 	}
 
 	@Test
-	public void printNullAsEmptyString() throws Exception {
+	void printNullAsEmptyString() throws Exception {
 		tag.setExpression("bean.null");
 		int action = tag.doStartTag();
 		assertThat(action).isEqualTo(Tag.EVAL_BODY_INCLUDE);
@@ -80,18 +96,17 @@ public class EvalTagTests extends AbstractTagTests {
 	}
 
 	@Test
-	public void printFormattedScopedAttributeResult() throws Exception {
-		PercentStyleFormatter formatter = new PercentStyleFormatter();
+	void printFormattedScopedAttributeResult() throws Exception {
 		tag.setExpression("bean.formattable");
 		int action = tag.doStartTag();
 		assertThat(action).isEqualTo(Tag.EVAL_BODY_INCLUDE);
 		action = tag.doEndTag();
 		assertThat(action).isEqualTo(Tag.EVAL_PAGE);
-		assertThat(((MockHttpServletResponse) context.getResponse()).getContentAsString()).isEqualTo(formatter.print(new BigDecimal(".25"), Locale.getDefault()));
+		assertThat(((MockHttpServletResponse) context.getResponse()).getContentAsString()).isEqualTo("25%");
 	}
 
 	@Test
-	public void printHtmlEscapedAttributeResult() throws Exception {
+	void printHtmlEscapedAttributeResult() throws Exception {
 		tag.setExpression("bean.html()");
 		tag.setHtmlEscape(true);
 		int action = tag.doStartTag();
@@ -102,7 +117,7 @@ public class EvalTagTests extends AbstractTagTests {
 	}
 
 	@Test
-	public void printJavaScriptEscapedAttributeResult() throws Exception {
+	void printJavaScriptEscapedAttributeResult() throws Exception {
 		tag.setExpression("bean.js()");
 		tag.setJavaScriptEscape(true);
 		int action = tag.doStartTag();
@@ -113,7 +128,7 @@ public class EvalTagTests extends AbstractTagTests {
 	}
 
 	@Test
-	public void setFormattedScopedAttributeResult() throws Exception {
+	void setFormattedScopedAttributeResult() throws Exception {
 		tag.setExpression("bean.formattable");
 		tag.setVar("foo");
 		int action = tag.doStartTag();
@@ -135,7 +150,7 @@ public class EvalTagTests extends AbstractTagTests {
 	}
 
 	@Test
-	public void accessUsingBeanSyntax() throws Exception {
+	void accessUsingBeanSyntax() throws Exception {
 		GenericApplicationContext wac = (GenericApplicationContext)
 				context.getRequest().getAttribute(DispatcherServlet.WEB_APPLICATION_CONTEXT_ATTRIBUTE);
 		wac.getDefaultListableBeanFactory().registerSingleton("bean2", context.getRequest().getAttribute("bean"));
@@ -149,7 +164,7 @@ public class EvalTagTests extends AbstractTagTests {
 	}
 
 	@Test
-	public void environmentAccess() throws Exception {
+	void environmentAccess() throws Exception {
 		Map<String, Object> map = new HashMap<>();
 		map.put("key.foo", "value.foo");
 		GenericApplicationContext wac = (GenericApplicationContext)
@@ -165,7 +180,7 @@ public class EvalTagTests extends AbstractTagTests {
 	}
 
 	@Test
-	public void mapAccess() throws Exception {
+	void mapAccess() throws Exception {
 		tag.setExpression("bean.map.key");
 		int action = tag.doStartTag();
 		assertThat(action).isEqualTo(Tag.EVAL_BODY_INCLUDE);
@@ -174,6 +189,21 @@ public class EvalTagTests extends AbstractTagTests {
 		assertThat(((MockHttpServletResponse) context.getResponse()).getContentAsString()).isEqualTo("value");
 	}
 
+	@Test
+	void resolveImplicitVariable() throws Exception {
+		ELContext elContext = mock();
+		ELResolver elResolver = mock();
+		given(elContext.getELResolver()).willReturn(elResolver);
+		given(elResolver.getValue(any(ELContext.class), isNull(), eq("pageContext"))).willReturn(context);
+		((ExtendedMockPageContext) context).setELContext(elContext);
+
+		tag.setExpression("pageContext.getClass().getSimpleName()");
+		int action = tag.doStartTag();
+		assertThat(action).isEqualTo(Tag.EVAL_BODY_INCLUDE);
+		action = tag.doEndTag();
+		assertThat(action).isEqualTo(Tag.EVAL_PAGE);
+		assertThat(((MockHttpServletResponse) context.getResponse()).getContentAsString()).isEqualTo("ExtendedMockPageContext");
+	}
 
 
 	public static class Bean {

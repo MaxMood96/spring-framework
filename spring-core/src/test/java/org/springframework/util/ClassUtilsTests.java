@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,19 +23,26 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Member;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
 
+import a.ClassHavingNestedClass;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -48,7 +55,7 @@ import org.springframework.tests.sample.objects.TestObject;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Unit tests for {@link ClassUtils}.
+ * Tests for {@link ClassUtils}.
  *
  * @author Colin Sampaleanu
  * @author Juergen Hoeller
@@ -86,6 +93,11 @@ class ClassUtilsTests {
 	void forNameWithNestedType() throws ClassNotFoundException {
 		assertThat(ClassUtils.forName("org.springframework.util.ClassUtilsTests$NestedClass", classLoader)).isEqualTo(NestedClass.class);
 		assertThat(ClassUtils.forName("org.springframework.util.ClassUtilsTests.NestedClass", classLoader)).isEqualTo(NestedClass.class);
+
+		// Precondition: package name must have length == 1.
+		assertThat(ClassHavingNestedClass.class.getPackageName().length()).isEqualTo(1);
+		assertThat(ClassUtils.forName("a.ClassHavingNestedClass$NestedClass", classLoader)).isEqualTo(ClassHavingNestedClass.NestedClass.class);
+		assertThat(ClassUtils.forName("a.ClassHavingNestedClass.NestedClass", classLoader)).isEqualTo(ClassHavingNestedClass.NestedClass.class);
 	}
 
 	@Test
@@ -391,6 +403,35 @@ class ClassUtilsTests {
 		assertThat(ClassUtils.determineCommonAncestor(String.class, List.class)).isNull();
 	}
 
+	@Test
+	void getMostSpecificMethod() throws NoSuchMethodException {
+		Method defaultPrintMethod = ClassUtils.getMethod(MethodsInterface.class, "defaultPrint");
+		assertThat(ClassUtils.getMostSpecificMethod(defaultPrintMethod, MethodsInterfaceImplementation.class))
+				.isEqualTo(defaultPrintMethod);
+		assertThat(ClassUtils.getMostSpecificMethod(defaultPrintMethod, SubMethodsInterfaceImplementation.class))
+				.isEqualTo(defaultPrintMethod);
+
+		Method printMethod = ClassUtils.getMethod(MethodsInterface.class, "print", String.class);
+		assertThat(ClassUtils.getMostSpecificMethod(printMethod, MethodsInterfaceImplementation.class))
+				.isNotEqualTo(printMethod);
+		assertThat(ClassUtils.getMostSpecificMethod(printMethod, MethodsInterfaceImplementation.class))
+				.isEqualTo(ClassUtils.getMethod(MethodsInterfaceImplementation.class, "print", String.class));
+		assertThat(ClassUtils.getMostSpecificMethod(printMethod, SubMethodsInterfaceImplementation.class))
+				.isEqualTo(ClassUtils.getMethod(MethodsInterfaceImplementation.class, "print", String.class));
+
+		Method protectedPrintMethod = MethodsInterfaceImplementation.class.getDeclaredMethod("protectedPrint");
+		assertThat(ClassUtils.getMostSpecificMethod(protectedPrintMethod, MethodsInterfaceImplementation.class))
+				.isEqualTo(protectedPrintMethod);
+		assertThat(ClassUtils.getMostSpecificMethod(protectedPrintMethod, SubMethodsInterfaceImplementation.class))
+				.isEqualTo(SubMethodsInterfaceImplementation.class.getDeclaredMethod("protectedPrint"));
+
+		Method packageAccessiblePrintMethod = MethodsInterfaceImplementation.class.getDeclaredMethod("packageAccessiblePrint");
+		assertThat(ClassUtils.getMostSpecificMethod(packageAccessiblePrintMethod, MethodsInterfaceImplementation.class))
+				.isEqualTo(packageAccessiblePrintMethod);
+		assertThat(ClassUtils.getMostSpecificMethod(packageAccessiblePrintMethod, SubMethodsInterfaceImplementation.class))
+				.isEqualTo(ClassUtils.getMethod(SubMethodsInterfaceImplementation.class, "packageAccessiblePrint"));
+	}
+
 	@ParameterizedTest
 	@WrapperTypes
 	void isPrimitiveWrapper(Class<?> type) {
@@ -419,10 +460,11 @@ class ClassUtilsTests {
 	}
 
 	@Test
+	@SuppressWarnings("Convert2Lambda")
 	void isNotLambda() {
 		assertIsNotLambda(new EnigmaSupplier());
 
-		assertIsNotLambda(new Supplier<String>() {
+		assertIsNotLambda(new Supplier<>() {
 			@Override
 			public String get() {
 				return "anonymous inner class";
@@ -464,6 +506,400 @@ class ClassUtilsTests {
 			assertThat(NestedClass.overloadedCalled).as("argument method was not invoked.").isTrue();
 		}
 
+	}
+
+
+	@Nested  // gh-33216
+	class GetInterfaceMethodTests {
+
+		@Test
+		void publicMethodInPublicClass() throws Exception {
+			Class<?> originalType = String.class;
+			Method originalMethod = originalType.getDeclaredMethod("getBytes");
+
+			Method interfaceMethod = ClassUtils.getInterfaceMethodIfPossible(originalMethod, null);
+			assertThat(interfaceMethod.getDeclaringClass()).isEqualTo(originalType);
+			assertThat(interfaceMethod).isSameAs(originalMethod);
+			assertNotInterfaceMethod(interfaceMethod);
+			assertPubliclyAccessible(interfaceMethod);
+		}
+
+		@Test
+		void publicMethodInNonPublicInterface() throws Exception {
+			Class<?> originalType = PrivateInterface.class;
+			Method originalMethod = originalType.getDeclaredMethod("getMessage");
+
+			// Prerequisites for this use case:
+			assertPublic(originalMethod);
+			assertNotPublic(originalMethod.getDeclaringClass());
+
+			Method interfaceMethod = ClassUtils.getInterfaceMethodIfPossible(originalMethod, null);
+			assertThat(interfaceMethod).isSameAs(originalMethod);
+			assertInterfaceMethod(interfaceMethod);
+			assertNotPubliclyAccessible(interfaceMethod);
+		}
+
+		@Test
+		void publicInterfaceMethodInPublicClass() throws Exception {
+			Class<?> originalType = ArrayList.class;
+			Method originalMethod = originalType.getDeclaredMethod("size");
+
+			Method interfaceMethod = ClassUtils.getInterfaceMethodIfPossible(originalMethod, null);
+			assertThat(interfaceMethod.getDeclaringClass()).isEqualTo(List.class);
+			assertThat(interfaceMethod.getName()).isEqualTo("size");
+			assertThat(interfaceMethod.getParameterTypes()).isEmpty();
+			assertInterfaceMethod(interfaceMethod);
+			assertPubliclyAccessible(interfaceMethod);
+		}
+
+		@Test
+		void publicInterfaceMethodDeclaredInNonPublicClassWithLateBindingOfClassMethodToSubclassDeclaredInterface() throws Exception {
+			HashMap<String, String> hashMap = new HashMap<>();
+			// Returns a package-private java.util.HashMap.KeyIterator which extends java.util.HashMap.HashIterator
+			// which declares hasNext(), even though HashIterator does not implement Iterator. Rather, KeyIterator
+			// implements HashIterator.
+			Iterator<String> iterator = hashMap.keySet().iterator();
+			Class<?> targetClass = iterator.getClass();
+
+			// Prerequisites for this use case:
+			assertNotPublic(targetClass);
+
+			Method originalMethod = targetClass.getMethod("hasNext");
+
+			Method interfaceMethod = ClassUtils.getInterfaceMethodIfPossible(originalMethod, targetClass);
+			assertThat(interfaceMethod.getDeclaringClass()).isEqualTo(Iterator.class);
+			assertThat(interfaceMethod.getName()).isEqualTo("hasNext");
+			assertThat(interfaceMethod.getParameterTypes()).isEmpty();
+			assertInterfaceMethod(interfaceMethod);
+			assertPubliclyAccessible(interfaceMethod);
+		}
+
+		@Test
+		void privateSubclassOverridesPropertyInPublicInterface() throws Exception {
+			Method originalMethod = PrivateSubclass.class.getDeclaredMethod("getText");
+
+			// Prerequisite: type must not be public for this use case.
+			assertNotPublic(originalMethod.getDeclaringClass());
+
+			Method interfaceMethod = ClassUtils.getInterfaceMethodIfPossible(originalMethod, null);
+			assertThat(interfaceMethod.getDeclaringClass()).isEqualTo(PublicInterface.class);
+			assertThat(interfaceMethod.getName()).isEqualTo("getText");
+			assertThat(interfaceMethod.getParameterTypes()).isEmpty();
+			assertInterfaceMethod(interfaceMethod);
+			assertPubliclyAccessible(interfaceMethod);
+		}
+
+		@Test
+		void privateSubclassOverridesPropertyInPrivateInterface() throws Exception {
+			Method originalMethod = PrivateSubclass.class.getDeclaredMethod("getMessage");
+
+			// Prerequisite: type must not be public for this use case.
+			assertNotPublic(originalMethod.getDeclaringClass());
+
+			Method interfaceMethod = ClassUtils.getInterfaceMethodIfPossible(originalMethod, null);
+			assertThat(interfaceMethod.getDeclaringClass()).isEqualTo(PrivateInterface.class);
+			assertThat(interfaceMethod.getName()).isEqualTo("getMessage");
+			assertThat(interfaceMethod.getParameterTypes()).isEmpty();
+			assertInterfaceMethod(interfaceMethod);
+			assertNotPubliclyAccessible(interfaceMethod);
+		}
+
+		@Test
+		void packagePrivateSubclassOverridesMethodInPublicInterface() throws Exception {
+			List<String> unmodifiableList = Collections.unmodifiableList(Arrays.asList("foo", "bar"));
+			Class<?> targetClass = unmodifiableList.getClass();
+
+			// Prerequisites for this use case:
+			assertNotPublic(targetClass);
+
+			Method originalMethod = targetClass.getMethod("contains", Object.class);
+
+			// Prerequisite: type must not be public for this use case.
+			assertNotPublic(originalMethod.getDeclaringClass());
+
+			Method interfaceMethod = ClassUtils.getInterfaceMethodIfPossible(originalMethod, null);
+			assertThat(interfaceMethod.getDeclaringClass()).isEqualTo(Collection.class);
+			assertThat(interfaceMethod.getName()).isEqualTo("contains");
+			assertThat(interfaceMethod.getParameterTypes()).containsExactly(Object.class);
+			assertInterfaceMethod(interfaceMethod);
+			assertPubliclyAccessible(interfaceMethod);
+		}
+
+		@Test
+		void privateSubclassOverridesMethodInPrivateInterface() throws Exception {
+			Method originalMethod = PrivateSubclass.class.getMethod("greet", String.class);
+
+			// Prerequisite: type must not be public for this use case.
+			assertNotPublic(originalMethod.getDeclaringClass());
+
+			Method interfaceMethod = ClassUtils.getInterfaceMethodIfPossible(originalMethod, null);
+			assertThat(interfaceMethod.getDeclaringClass()).isEqualTo(PrivateInterface.class);
+			assertThat(interfaceMethod.getName()).isEqualTo("greet");
+			assertThat(interfaceMethod.getParameterTypes()).containsExactly(String.class);
+			assertInterfaceMethod(interfaceMethod);
+			assertNotPubliclyAccessible(interfaceMethod);
+		}
+
+	}
+
+
+	@Nested  // gh-33216
+	class GetPubliclyAccessibleMethodTests {
+
+		@Test
+		void nonPublicMethod(TestInfo testInfo) {
+			Method originalMethod = testInfo.getTestMethod().get();
+
+			// Prerequisites for this use case:
+			assertNotPublic(originalMethod);
+
+			Method publiclyAccessibleMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(originalMethod, null);
+			assertThat(publiclyAccessibleMethod).isSameAs(originalMethod);
+			assertNotPubliclyAccessible(publiclyAccessibleMethod);
+		}
+
+		@Test
+		// This method is intentionally public.
+		public void publicMethodInNonPublicClass(TestInfo testInfo) {
+			Method originalMethod = testInfo.getTestMethod().get();
+
+			// Prerequisites for this use case:
+			assertPublic(originalMethod);
+			assertNotPublic(originalMethod.getDeclaringClass());
+
+			Method publiclyAccessibleMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(originalMethod, null);
+			assertThat(publiclyAccessibleMethod).isSameAs(originalMethod);
+			assertNotPubliclyAccessible(publiclyAccessibleMethod);
+		}
+
+		@Test
+		void publicMethodInNonPublicInterface() throws Exception {
+			Class<?> originalType = PrivateInterface.class;
+			Method originalMethod = originalType.getDeclaredMethod("getMessage");
+
+			// Prerequisites for this use case:
+			assertPublic(originalMethod);
+			assertNotPublic(originalMethod.getDeclaringClass());
+
+			Method publiclyAccessibleMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(originalMethod, null);
+			assertThat(publiclyAccessibleMethod).isSameAs(originalMethod);
+			assertNotPubliclyAccessible(publiclyAccessibleMethod);
+		}
+
+		@Test
+		void publicMethodInPublicClass() throws Exception {
+			Class<?> originalType = String.class;
+			Method originalMethod = originalType.getDeclaredMethod("toString");
+
+			Method publiclyAccessibleMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(originalMethod, null);
+			assertThat(publiclyAccessibleMethod.getDeclaringClass()).isEqualTo(originalType);
+			assertThat(publiclyAccessibleMethod).isSameAs(originalMethod);
+			assertPubliclyAccessible(publiclyAccessibleMethod);
+		}
+
+		@Test
+		void publicInterfaceMethodInPublicClass() throws Exception {
+			Class<?> originalType = ArrayList.class;
+			Method originalMethod = originalType.getDeclaredMethod("size");
+
+			Method publiclyAccessibleMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(originalMethod, null);
+			// Should not find the interface method in List.
+			assertThat(publiclyAccessibleMethod.getDeclaringClass()).isEqualTo(originalType);
+			assertThat(publiclyAccessibleMethod).isSameAs(originalMethod);
+			assertPubliclyAccessible(publiclyAccessibleMethod);
+		}
+
+		@Test
+		void publicMethodInJavaLangObjectDeclaredInNonPublicClass() throws Exception {
+			List<String> unmodifiableList = Collections.unmodifiableList(Arrays.asList("foo", "bar"));
+			Class<?> targetClass = unmodifiableList.getClass();
+
+			// Prerequisites for this use case:
+			assertNotPublic(targetClass);
+
+			Method originalMethod = targetClass.getMethod("toString");
+
+			Method publiclyAccessibleMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(originalMethod, null);
+			assertThat(publiclyAccessibleMethod.getDeclaringClass()).isEqualTo(Object.class);
+			assertThat(publiclyAccessibleMethod.getName()).isEqualTo("toString");
+			assertThat(publiclyAccessibleMethod.getParameterTypes()).isEmpty();
+			assertPubliclyAccessible(publiclyAccessibleMethod);
+		}
+
+		@Test
+		void publicMethodInJavaTimeZoneIdDeclaredInNonPublicSubclass() throws Exception {
+			// Returns a package-private java.time.ZoneRegion.
+			ZoneId zoneId = ZoneId.of("CET");
+			Class<?> targetClass = zoneId.getClass();
+
+			// Prerequisites for this use case:
+			assertNotPublic(targetClass);
+
+			Method originalMethod = targetClass.getDeclaredMethod("getId");
+
+			Method publiclyAccessibleMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(originalMethod, null);
+			assertThat(publiclyAccessibleMethod.getDeclaringClass()).isEqualTo(ZoneId.class);
+			assertThat(publiclyAccessibleMethod.getName()).isEqualTo("getId");
+			assertThat(publiclyAccessibleMethod.getParameterTypes()).isEmpty();
+			assertPubliclyAccessible(publiclyAccessibleMethod);
+		}
+
+		@Test
+		void publicInterfaceMethodDeclaredInNonPublicClassWithLateBindingOfClassMethodToSubclassDeclaredInterface() throws Exception {
+			HashMap<String, String> hashMap = new HashMap<>();
+			// Returns a package-private java.util.HashMap.KeyIterator which extends java.util.HashMap.HashIterator
+			// which declares hasNext(), even though HashIterator does not implement Iterator. Rather, KeyIterator
+			// implements HashIterator.
+			Iterator<String> iterator = hashMap.keySet().iterator();
+			Class<?> targetClass = iterator.getClass();
+
+			// Prerequisites for this use case:
+			assertNotPublic(targetClass);
+
+			Method originalMethod = targetClass.getMethod("hasNext");
+
+			Method publiclyAccessibleMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(originalMethod, targetClass);
+			assertThat(publiclyAccessibleMethod.getDeclaringClass()).isEqualTo(Iterator.class);
+			assertThat(publiclyAccessibleMethod.getName()).isEqualTo("hasNext");
+			assertThat(publiclyAccessibleMethod.getParameterTypes()).isEmpty();
+			assertPubliclyAccessible(publiclyAccessibleMethod);
+		}
+
+		@Test
+		void privateSubclassOverridesPropertyInPublicInterface() throws Exception {
+			Method originalMethod = PrivateSubclass.class.getDeclaredMethod("getText");
+
+			// Prerequisite: type must not be public for this use case.
+			assertNotPublic(originalMethod.getDeclaringClass());
+
+			Method publiclyAccessibleMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(originalMethod, null);
+			assertThat(publiclyAccessibleMethod.getDeclaringClass()).isEqualTo(PublicInterface.class);
+			assertThat(publiclyAccessibleMethod.getName()).isEqualTo("getText");
+			assertThat(publiclyAccessibleMethod.getParameterTypes()).isEmpty();
+			assertPubliclyAccessible(publiclyAccessibleMethod);
+		}
+
+		@Test
+		void privateSubclassOverridesPropertyInPrivateInterface() throws Exception {
+			Method originalMethod = PrivateSubclass.class.getDeclaredMethod("getMessage");
+
+			// Prerequisite: type must not be public for this use case.
+			assertNotPublic(originalMethod.getDeclaringClass());
+
+			Method publiclyAccessibleMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(originalMethod, null);
+			// Should not find the interface method in PrivateInterface.
+			assertThat(publiclyAccessibleMethod.getDeclaringClass()).isEqualTo(PublicSuperclass.class);
+			assertThat(publiclyAccessibleMethod.getName()).isEqualTo("getMessage");
+			assertThat(publiclyAccessibleMethod.getParameterTypes()).isEmpty();
+			assertPubliclyAccessible(publiclyAccessibleMethod);
+		}
+
+		@Test
+		void privateSubclassOverridesPropertyInPublicSuperclass() throws Exception {
+			Method originalMethod = PrivateSubclass.class.getDeclaredMethod("getNumber");
+
+			// Prerequisite: type must not be public for this use case.
+			assertNotPublic(originalMethod.getDeclaringClass());
+
+			Method publiclyAccessibleMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(originalMethod, null);
+			assertThat(publiclyAccessibleMethod.getDeclaringClass()).isEqualTo(PublicSuperclass.class);
+			assertThat(publiclyAccessibleMethod.getName()).isEqualTo("getNumber");
+			assertThat(publiclyAccessibleMethod.getParameterTypes()).isEmpty();
+			assertPubliclyAccessible(publiclyAccessibleMethod);
+		}
+
+		@Test
+		void packagePrivateSubclassOverridesMethodInPublicInterface() throws Exception {
+			List<String> unmodifiableList = Collections.unmodifiableList(Arrays.asList("foo", "bar"));
+			Class<?> targetClass = unmodifiableList.getClass();
+
+			// Prerequisites for this use case:
+			assertNotPublic(targetClass);
+
+			Method originalMethod = targetClass.getMethod("contains", Object.class);
+
+			// Prerequisite: type must not be public for this use case.
+			assertNotPublic(originalMethod.getDeclaringClass());
+
+			Method publiclyAccessibleMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(originalMethod, null);
+			assertThat(publiclyAccessibleMethod.getDeclaringClass()).isEqualTo(Collection.class);
+			assertThat(publiclyAccessibleMethod.getName()).isEqualTo("contains");
+			assertThat(publiclyAccessibleMethod.getParameterTypes()).containsExactly(Object.class);
+			assertPubliclyAccessible(publiclyAccessibleMethod);
+		}
+
+		@Test
+		void privateSubclassOverridesMethodInPrivateInterface() throws Exception {
+			Method originalMethod = PrivateSubclass.class.getMethod("greet", String.class);
+
+			// Prerequisite: type must not be public for this use case.
+			assertNotPublic(originalMethod.getDeclaringClass());
+
+			Method publiclyAccessibleMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(originalMethod, null);
+			assertThat(publiclyAccessibleMethod.getDeclaringClass()).isEqualTo(PublicSuperclass.class);
+			assertThat(publiclyAccessibleMethod.getName()).isEqualTo("greet");
+			assertThat(publiclyAccessibleMethod.getParameterTypes()).containsExactly(String.class);
+			assertPubliclyAccessible(publiclyAccessibleMethod);
+		}
+
+		@Test
+		void privateSubclassOverridesMethodInPublicSuperclass() throws Exception {
+			Method originalMethod = PrivateSubclass.class.getMethod("process", int.class);
+
+			// Prerequisite: type must not be public for this use case.
+			assertNotPublic(originalMethod.getDeclaringClass());
+
+			Method publiclyAccessibleMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(originalMethod, null);
+			assertThat(publiclyAccessibleMethod.getDeclaringClass()).isEqualTo(PublicSuperclass.class);
+			assertThat(publiclyAccessibleMethod.getName()).isEqualTo("process");
+			assertThat(publiclyAccessibleMethod.getParameterTypes()).containsExactly(int.class);
+			assertPubliclyAccessible(publiclyAccessibleMethod);
+		}
+
+	}
+
+
+	private static void assertInterfaceMethod(Method method) {
+		assertThat(method.getDeclaringClass()).as("%s must be an interface method", method).isInterface();
+	}
+
+	private static void assertNotInterfaceMethod(Method method) {
+		assertThat(method.getDeclaringClass()).as("%s must not be an interface method", method).isNotInterface();
+	}
+
+	private static void assertPubliclyAccessible(Method method) {
+		assertPublic(method);
+		assertPublic(method.getDeclaringClass());
+	}
+
+	private static void assertNotPubliclyAccessible(Method method) {
+		assertThat(!isPublic(method) || !isPublic(method.getDeclaringClass()))
+				.as("%s must not be publicly accessible", method)
+				.isTrue();
+	}
+
+	private static void assertPublic(Member member) {
+		assertThat(isPublic(member)).as("%s must be public", member).isTrue();
+	}
+
+	private static void assertPublic(Class<?> clazz) {
+		assertThat(isPublic(clazz)).as("%s must be public", clazz).isTrue();
+	}
+
+	private static void assertNotPublic(Member member) {
+		assertThat(!isPublic(member)).as("%s must be not be public", member).isTrue();
+	}
+
+	private static void assertNotPublic(Class<?> clazz) {
+		assertThat(!isPublic(clazz)).as("%s must be not be public", clazz).isTrue();
+	}
+
+	private static boolean isPublic(Class<?> clazz) {
+		return Modifier.isPublic(clazz.getModifiers());
+	}
+
+	private static boolean isPublic(Member member) {
+		return Modifier.isPublic(member.getModifiers());
 	}
 
 
@@ -555,6 +991,76 @@ class ClassUtilsTests {
 		@Override
 		public String get() {
 			return "fake lambda";
+		}
+	}
+
+	@SuppressWarnings("unused")
+	private interface MethodsInterface {
+
+		default void defaultPrint() {
+		}
+
+		void print(String messages);
+	}
+
+	@SuppressWarnings("unused")
+	private class MethodsInterfaceImplementation implements MethodsInterface {
+
+		@Override
+		public void print(String message) {
+		}
+
+		protected void protectedPrint() {
+		}
+
+		void packageAccessiblePrint() {
+		}
+	}
+
+	@SuppressWarnings("unused")
+	private class SubMethodsInterfaceImplementation extends MethodsInterfaceImplementation {
+
+		@Override
+		protected void protectedPrint() {
+		}
+
+		@Override
+		public void packageAccessiblePrint() {
+		}
+	}
+
+	private interface PrivateInterface {
+
+		String getMessage();
+
+		String greet(String name);
+	}
+
+	private static class PrivateSubclass extends PublicSuperclass implements PublicInterface, PrivateInterface {
+
+		@Override
+		public int getNumber() {
+			return 2;
+		}
+
+		@Override
+		public String getMessage() {
+			return "hello";
+		}
+
+		@Override
+		public String greet(String name) {
+			return "Hello, " + name;
+		}
+
+		@Override
+		public int process(int num) {
+			return num * 2;
+		}
+
+		@Override
+		public String getText() {
+			return "enigma";
 		}
 	}
 

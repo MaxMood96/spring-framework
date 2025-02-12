@@ -16,7 +16,7 @@
 
 package org.springframework.dao;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Data access exception thrown when a resource fails completely and the failure is permanent.
@@ -32,7 +32,7 @@ public class NonTransientDataAccessResourceException extends NonTransientDataAcc
 	 * Constructor for NonTransientDataAccessResourceException.
 	 * @param msg the detail message
 	 */
-	public NonTransientDataAccessResourceException(String msg) {
+	public NonTransientDataAccessResourceException(@Nullable String msg) {
 		super(msg);
 	}
 
@@ -41,7 +41,7 @@ public class NonTransientDataAccessResourceException extends NonTransientDataAcc
 	 * @param msg the detail message
 	 * @param cause the root cause from the data access API in use
 	 */
-	public NonTransientDataAccessResourceException(String msg, @Nullable Throwable cause) {
+	public NonTransientDataAccessResourceException(@Nullable String msg, @Nullable Throwable cause) {
 		super(msg, cause);
 	}
 

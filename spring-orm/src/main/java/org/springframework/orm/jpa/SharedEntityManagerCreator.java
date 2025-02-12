@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,8 +35,8 @@ import jakarta.persistence.StoredProcedureQuery;
 import jakarta.persistence.TransactionRequiredException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.CollectionUtils;
@@ -85,9 +85,11 @@ public abstract class SharedEntityManagerCreator {
 			"execute",  // jakarta.persistence.StoredProcedureQuery.execute()
 			"executeUpdate", // jakarta.persistence.Query.executeUpdate()
 			"getSingleResult",  // jakarta.persistence.Query.getSingleResult()
+			"getSingleResultOrNull",  // jakarta.persistence.Query.getSingleResultOrNull()
 			"getResultStream",  // jakarta.persistence.Query.getResultStream()
 			"getResultList",  // jakarta.persistence.Query.getResultList()
 			"list",  // org.hibernate.query.Query.list()
+			"scroll",  // org.hibernate.query.Query.scroll()
 			"stream",  // org.hibernate.query.Query.stream()
 			"uniqueResult",  // org.hibernate.query.Query.uniqueResult()
 			"uniqueResultOptional"  // org.hibernate.query.Query.uniqueResultOptional()
@@ -184,17 +186,15 @@ public abstract class SharedEntityManagerCreator {
 	@SuppressWarnings("serial")
 	private static class SharedEntityManagerInvocationHandler implements InvocationHandler, Serializable {
 
-		private final Log logger = LogFactory.getLog(getClass());
+		private static final Log logger = LogFactory.getLog(SharedEntityManagerInvocationHandler.class);
 
 		private final EntityManagerFactory targetFactory;
 
-		@Nullable
-		private final Map<?, ?> properties;
+		private final @Nullable Map<?, ?> properties;
 
 		private final boolean synchronizedWithTransaction;
 
-		@Nullable
-		private transient volatile ClassLoader proxyClassLoader;
+		private transient volatile @Nullable ClassLoader proxyClassLoader;
 
 		public SharedEntityManagerInvocationHandler(
 				EntityManagerFactory target, @Nullable Map<?, ?> properties, boolean synchronizedWithTransaction) {
@@ -215,25 +215,27 @@ public abstract class SharedEntityManagerCreator {
 		}
 
 		@Override
-		@Nullable
-		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+		public @Nullable Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 			// Invocation on EntityManager interface coming in...
 
 			switch (method.getName()) {
-				case "equals":
+				case "equals" -> {
 					// Only consider equal when proxies are identical.
 					return (proxy == args[0]);
-				case "hashCode":
+				}
+				case "hashCode" -> {
 					// Use hashCode of EntityManager proxy.
 					return hashCode();
-				case "toString":
+				}
+				case "toString" -> {
 					// Deliver toString without touching a target EntityManager.
 					return "Shared EntityManager proxy for target factory [" + this.targetFactory + "]";
-				case "getEntityManagerFactory":
+				}
+				case "getEntityManagerFactory" -> {
 					// JPA 2.0: return EntityManagerFactory without creating an EntityManager.
 					return this.targetFactory;
-				case "getCriteriaBuilder":
-				case "getMetamodel":
+				}
+				case "getCriteriaBuilder", "getMetamodel" -> {
 					// JPA 2.0: return EntityManagerFactory's CriteriaBuilder/Metamodel (avoid creation of EntityManager)
 					try {
 						return EntityManagerFactory.class.getMethod(method.getName()).invoke(this.targetFactory);
@@ -241,23 +243,27 @@ public abstract class SharedEntityManagerCreator {
 					catch (InvocationTargetException ex) {
 						throw ex.getTargetException();
 					}
-				case "unwrap":
+				}
+				case "unwrap" -> {
 					// JPA 2.0: handle unwrap method - could be a proxy match.
 					Class<?> targetClass = (Class<?>) args[0];
 					if (targetClass != null && targetClass.isInstance(proxy)) {
 						return proxy;
 					}
-					break;
-				case "isOpen":
+				}
+				case "isOpen" -> {
 					// Handle isOpen method: always return true.
 					return true;
-				case "close":
+				}
+				case "close" -> {
 					// Handle close method: suppress, not valid.
 					return null;
-				case "getTransaction":
+				}
+				case "getTransaction" -> {
 					throw new IllegalStateException(
 							"Not allowed to create transaction on shared EntityManager - " +
 							"use Spring transactions or EJB CMT instead");
+				}
 			}
 
 			// Determine current EntityManager: either the transactional one
@@ -353,11 +359,9 @@ public abstract class SharedEntityManagerCreator {
 
 		private final Query target;
 
-		@Nullable
-		private EntityManager entityManager;
+		private @Nullable EntityManager entityManager;
 
-		@Nullable
-		private Map<Object, Object> outputParameters;
+		private @Nullable Map<Object, Object> outputParameters;
 
 		public DeferredQueryInvocationHandler(Query target, EntityManager entityManager) {
 			this.target = target;
@@ -369,13 +373,15 @@ public abstract class SharedEntityManagerCreator {
 			// Invocation on Query interface coming in...
 
 			switch (method.getName()) {
-				case "equals":
+				case "equals" -> {
 					// Only consider equal when proxies are identical.
 					return (proxy == args[0]);
-				case "hashCode":
+				}
+				case "hashCode" -> {
 					// Use hashCode of EntityManager proxy.
 					return hashCode();
-				case "unwrap":
+				}
+				case "unwrap" -> {
 					// Handle JPA 2.0 unwrap method - could be a proxy match.
 					Class<?> targetClass = (Class<?>) args[0];
 					if (targetClass == null) {
@@ -384,8 +390,11 @@ public abstract class SharedEntityManagerCreator {
 					else if (targetClass.isInstance(proxy)) {
 						return proxy;
 					}
-					break;
-				case "getOutputParameterValue":
+					else {
+						return this.target.unwrap(targetClass);
+					}
+				}
+				case "getOutputParameterValue" -> {
 					if (this.entityManager == null) {
 						Object key = args[0];
 						if (this.outputParameters == null || !this.outputParameters.containsKey(key)) {
@@ -397,7 +406,7 @@ public abstract class SharedEntityManagerCreator {
 						}
 						return value;
 					}
-					break;
+				}
 			}
 
 			// Invoke method on actual Query object.

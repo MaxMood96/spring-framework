@@ -18,7 +18,8 @@ package org.springframework.messaging.support;
 
 import java.util.Map;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHeaders;
@@ -41,8 +42,7 @@ public final class MessageBuilder<T> {
 
 	private final T payload;
 
-	@Nullable
-	private final Message<T> providedMessage;
+	private final @Nullable Message<T> providedMessage;
 
 	private MessageHeaderAccessor headerAccessor;
 
@@ -201,7 +201,7 @@ public final class MessageBuilder<T> {
 	 * @since 4.1
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T> Message<T> createMessage(@Nullable T payload, MessageHeaders messageHeaders) {
+	public static <T> Message<T> createMessage(T payload, MessageHeaders messageHeaders) {
 		Assert.notNull(payload, "Payload must not be null");
 		Assert.notNull(messageHeaders, "MessageHeaders must not be null");
 		if (payload instanceof Throwable throwable) {

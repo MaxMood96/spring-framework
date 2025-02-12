@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,14 +34,17 @@ import org.hibernate.context.spi.CurrentTenantIdentifierResolver;
 import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
 import org.hibernate.integrator.spi.Integrator;
 import org.hibernate.service.ServiceRegistry;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.ResourceLoaderAware;
+import org.springframework.core.InfrastructureProxy;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -50,7 +53,6 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternUtils;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.core.type.filter.TypeFilter;
-import org.springframework.lang.Nullable;
 
 /**
  * {@link FactoryBean} that creates a Hibernate {@link SessionFactory}. This is the usual
@@ -66,6 +68,10 @@ import org.springframework.lang.Nullable;
  * {@link HibernateTransactionManager}, this naturally allows for mixing JPA access code
  * with native Hibernate access code within the same transaction.
  *
+ * <p><b>NOTE: Hibernate ORM 6.x is officially only supported as a JPA provider.
+ * Please use {@link org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean}
+ * with {@link org.springframework.orm.jpa.JpaTransactionManager} there instead.</b>
+ *
  * @author Juergen Hoeller
  * @since 4.2
  * @see #setDataSource
@@ -75,87 +81,62 @@ import org.springframework.lang.Nullable;
  * @see org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean
  */
 public class LocalSessionFactoryBean extends HibernateExceptionTranslator
-		implements FactoryBean<SessionFactory>, ResourceLoaderAware, BeanFactoryAware, InitializingBean, DisposableBean {
+		implements FactoryBean<SessionFactory>, ResourceLoaderAware, BeanFactoryAware,
+		InitializingBean, SmartInitializingSingleton, DisposableBean {
 
-	@Nullable
-	private DataSource dataSource;
+	private @Nullable DataSource dataSource;
 
-	@Nullable
-	private Resource[] configLocations;
+	private Resource @Nullable [] configLocations;
 
-	@Nullable
-	private String[] mappingResources;
+	private String @Nullable [] mappingResources;
 
-	@Nullable
-	private Resource[] mappingLocations;
+	private Resource @Nullable [] mappingLocations;
 
-	@Nullable
-	private Resource[] cacheableMappingLocations;
+	private Resource @Nullable [] cacheableMappingLocations;
 
-	@Nullable
-	private Resource[] mappingJarLocations;
+	private Resource @Nullable [] mappingJarLocations;
 
-	@Nullable
-	private Resource[] mappingDirectoryLocations;
+	private Resource @Nullable [] mappingDirectoryLocations;
 
-	@Nullable
-	private Interceptor entityInterceptor;
+	private @Nullable Interceptor entityInterceptor;
 
-	@Nullable
-	private ImplicitNamingStrategy implicitNamingStrategy;
+	private @Nullable ImplicitNamingStrategy implicitNamingStrategy;
 
-	@Nullable
-	private PhysicalNamingStrategy physicalNamingStrategy;
+	private @Nullable PhysicalNamingStrategy physicalNamingStrategy;
 
-	@Nullable
-	private Object jtaTransactionManager;
+	private @Nullable Object jtaTransactionManager;
 
-	@Nullable
-	private RegionFactory cacheRegionFactory;
+	private @Nullable RegionFactory cacheRegionFactory;
 
-	@Nullable
-	private MultiTenantConnectionProvider multiTenantConnectionProvider;
+	private @Nullable MultiTenantConnectionProvider<?> multiTenantConnectionProvider;
 
-	@Nullable
-	private CurrentTenantIdentifierResolver currentTenantIdentifierResolver;
+	private @Nullable CurrentTenantIdentifierResolver<Object> currentTenantIdentifierResolver;
 
-	@Nullable
-	private Properties hibernateProperties;
+	private @Nullable Properties hibernateProperties;
 
-	@Nullable
-	private TypeFilter[] entityTypeFilters;
+	private TypeFilter @Nullable [] entityTypeFilters;
 
-	@Nullable
-	private Class<?>[] annotatedClasses;
+	private Class<?> @Nullable [] annotatedClasses;
 
-	@Nullable
-	private String[] annotatedPackages;
+	private String @Nullable [] annotatedPackages;
 
-	@Nullable
-	private String[] packagesToScan;
+	private String @Nullable [] packagesToScan;
 
-	@Nullable
-	private AsyncTaskExecutor bootstrapExecutor;
+	private @Nullable AsyncTaskExecutor bootstrapExecutor;
 
-	@Nullable
-	private Integrator[] hibernateIntegrators;
+	private Integrator @Nullable [] hibernateIntegrators;
 
 	private boolean metadataSourcesAccessed = false;
 
-	@Nullable
-	private MetadataSources metadataSources;
+	private @Nullable MetadataSources metadataSources;
 
-	@Nullable
-	private ResourcePatternResolver resourcePatternResolver;
+	private @Nullable ResourcePatternResolver resourcePatternResolver;
 
-	@Nullable
-	private ConfigurableListableBeanFactory beanFactory;
+	private @Nullable ConfigurableListableBeanFactory beanFactory;
 
-	@Nullable
-	private Configuration configuration;
+	private @Nullable Configuration configuration;
 
-	@Nullable
-	private SessionFactory sessionFactory;
+	private @Nullable SessionFactory sessionFactory;
 
 
 	/**
@@ -305,7 +286,7 @@ public class LocalSessionFactoryBean extends HibernateExceptionTranslator
 	 * @since 4.3
 	 * @see LocalSessionFactoryBuilder#setMultiTenantConnectionProvider
 	 */
-	public void setMultiTenantConnectionProvider(MultiTenantConnectionProvider multiTenantConnectionProvider) {
+	public void setMultiTenantConnectionProvider(MultiTenantConnectionProvider<?> multiTenantConnectionProvider) {
 		this.multiTenantConnectionProvider = multiTenantConnectionProvider;
 	}
 
@@ -313,7 +294,7 @@ public class LocalSessionFactoryBean extends HibernateExceptionTranslator
 	 * Set a {@link CurrentTenantIdentifierResolver} to be passed on to the SessionFactory.
 	 * @see LocalSessionFactoryBuilder#setCurrentTenantIdentifierResolver
 	 */
-	public void setCurrentTenantIdentifierResolver(CurrentTenantIdentifierResolver currentTenantIdentifierResolver) {
+	public void setCurrentTenantIdentifierResolver(CurrentTenantIdentifierResolver<Object> currentTenantIdentifierResolver) {
 		this.currentTenantIdentifierResolver = currentTenantIdentifierResolver;
 	}
 
@@ -378,7 +359,7 @@ public class LocalSessionFactoryBean extends HibernateExceptionTranslator
 
 	/**
 	 * Specify an asynchronous executor for background bootstrapping,
-	 * e.g. a {@link org.springframework.core.task.SimpleAsyncTaskExecutor}.
+	 * for example, a {@link org.springframework.core.task.SimpleAsyncTaskExecutor}.
 	 * <p>{@code SessionFactory} initialization will then switch into background
 	 * bootstrap mode, with a {@code SessionFactory} proxy immediately returned for
 	 * injection purposes instead of waiting for Hibernate's bootstrapping to complete.
@@ -386,6 +367,8 @@ public class LocalSessionFactoryBean extends HibernateExceptionTranslator
 	 * then block until Hibernate's bootstrapping completed, if not ready by then.
 	 * For maximum benefit, make sure to avoid early {@code SessionFactory} calls
 	 * in init methods of related beans, even for metadata introspection purposes.
+	 * <p>As of 6.2, Hibernate initialization is enforced before context refresh
+	 * completion, waiting for asynchronous bootstrapping to complete by then.
 	 * @since 4.3
 	 * @see LocalSessionFactoryBuilder#buildSessionFactory(AsyncTaskExecutor)
 	 */
@@ -407,7 +390,7 @@ public class LocalSessionFactoryBean extends HibernateExceptionTranslator
 	}
 
 	/**
-	 * Specify a Hibernate {@link MetadataSources} service to use (e.g. reusing an
+	 * Specify a Hibernate {@link MetadataSources} service to use (for example, reusing an
 	 * existing one), potentially populated with a custom Hibernate bootstrap
 	 * {@link org.hibernate.service.ServiceRegistry} as well.
 	 * @since 4.3
@@ -596,12 +579,20 @@ public class LocalSessionFactoryBean extends HibernateExceptionTranslator
 		this.sessionFactory = buildSessionFactory(sfb);
 	}
 
+	@Override
+	public void afterSingletonsInstantiated() {
+		// Enforce completion of asynchronous Hibernate initialization before context refresh completion.
+		if (this.sessionFactory instanceof InfrastructureProxy proxy) {
+			proxy.getWrappedObject();
+		}
+	}
+
 	/**
 	 * Subclasses can override this method to perform custom initialization
 	 * of the SessionFactory instance, creating it via the given Configuration
 	 * object that got prepared by this LocalSessionFactoryBean.
 	 * <p>The default implementation invokes LocalSessionFactoryBuilder's buildSessionFactory.
-	 * A custom implementation could prepare the instance in a specific way (e.g. applying
+	 * A custom implementation could prepare the instance in a specific way (for example, applying
 	 * a custom ServiceRegistry) or use a custom SessionFactoryImpl subclass.
 	 * @param sfb a LocalSessionFactoryBuilder prepared by this LocalSessionFactoryBean
 	 * @return the SessionFactory instance
@@ -626,8 +617,7 @@ public class LocalSessionFactoryBean extends HibernateExceptionTranslator
 
 
 	@Override
-	@Nullable
-	public SessionFactory getObject() {
+	public @Nullable SessionFactory getObject() {
 		return this.sessionFactory;
 	}
 

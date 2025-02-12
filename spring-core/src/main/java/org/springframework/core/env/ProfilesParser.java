@@ -26,7 +26,8 @@ import java.util.StringTokenizer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 
 /**
@@ -168,23 +169,14 @@ final class ProfilesParser {
 		}
 
 		@Override
-		public int hashCode() {
-			return this.expressions.hashCode();
+		public boolean equals(@Nullable Object other) {
+			return (this == other || (other instanceof ParsedProfiles that &&
+					this.expressions.equals(that.expressions)));
 		}
 
 		@Override
-		public boolean equals(@Nullable Object obj) {
-			if (this == obj) {
-				return true;
-			}
-			if (obj == null) {
-				return false;
-			}
-			if (getClass() != obj.getClass()) {
-				return false;
-			}
-			ParsedProfiles that = (ParsedProfiles) obj;
-			return this.expressions.equals(that.expressions);
+		public int hashCode() {
+			return this.expressions.hashCode();
 		}
 
 		@Override
@@ -198,7 +190,6 @@ final class ProfilesParser {
 		private String wrap(String str) {
 			return "(" + str + ")";
 		}
-
 	}
 
 }

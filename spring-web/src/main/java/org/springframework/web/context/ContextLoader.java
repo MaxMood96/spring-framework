@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import jakarta.servlet.ServletContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.context.ApplicationContext;
@@ -37,7 +38,6 @@ import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -54,9 +54,9 @@ import org.springframework.util.StringUtils;
  *
  * <p>Processes a {@link #CONFIG_LOCATION_PARAM "contextConfigLocation"} context-param
  * and passes its value to the context instance, parsing it into potentially multiple
- * file paths which can be separated by any number of commas and spaces, e.g.
+ * file paths which can be separated by any number of commas and spaces, for example,
  * "WEB-INF/applicationContext1.xml, WEB-INF/applicationContext2.xml".
- * Ant-style path patterns are supported as well, e.g.
+ * Ant-style path patterns are supported as well, for example,
  * "WEB-INF/*Context.xml,WEB-INF/spring*.xml" or "WEB-INF/&#42;&#42;/*Context.xml".
  * If not explicitly specified, the context implementation is supposed to use a
  * default location (with XmlWebApplicationContext: "/WEB-INF/applicationContext.xml").
@@ -142,17 +142,14 @@ public class ContextLoader {
 	 * The 'current' WebApplicationContext, if the ContextLoader class is
 	 * deployed in the web app ClassLoader itself.
 	 */
-	@Nullable
-	private static volatile WebApplicationContext currentContext;
+	private static volatile @Nullable WebApplicationContext currentContext;
 
-	@Nullable
-	private static Properties defaultStrategies;
+	private static @Nullable Properties defaultStrategies;
 
 	/**
 	 * The root WebApplicationContext instance that this loader manages.
 	 */
-	@Nullable
-	private WebApplicationContext context;
+	private @Nullable WebApplicationContext rootContext;
 
 	/** Actual ApplicationContextInitializer instances to apply to the context. */
 	private final List<ApplicationContextInitializer<ConfigurableApplicationContext>> contextInitializers =
@@ -205,12 +202,12 @@ public class ContextLoader {
 	 * WebApplicationContext#ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE} and subclasses are
 	 * free to call the {@link #closeWebApplicationContext} method on container shutdown
 	 * to close the application context.
-	 * @param context the application context to manage
+	 * @param rootContext the application context to manage
 	 * @see #initWebApplicationContext(ServletContext)
 	 * @see #closeWebApplicationContext(ServletContext)
 	 */
-	public ContextLoader(WebApplicationContext context) {
-		this.context = context;
+	public ContextLoader(WebApplicationContext rootContext) {
+		this.rootContext = rootContext;
 	}
 
 
@@ -222,7 +219,7 @@ public class ContextLoader {
 	 * @see #customizeContext
 	 */
 	@SuppressWarnings("unchecked")
-	public void setContextInitializers(@Nullable ApplicationContextInitializer<?>... initializers) {
+	public void setContextInitializers(ApplicationContextInitializer<?> @Nullable ... initializers) {
 		if (initializers != null) {
 			for (ApplicationContextInitializer<?> initializer : initializers) {
 				this.contextInitializers.add((ApplicationContextInitializer<ConfigurableApplicationContext>) initializer);
@@ -259,10 +256,10 @@ public class ContextLoader {
 		try {
 			// Store context in local instance variable, to guarantee that
 			// it is available on ServletContext shutdown.
-			if (this.context == null) {
-				this.context = createWebApplicationContext(servletContext);
+			if (this.rootContext == null) {
+				this.rootContext = createWebApplicationContext(servletContext);
 			}
-			if (this.context instanceof ConfigurableWebApplicationContext cwac && !cwac.isActive()) {
+			if (this.rootContext instanceof ConfigurableWebApplicationContext cwac && !cwac.isActive()) {
 				// The context has not yet been refreshed -> provide services such as
 				// setting the parent context, setting the application context id, etc
 				if (cwac.getParent() == null) {
@@ -273,14 +270,14 @@ public class ContextLoader {
 				}
 				configureAndRefreshWebApplicationContext(cwac, servletContext);
 			}
-			servletContext.setAttribute(WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE, this.context);
+			servletContext.setAttribute(WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE, this.rootContext);
 
 			ClassLoader ccl = Thread.currentThread().getContextClassLoader();
 			if (ccl == ContextLoader.class.getClassLoader()) {
-				currentContext = this.context;
+				currentContext = this.rootContext;
 			}
 			else if (ccl != null) {
-				currentContextPerThread.put(ccl, this.context);
+				currentContextPerThread.put(ccl, this.rootContext);
 			}
 
 			if (logger.isInfoEnabled()) {
@@ -288,7 +285,7 @@ public class ContextLoader {
 				logger.info("Root WebApplicationContext initialized in " + elapsedTime + " ms");
 			}
 
-			return this.context;
+			return this.rootContext;
 		}
 		catch (RuntimeException | Error ex) {
 			logger.error("Context initialization failed", ex);
@@ -492,8 +489,7 @@ public class ContextLoader {
 	 * @param servletContext current servlet context
 	 * @return the parent application context, or {@code null} if none
 	 */
-	@Nullable
-	protected ApplicationContext loadParentContext(ServletContext servletContext) {
+	protected @Nullable ApplicationContext loadParentContext(ServletContext servletContext) {
 		return null;
 	}
 
@@ -506,7 +502,7 @@ public class ContextLoader {
 	public void closeWebApplicationContext(ServletContext servletContext) {
 		servletContext.log("Closing Spring root WebApplicationContext");
 		try {
-			if (this.context instanceof ConfigurableWebApplicationContext cwac) {
+			if (this.rootContext instanceof ConfigurableWebApplicationContext cwac) {
 				cwac.close();
 			}
 		}
@@ -531,8 +527,7 @@ public class ContextLoader {
 	 * if none found
 	 * @see org.springframework.web.context.support.SpringBeanAutowiringSupport
 	 */
-	@Nullable
-	public static WebApplicationContext getCurrentWebApplicationContext() {
+	public static @Nullable WebApplicationContext getCurrentWebApplicationContext() {
 		ClassLoader ccl = Thread.currentThread().getContextClassLoader();
 		if (ccl != null) {
 			WebApplicationContext ccpt = currentContextPerThread.get(ccl);

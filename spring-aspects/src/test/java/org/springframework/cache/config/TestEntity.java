@@ -16,7 +16,10 @@
 
 package org.springframework.cache.config;
 
-import org.springframework.lang.Nullable;
+import java.util.Objects;
+
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.ObjectUtils;
 
 /**
@@ -42,7 +45,7 @@ public class TestEntity {
 
 	@Override
 	public int hashCode() {
-		return ObjectUtils.nullSafeHashCode(this.id);
+		return Objects.hashCode(this.id);
 	}
 
 	@Override

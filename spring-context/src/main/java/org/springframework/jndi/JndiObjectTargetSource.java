@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,9 @@ package org.springframework.jndi;
 
 import javax.naming.NamingException;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aop.TargetSource;
-import org.springframework.lang.Nullable;
 
 /**
  * AOP {@link org.springframework.aop.TargetSource} that provides
@@ -65,11 +66,9 @@ public class JndiObjectTargetSource extends JndiObjectLocator implements TargetS
 
 	private boolean cache = true;
 
-	@Nullable
-	private Object cachedObject;
+	private @Nullable Object cachedObject;
 
-	@Nullable
-	private Class<?> targetClass;
+	private @Nullable Class<?> targetClass;
 
 
 	/**
@@ -109,8 +108,7 @@ public class JndiObjectTargetSource extends JndiObjectLocator implements TargetS
 
 
 	@Override
-	@Nullable
-	public Class<?> getTargetClass() {
+	public @Nullable Class<?> getTargetClass() {
 		if (this.cachedObject != null) {
 			return this.cachedObject.getClass();
 		}
@@ -128,8 +126,7 @@ public class JndiObjectTargetSource extends JndiObjectLocator implements TargetS
 	}
 
 	@Override
-	@Nullable
-	public Object getTarget() {
+	public @Nullable Object getTarget() {
 		try {
 			if (this.lookupOnStartup || !this.cache) {
 				return (this.cachedObject != null ? this.cachedObject : lookup());
@@ -146,10 +143,6 @@ public class JndiObjectTargetSource extends JndiObjectLocator implements TargetS
 		catch (NamingException ex) {
 			throw new JndiLookupFailureException("JndiObjectTargetSource failed to obtain new target object", ex);
 		}
-	}
-
-	@Override
-	public void releaseTarget(Object target) {
 	}
 
 }

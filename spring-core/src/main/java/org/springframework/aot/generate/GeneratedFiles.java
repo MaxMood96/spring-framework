@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,22 @@
 
 package org.springframework.aot.generate;
 
+import java.util.function.Supplier;
+
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.io.InputStreamSource;
 import org.springframework.javapoet.JavaFile;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.util.function.ThrowingConsumer;
 
 /**
- * Interface that can be used to add {@link Kind#SOURCE source},
+ * Repository of generated files. Can be used to add {@link Kind#SOURCE source},
  * {@link Kind#RESOURCE resource}, or {@link Kind#CLASS class} files generated
  * during ahead-of-time processing. Source and resource files are written using
- * UTF-8 encoding.
+ * {@code UTF-8} encoding.
  *
  * @author Phillip Webb
  * @author Brian Clozel
@@ -43,6 +48,7 @@ public interface GeneratedFiles {
 	 * @param javaFile the java file to add
 	 */
 	default void addSourceFile(JavaFile javaFile) {
+		validatePackage(javaFile.packageName, javaFile.typeSpec.name);
 		String className = javaFile.packageName + "." + javaFile.typeSpec.name;
 		addSourceFile(className, javaFile::writeTo);
 	}
@@ -157,12 +163,40 @@ public interface GeneratedFiles {
 	 * @param content an {@link InputStreamSource} that will provide an input
 	 * stream containing the file contents
 	 */
-	void addFile(Kind kind, String path, InputStreamSource content);
+	default void addFile(Kind kind, String path, InputStreamSource content) {
+		Assert.notNull(kind, "'kind' must not be null");
+		Assert.hasLength(path, "'path' must not be empty");
+		Assert.notNull(content, "'content' must not be null");
+		handleFile(kind, path, handler -> handler.create(content));
+	}
+
+	/**
+	 * Handle a generated file of the specified {@link Kind} with the given
+	 * {@linkplain FileHandler handler}. The file handler lets you consume
+	 * the content of the already generated file, if any and provide a way
+	 * to override its content if necessary.
+	 * @param kind the kind of file
+	 * @param path the relative path of the file
+	 * @param handler a consumer of a {@link FileHandler} for the file
+	 * @since 6.2
+	 */
+	void handleFile(Kind kind, String path, ThrowingConsumer<FileHandler> handler);
+
 
 	private static String getClassNamePath(String className) {
 		Assert.hasLength(className, "'className' must not be empty");
-		Assert.isTrue(isJavaIdentifier(className), "'className' must be a valid identifier");
+		validatePackage(ClassUtils.getPackageName(className), className);
+		Assert.isTrue(isJavaIdentifier(className),
+				"'className' must be a valid identifier, got '" + className + "'");
 		return ClassUtils.convertClassNameToResourcePath(className) + ".java";
+	}
+
+	private static void validatePackage(String packageName, String className) {
+		if (!StringUtils.hasLength(packageName)) {
+			throw new IllegalArgumentException("Could not add '" + className + "', "
+					+ "processing classes in the default package is not supported. "
+					+ "Did you forget to add a package statement?");
+		}
 	}
 
 	private static boolean isJavaIdentifier(String className) {
@@ -200,7 +234,64 @@ public interface GeneratedFiles {
 		 * generated using CGLIB.
 		 */
 		CLASS
+	}
 
+
+	/**
+	 * Provide access to a particular file and offer convenient methods to retrieve,
+	 * save, or override its content.
+	 * @since 6.2
+	 */
+	abstract class FileHandler {
+
+		private final boolean exists;
+
+		private final Supplier<InputStreamSource> existingContent;
+
+		protected FileHandler(boolean exists, Supplier<InputStreamSource> existingContent) {
+			this.exists = exists;
+			this.existingContent = existingContent;
+		}
+
+		/**
+		 * Specify whether the file already exists.
+		 * @return {@code true} if the file already exists
+		 */
+		public boolean exists() {
+			return this.exists;
+		}
+
+		/**
+		 * Return an {@link InputStreamSource} for the content of the file or
+		 * {@code null} if the file does not exist.
+		 */
+		public @Nullable InputStreamSource getContent() {
+			return (exists() ? this.existingContent.get() : null);
+		}
+
+		/**
+		 * Create a file with the given {@linkplain InputStreamSource content}.
+		 * @throws IllegalStateException if the file already exists
+		 */
+		public void create(InputStreamSource content) {
+			Assert.notNull(content, "'content' must not be null");
+			if (exists()) {
+				throw new IllegalStateException("%s already exists".formatted(this));
+			}
+			copy(content, false);
+		}
+
+		/**
+		 * Override the content of the file handled by this instance using the
+		 * given {@linkplain InputStreamSource content}. If the file does not
+		 * exist, it is created.
+		 */
+		public void override(InputStreamSource content) {
+			Assert.notNull(content, "'content' must not be null");
+			copy(content, true);
+		}
+
+		protected abstract void copy(InputStreamSource content, boolean override);
 	}
 
 }

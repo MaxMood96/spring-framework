@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import io.undertow.websockets.client.WebSocketClientNegotiation;
 import io.undertow.websockets.core.WebSocketChannel;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.xnio.IoFuture;
 import org.xnio.XnioWorker;
 import reactor.core.publisher.Mono;
@@ -38,7 +39,6 @@ import reactor.core.publisher.Sinks;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.HttpHeaders;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.web.reactive.socket.HandshakeInfo;
 import org.springframework.web.reactive.socket.WebSocketHandler;
@@ -166,7 +166,7 @@ public class UndertowWebSocketClient implements WebSocketClient {
 					DefaultNegotiation negotiation = new DefaultNegotiation(protocols, headers, builder);
 					builder.setClientNegotiation(negotiation);
 					builder.connect().addNotifier(
-							new IoFuture.HandlingNotifier<WebSocketChannel, Object>() {
+							new IoFuture.HandlingNotifier<>() {
 								@Override
 								public void handleDone(WebSocketChannel channel, Object attachment) {
 									handleChannel(url, ContextWebSocketHandler.decorate(handler, contextView),
@@ -226,8 +226,7 @@ public class UndertowWebSocketClient implements WebSocketClient {
 
 		private final HttpHeaders responseHeaders = new HttpHeaders();
 
-		@Nullable
-		private final WebSocketClientNegotiation delegate;
+		private final @Nullable WebSocketClientNegotiation delegate;
 
 		public DefaultNegotiation(List<String> protocols, HttpHeaders requestHeaders,
 				ConnectionBuilder connectionBuilder) {
@@ -243,7 +242,7 @@ public class UndertowWebSocketClient implements WebSocketClient {
 
 		@Override
 		public void beforeRequest(Map<String, List<String>> headers) {
-			headers.putAll(this.requestHeaders);
+			this.requestHeaders.forEach(headers::put);
 			if (this.delegate != null) {
 				this.delegate.beforeRequest(headers);
 			}

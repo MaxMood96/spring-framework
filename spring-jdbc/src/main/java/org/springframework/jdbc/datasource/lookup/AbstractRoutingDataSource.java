@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,18 @@
 package org.springframework.jdbc.datasource.lookup;
 
 import java.sql.Connection;
+import java.sql.ConnectionBuilder;
 import java.sql.SQLException;
+import java.sql.ShardingKeyBuilder;
 import java.util.Collections;
 import java.util.Map;
 
 import javax.sql.DataSource;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.jdbc.datasource.AbstractDataSource;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
@@ -42,26 +45,22 @@ import org.springframework.util.CollectionUtils;
  */
 public abstract class AbstractRoutingDataSource extends AbstractDataSource implements InitializingBean {
 
-	@Nullable
-	private Map<Object, Object> targetDataSources;
+	private @Nullable Map<Object, Object> targetDataSources;
 
-	@Nullable
-	private Object defaultTargetDataSource;
+	private @Nullable Object defaultTargetDataSource;
 
 	private boolean lenientFallback = true;
 
 	private DataSourceLookup dataSourceLookup = new JndiDataSourceLookup();
 
-	@Nullable
-	private Map<Object, DataSource> resolvedDataSources;
+	private @Nullable Map<Object, DataSource> resolvedDataSources;
 
-	@Nullable
-	private DataSource resolvedDefaultDataSource;
+	private @Nullable DataSource resolvedDefaultDataSource;
 
 
 	/**
 	 * Specify the map of target DataSources, with the lookup key as key.
-	 * The mapped value can either be a corresponding {@link javax.sql.DataSource}
+	 * <p>The mapped value can either be a corresponding {@link javax.sql.DataSource}
 	 * instance or a data source name String (to be resolved via a
 	 * {@link #setDataSourceLookup DataSourceLookup}).
 	 * <p>The key can be of arbitrary type; this class implements the
@@ -114,8 +113,25 @@ public abstract class AbstractRoutingDataSource extends AbstractDataSource imple
 	}
 
 
+	/**
+	 * Delegates to {@link #initialize()}.
+	 */
 	@Override
 	public void afterPropertiesSet() {
+		initialize();
+	}
+
+	/**
+	 * Initialize the internal state of this {@code AbstractRoutingDataSource}
+	 * by resolving the configured target DataSources.
+	 * @throws IllegalArgumentException if the target DataSources have not been configured
+	 * @since 6.1
+	 * @see #setTargetDataSources(Map)
+	 * @see #setDefaultTargetDataSource(Object)
+	 * @see #getResolvedDataSources()
+	 * @see #getResolvedDefaultDataSource()
+	 */
+	public void initialize() {
 		if (this.targetDataSources == null) {
 			throw new IllegalArgumentException("Property 'targetDataSources' is required");
 		}
@@ -183,8 +199,7 @@ public abstract class AbstractRoutingDataSource extends AbstractDataSource imple
 	 * @since 5.2.9
 	 * @see #setDefaultTargetDataSource
 	 */
-	@Nullable
-	public DataSource getResolvedDefaultDataSource() {
+	public @Nullable DataSource getResolvedDefaultDataSource() {
 		return this.resolvedDefaultDataSource;
 	}
 
@@ -200,6 +215,16 @@ public abstract class AbstractRoutingDataSource extends AbstractDataSource imple
 	}
 
 	@Override
+	public ConnectionBuilder createConnectionBuilder() throws SQLException {
+		return determineTargetDataSource().createConnectionBuilder();
+	}
+
+	@Override
+	public ShardingKeyBuilder createShardingKeyBuilder() throws SQLException {
+		return determineTargetDataSource().createShardingKeyBuilder();
+	}
+
+	@Override
 	@SuppressWarnings("unchecked")
 	public <T> T unwrap(Class<T> iface) throws SQLException {
 		if (iface.isInstance(this)) {
@@ -212,6 +237,7 @@ public abstract class AbstractRoutingDataSource extends AbstractDataSource imple
 	public boolean isWrapperFor(Class<?> iface) throws SQLException {
 		return (iface.isInstance(this) || determineTargetDataSource().isWrapperFor(iface));
 	}
+
 
 	/**
 	 * Retrieve the current target DataSource. Determines the
@@ -241,7 +267,6 @@ public abstract class AbstractRoutingDataSource extends AbstractDataSource imple
 	 * to match the stored lookup key type, as resolved by the
 	 * {@link #resolveSpecifiedLookupKey} method.
 	 */
-	@Nullable
-	protected abstract Object determineCurrentLookupKey();
+	protected abstract @Nullable Object determineCurrentLookupKey();
 
 }

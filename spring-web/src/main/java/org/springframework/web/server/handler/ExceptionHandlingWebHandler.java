@@ -41,9 +41,9 @@ public class ExceptionHandlingWebHandler extends WebHandlerDecorator {
 	/**
 	 * Name of the {@link ServerWebExchange#getAttributes() attribute} that
 	 * contains the exception handled by {@link WebExceptionHandler WebExceptionHandlers}.
-	 * @since 6.0.8
+	 * @since 6.1
 	 */
-	public static String HANDLED_WEB_EXCEPTION = ExceptionHandlingWebHandler.class.getSimpleName() + ".handledException";
+	public static final String HANDLED_WEB_EXCEPTION = ExceptionHandlingWebHandler.class.getSimpleName() + ".handledException";
 
 	private final List<WebExceptionHandler> exceptionHandlers;
 
@@ -91,7 +91,7 @@ public class ExceptionHandlingWebHandler extends WebHandlerDecorator {
 	/**
 	 * WebExceptionHandler to insert a checkpoint with current URL information.
 	 * Must be the first in order to ensure we catch the error signal before
-	 * the exception is handled and e.g. turned into an error response.
+	 * the exception is handled and, for example, turned into an error response.
 	 * @since 5.2
  	 */
 	private static class CheckpointInsertingHandler implements WebExceptionHandler {

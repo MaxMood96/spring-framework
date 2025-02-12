@@ -20,9 +20,9 @@ import jakarta.servlet.jsp.JspException;
 import jakarta.servlet.jsp.PageContext;
 import jakarta.servlet.jsp.tagext.TagSupport;
 import jakarta.servlet.jsp.tagext.TryCatchFinally;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.PropertyAccessor;
-import org.springframework.lang.Nullable;
 
 /**
  * <p>The {@code <nestedPath>} tag supports and assists with nested beans or
@@ -50,7 +50,7 @@ import org.springframework.lang.Nullable;
  * <td>path</td>
  * <td>true</td>
  * <td>true</td>
- * <td>Set the path that this tag should apply. E.g. 'customer' to allow bind
+ * <td>Set the path that this tag should apply. For example, 'customer' to allow bind
  * paths like 'address.street' rather than 'customer.address.street'.</td>
  * </tr>
  * </tbody>
@@ -68,17 +68,15 @@ public class NestedPathTag extends TagSupport implements TryCatchFinally {
 	public static final String NESTED_PATH_VARIABLE_NAME = "nestedPath";
 
 
-	@Nullable
-	private String path;
+	private @Nullable String path;
 
 	/** Caching a previous nested path, so that it may be reset. */
-	@Nullable
-	private String previousNestedPath;
+	private @Nullable String previousNestedPath;
 
 
 	/**
 	 * Set the path that this tag should apply.
-	 * <p>E.g. "customer" to allow bind paths like "address.street"
+	 * <p>For example, "customer" to allow bind paths like "address.street"
 	 * rather than "customer.address.street".
 	 * @see BindTag#setPath
 	 */
@@ -95,8 +93,7 @@ public class NestedPathTag extends TagSupport implements TryCatchFinally {
 	/**
 	 * Return the path that this tag applies to.
 	 */
-	@Nullable
-	public String getPath() {
+	public @Nullable String getPath() {
 		return this.path;
 	}
 

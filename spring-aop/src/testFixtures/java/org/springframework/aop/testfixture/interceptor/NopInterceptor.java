@@ -18,8 +18,7 @@ package org.springframework.aop.testfixture.interceptor;
 
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
-
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Trivial interceptor that can be introduced in a chain to display it.
@@ -47,14 +46,8 @@ public class NopInterceptor implements MethodInterceptor {
 
 
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		if (this == obj) {
-			return true;
-		}
-		if (!(obj instanceof NopInterceptor that)) {
-			return false;
-		}
-		return this.count == that.count;
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof NopInterceptor that && this.count == that.count));
 	}
 
 	@Override

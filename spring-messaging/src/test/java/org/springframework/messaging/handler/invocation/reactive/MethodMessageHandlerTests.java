@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,13 +25,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import org.springframework.context.support.StaticApplicationContext;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.DestinationPatternsMessageCondition;
 import org.springframework.messaging.handler.HandlerMethod;
@@ -49,24 +49,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /**
- * Unit tests for {@link AbstractMethodMessageHandler}.
+ * Tests for {@link AbstractMethodMessageHandler}.
+ *
  * @author Rossen Stoyanchev
  */
-public class MethodMessageHandlerTests {
+class MethodMessageHandlerTests {
 
 
 	@Test
-	public void duplicateMapping() {
+	void duplicateMapping() {
 		assertThatIllegalStateException().isThrownBy(() ->
 				initMethodMessageHandler(DuplicateMappingsController.class));
 	}
 
 	@Test
-	public void registeredMappings() {
+	void registeredMappings() {
 		TestMethodMessageHandler messageHandler = initMethodMessageHandler(TestController.class);
 		Map<String, HandlerMethod> mappings = messageHandler.getHandlerMethods();
 
-		assertThat(mappings.keySet()).hasSize(5);
 		assertThat(mappings).containsOnlyKeys(
 				"/handleMessage", "/handleMessageWithArgument", "/handleMessageWithError",
 				"/handleMessageMatch1", "/handleMessageMatch2");
@@ -218,8 +218,7 @@ public class MethodMessageHandlerTests {
 			return Collections.singletonList(this.returnValueHandler);
 		}
 
-		@Nullable
-		public Object getLastReturnValue() {
+		public @Nullable Object getLastReturnValue() {
 			return this.returnValueHandler.getLastReturnValue();
 		}
 
@@ -238,8 +237,7 @@ public class MethodMessageHandlerTests {
 		}
 
 		@Override
-		@Nullable
-		protected RouteMatcher.Route getDestination(Message<?> message) {
+		protected RouteMatcher.@Nullable Route getDestination(Message<?> message) {
 			return (RouteMatcher.Route) message.getHeaders().get(
 					DestinationPatternsMessageCondition.LOOKUP_DESTINATION_HEADER);
 		}

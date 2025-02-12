@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,15 @@
 
 package org.springframework.web.reactive.socket.server.support;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
 
 /**
- * {@link RuntimeHintsRegistrar} implementation that registers reflection hints related to
- * {@link HandshakeWebSocketService}.
+ * {@link RuntimeHintsRegistrar} implementation that registers reflection hints
+ * related to {@link HandshakeWebSocketService}.
  *
  * @author Sebastien Deleuze
  * @since 6.0
@@ -30,8 +32,9 @@ import org.springframework.aot.hint.RuntimeHintsRegistrar;
 class HandshakeWebSocketServiceRuntimeHints implements RuntimeHintsRegistrar {
 
 	@Override
-	public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
+	public void registerHints(RuntimeHints hints, @Nullable ClassLoader classLoader) {
 		hints.reflection().registerType(HandshakeWebSocketService.initUpgradeStrategy().getClass(),
 				MemberCategory.INVOKE_DECLARED_CONSTRUCTORS);
 	}
+
 }

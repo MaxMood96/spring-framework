@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ import java.util.function.BiFunction;
 import io.r2dbc.spi.ColumnMetadata;
 import io.r2dbc.spi.Row;
 import io.r2dbc.spi.RowMetadata;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.LinkedCaseInsensitiveMap;
 
 /**
@@ -49,7 +49,7 @@ import org.springframework.util.LinkedCaseInsensitiveMap;
 public class ColumnMapRowMapper implements BiFunction<Row, RowMetadata, Map<String, Object>> {
 
 	/** A default {@code ColumnMapRowMapper} instance. */
-	public final static ColumnMapRowMapper INSTANCE = new ColumnMapRowMapper();
+	public static final ColumnMapRowMapper INSTANCE = new ColumnMapRowMapper();
 
 
 	@SuppressWarnings("deprecation")  // getColumnNames() is deprecated as of R2DBC 0.9
@@ -95,8 +95,7 @@ public class ColumnMapRowMapper implements BiFunction<Row, RowMetadata, Map<Stri
 	 * @param index is the column index
 	 * @return the Object returned
 	 */
-	@Nullable
-	protected Object getColumnValue(Row row, int index) {
+	protected @Nullable Object getColumnValue(Row row, int index) {
 		return row.get(index);
 	}
 

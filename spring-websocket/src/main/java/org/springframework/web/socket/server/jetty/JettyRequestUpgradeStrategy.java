@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,19 +21,22 @@ import java.security.Principal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.eclipse.jetty.websocket.server.JettyWebSocketCreator;
-import org.eclipse.jetty.websocket.server.JettyWebSocketServerContainer;
+import org.eclipse.jetty.ee11.websocket.server.JettyWebSocketCreator;
+import org.eclipse.jetty.ee11.websocket.server.JettyWebSocketServerContainer;
+import org.eclipse.jetty.websocket.api.Configurable;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.http.server.ServletServerHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
+import org.springframework.web.context.ServletContextAware;
 import org.springframework.web.socket.WebSocketExtension;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.adapter.jetty.JettyWebSocketHandlerAdapter;
@@ -42,14 +45,17 @@ import org.springframework.web.socket.server.HandshakeFailureException;
 import org.springframework.web.socket.server.RequestUpgradeStrategy;
 
 /**
- * A {@link RequestUpgradeStrategy} for Jetty 11.
+ * A {@link RequestUpgradeStrategy} for Jetty 12 EE11.
  *
  * @author Rossen Stoyanchev
  * @since 5.3.4
  */
-public class JettyRequestUpgradeStrategy implements RequestUpgradeStrategy {
+public class JettyRequestUpgradeStrategy implements RequestUpgradeStrategy, ServletContextAware {
 
 	private static final String[] SUPPORTED_VERSIONS = new String[] {"13"};
+
+
+	private @Nullable Consumer<Configurable> webSocketConfigurer;
 
 
 	@Override
@@ -60,6 +66,24 @@ public class JettyRequestUpgradeStrategy implements RequestUpgradeStrategy {
 	@Override
 	public List<WebSocketExtension> getSupportedExtensions(ServerHttpRequest request) {
 		return Collections.emptyList();
+	}
+
+	/**
+	 * Add a callback to configure WebSocket server parameters on
+	 * {@link JettyWebSocketServerContainer}.
+	 * @since 6.1
+	 */
+	public void addWebSocketConfigurer(Consumer<Configurable> webSocketConfigurer) {
+		this.webSocketConfigurer = (this.webSocketConfigurer != null ?
+				this.webSocketConfigurer.andThen(webSocketConfigurer) : webSocketConfigurer);
+	}
+
+	@Override
+	public void setServletContext(ServletContext servletContext) {
+		JettyWebSocketServerContainer container = JettyWebSocketServerContainer.getContainer(servletContext);
+		if (container != null && this.webSocketConfigurer != null) {
+			this.webSocketConfigurer.accept(container);
+		}
 	}
 
 

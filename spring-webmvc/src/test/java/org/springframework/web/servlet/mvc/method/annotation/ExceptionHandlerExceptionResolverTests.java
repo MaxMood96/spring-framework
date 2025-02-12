@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.Locale;
 
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,6 +51,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.context.support.WebApplicationObjectSupport;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.method.annotation.ModelMethodProcessor;
@@ -58,29 +60,35 @@ import org.springframework.web.method.support.HandlerMethodReturnValueHandler;
 import org.springframework.web.servlet.DispatcherServlet;
 import org.springframework.web.servlet.FlashMap;
 import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.function.HandlerFunction;
+import org.springframework.web.servlet.function.ServerResponse;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.servlet.resource.ResourceHttpRequestHandler;
 import org.springframework.web.testfixture.servlet.MockHttpServletRequest;
 import org.springframework.web.testfixture.servlet.MockHttpServletResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 /**
- * Test fixture with {@link ExceptionHandlerExceptionResolver}.
+ * Tests for {@link ExceptionHandlerExceptionResolver}.
  *
  * @author Rossen Stoyanchev
  * @author Arjen Poutsma
  * @author Kazuki Shimizu
  * @author Brian Clozel
  * @author Rodolphe Lecocq
- * @since 3.1
  */
 @SuppressWarnings("unused")
-public class ExceptionHandlerExceptionResolverTests {
+class ExceptionHandlerExceptionResolverTests {
 
-	private static int RESOLVER_COUNT;
+	//TODO
 
-	private static int HANDLER_COUNT;
+	private static int DEFAULT_RESOLVER_COUNT;
+
+	private static int DEFAULT_HANDLER_COUNT;
 
 	private ExceptionHandlerExceptionResolver resolver;
 
@@ -90,15 +98,15 @@ public class ExceptionHandlerExceptionResolverTests {
 
 
 	@BeforeAll
-	public static void setupOnce() {
+	static void setupOnce() {
 		ExceptionHandlerExceptionResolver resolver = new ExceptionHandlerExceptionResolver();
 		resolver.afterPropertiesSet();
-		RESOLVER_COUNT = resolver.getArgumentResolvers().getResolvers().size();
-		HANDLER_COUNT = resolver.getReturnValueHandlers().getHandlers().size();
+		DEFAULT_RESOLVER_COUNT = resolver.getArgumentResolvers().getResolvers().size();
+		DEFAULT_HANDLER_COUNT = resolver.getReturnValueHandlers().getHandlers().size();
 	}
 
 	@BeforeEach
-	public void setup() throws Exception {
+	void setup() throws Exception {
 		this.resolver = new ExceptionHandlerExceptionResolver();
 		this.resolver.setWarnLogCategory(this.resolver.getClass().getName());
 		this.request = new MockHttpServletRequest("GET", "/");
@@ -117,21 +125,21 @@ public class ExceptionHandlerExceptionResolverTests {
 
 	@Test
 	void setCustomArgumentResolvers() {
-		HandlerMethodArgumentResolver resolver = new ServletRequestMethodArgumentResolver();
-		this.resolver.setCustomArgumentResolvers(Collections.singletonList(resolver));
+		HandlerMethodArgumentResolver argumentResolver = new ServletRequestMethodArgumentResolver();
+		this.resolver.setCustomArgumentResolvers(Collections.singletonList(argumentResolver));
 		this.resolver.afterPropertiesSet();
 
-		assertThat(this.resolver.getArgumentResolvers().getResolvers().contains(resolver)).isTrue();
-		assertMethodProcessorCount(RESOLVER_COUNT + 1, HANDLER_COUNT);
+		assertThat(this.resolver.getArgumentResolvers().getResolvers()).contains(argumentResolver);
+		assertMethodProcessorCount(DEFAULT_RESOLVER_COUNT + 1, DEFAULT_HANDLER_COUNT);
 	}
 
 	@Test
 	void setArgumentResolvers() {
-		HandlerMethodArgumentResolver resolver = new ServletRequestMethodArgumentResolver();
-		this.resolver.setArgumentResolvers(Collections.singletonList(resolver));
+		HandlerMethodArgumentResolver argumentResolver = new ServletRequestMethodArgumentResolver();
+		this.resolver.setArgumentResolvers(Collections.singletonList(argumentResolver));
 		this.resolver.afterPropertiesSet();
 
-		assertMethodProcessorCount(1, HANDLER_COUNT);
+		assertMethodProcessorCount(1, DEFAULT_HANDLER_COUNT);
 	}
 
 	@Test
@@ -140,16 +148,16 @@ public class ExceptionHandlerExceptionResolverTests {
 		this.resolver.setCustomReturnValueHandlers(Collections.singletonList(handler));
 		this.resolver.afterPropertiesSet();
 
-		assertThat(this.resolver.getReturnValueHandlers().getHandlers().contains(handler)).isTrue();
-		assertMethodProcessorCount(RESOLVER_COUNT, HANDLER_COUNT + 1);
+		assertThat(this.resolver.getReturnValueHandlers().getHandlers()).contains(handler);
+		assertMethodProcessorCount(DEFAULT_RESOLVER_COUNT, DEFAULT_HANDLER_COUNT + 1);
 	}
 
 	@Test
 	void setResponseBodyAdvice() {
 		this.resolver.setResponseBodyAdvice(Collections.singletonList(new JsonViewResponseBodyAdvice()));
-		assertThat(this.resolver).extracting("responseBodyAdvice").asList().hasSize(1);
+		assertThat(this.resolver).extracting("responseBodyAdvice").asInstanceOf(LIST).hasSize(1);
 		this.resolver.setResponseBodyAdvice(Collections.singletonList(new CustomResponseBodyAdvice()));
-		assertThat(this.resolver).extracting("responseBodyAdvice").asList().hasSize(2);
+		assertThat(this.resolver).extracting("responseBodyAdvice").asInstanceOf(LIST).hasSize(2);
 	}
 
 	@Test
@@ -158,7 +166,7 @@ public class ExceptionHandlerExceptionResolverTests {
 		this.resolver.setReturnValueHandlers(Collections.singletonList(handler));
 		this.resolver.afterPropertiesSet();
 
-		assertMethodProcessorCount(RESOLVER_COUNT, 1);
+		assertMethodProcessorCount(DEFAULT_RESOLVER_COUNT, 1);
 	}
 
 	@Test
@@ -191,9 +199,7 @@ public class ExceptionHandlerExceptionResolverTests {
 		this.resolver.afterPropertiesSet();
 		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerMethod, ex);
 
-		assertThat(mav).isNotNull();
-		assertThat(mav.isEmpty()).isTrue();
-		assertThat(this.response.getContentAsString()).isEqualTo("IllegalArgumentException");
+		assertExceptionHandledAsBody(mav, "IllegalArgumentException");
 	}
 
 	@Test  // gh-26317
@@ -203,9 +209,7 @@ public class ExceptionHandlerExceptionResolverTests {
 		this.resolver.afterPropertiesSet();
 		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerMethod, ex);
 
-		assertThat(mav).isNotNull();
-		assertThat(mav.isEmpty()).isTrue();
-		assertThat(this.response.getContentAsString()).isEqualTo("IllegalArgumentException");
+		assertExceptionHandledAsBody(mav, "IllegalArgumentException");
 	}
 
 	@Test
@@ -215,9 +219,7 @@ public class ExceptionHandlerExceptionResolverTests {
 		this.resolver.afterPropertiesSet();
 		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerMethod, ex);
 
-		assertThat(mav).isNotNull();
-		assertThat(mav.isEmpty()).isTrue();
-		assertThat(this.response.getContentAsString()).isEqualTo("IllegalArgumentException");
+		assertExceptionHandledAsBody(mav, "IllegalArgumentException");
 	}
 
 	@Test  // SPR-13546
@@ -248,85 +250,76 @@ public class ExceptionHandlerExceptionResolverTests {
 
 	@Test
 	void resolveExceptionGlobalHandler() throws Exception {
-		AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(MyConfig.class);
-		this.resolver.setApplicationContext(ctx);
-		this.resolver.afterPropertiesSet();
+		loadConfiguration(MyConfig.class);
 
 		IllegalAccessException ex = new IllegalAccessException();
 		HandlerMethod handlerMethod = new HandlerMethod(new ResponseBodyController(), "handle");
 		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerMethod, ex);
 
-		assertThat(mav).as("Exception was not handled").isNotNull();
-		assertThat(mav.isEmpty()).isTrue();
-		assertThat(this.response.getContentAsString()).isEqualTo("AnotherTestExceptionResolver: IllegalAccessException");
+		assertExceptionHandledAsBody(mav, "AnotherTestExceptionResolver: IllegalAccessException");
+	}
+
+	@Test
+	void resolveExceptionGlobalHandlerForHandlerFunction() throws Exception {
+		loadConfiguration(MyConfig.class);
+
+		IllegalAccessException ex = new IllegalAccessException();
+		HandlerFunction<ServerResponse> handlerFunction = req -> {
+			throw new IllegalAccessException();
+		};
+		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerFunction, ex);
+
+		assertExceptionHandledAsBody(mav, "AnotherTestExceptionResolver: IllegalAccessException");
 	}
 
 	@Test
 	void resolveExceptionGlobalHandlerOrdered() throws Exception {
-		AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(MyConfig.class);
-		this.resolver.setApplicationContext(ctx);
-		this.resolver.afterPropertiesSet();
+		loadConfiguration(MyConfig.class);
 
 		IllegalStateException ex = new IllegalStateException();
 		HandlerMethod handlerMethod = new HandlerMethod(new ResponseBodyController(), "handle");
 		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerMethod, ex);
 
-		assertThat(mav).as("Exception was not handled").isNotNull();
-		assertThat(mav.isEmpty()).isTrue();
-		assertThat(this.response.getContentAsString()).isEqualTo("TestExceptionResolver: IllegalStateException");
+		assertExceptionHandledAsBody(mav, "TestExceptionResolver: IllegalStateException");
 	}
 
 	@Test  // gh-26317
 	void resolveExceptionGlobalHandlerOrderedMatchingCauseLevel2() throws Exception {
-		AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(MyConfig.class);
-		this.resolver.setApplicationContext(ctx);
-		this.resolver.afterPropertiesSet();
+		loadConfiguration(MyConfig.class);
 
 		Exception ex = new Exception(new Exception(new IllegalStateException()));
 		HandlerMethod handlerMethod = new HandlerMethod(new ResponseBodyController(), "handle");
 		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerMethod, ex);
 
-		assertThat(mav).as("Exception was not handled").isNotNull();
-		assertThat(mav.isEmpty()).isTrue();
-		assertThat(this.response.getContentAsString()).isEqualTo("TestExceptionResolver: IllegalStateException");
+		assertExceptionHandledAsBody(mav, "TestExceptionResolver: IllegalStateException");
 	}
 
 	@Test  // SPR-12605
 	void resolveExceptionWithHandlerMethodArg() throws Exception {
-		AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(MyConfig.class);
-		this.resolver.setApplicationContext(ctx);
-		this.resolver.afterPropertiesSet();
+		loadConfiguration(MyConfig.class);
 
 		ArrayIndexOutOfBoundsException ex = new ArrayIndexOutOfBoundsException();
 		HandlerMethod handlerMethod = new HandlerMethod(new ResponseBodyController(), "handle");
 		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerMethod, ex);
 
-		assertThat(mav).as("Exception was not handled").isNotNull();
-		assertThat(mav.isEmpty()).isTrue();
-		assertThat(this.response.getContentAsString()).isEqualTo("HandlerMethod: handle");
+		assertExceptionHandledAsBody(mav, "HandlerMethod: handle");
 	}
 
 	@Test
 	void resolveExceptionWithAssertionError() throws Exception {
-		AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(MyConfig.class);
-		this.resolver.setApplicationContext(ctx);
-		this.resolver.afterPropertiesSet();
+		loadConfiguration(MyConfig.class);
 
 		AssertionError err = new AssertionError("argh");
 		HandlerMethod handlerMethod = new HandlerMethod(new ResponseBodyController(), "handle");
 		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerMethod,
 				new ServletException("Handler dispatch failed", err));
 
-		assertThat(mav).as("Exception was not handled").isNotNull();
-		assertThat(mav.isEmpty()).isTrue();
-		assertThat(this.response.getContentAsString()).isEqualTo(err.toString());
+		assertExceptionHandledAsBody(mav, err.toString());
 	}
 
 	@Test
 	void resolveExceptionWithAssertionErrorAsRootCause() throws Exception {
-		AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(MyConfig.class);
-		this.resolver.setApplicationContext(ctx);
-		this.resolver.afterPropertiesSet();
+		loadConfiguration(MyConfig.class);
 
 		AssertionError rootCause = new AssertionError("argh");
 		FatalBeanException cause = new FatalBeanException("wrapped", rootCause);
@@ -334,9 +327,7 @@ public class ExceptionHandlerExceptionResolverTests {
 		HandlerMethod handlerMethod = new HandlerMethod(new ResponseBodyController(), "handle");
 		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerMethod, ex);
 
-		assertThat(mav).as("Exception was not handled").isNotNull();
-		assertThat(mav.isEmpty()).isTrue();
-		assertThat(this.response.getContentAsString()).isEqualTo(rootCause.toString());
+		assertExceptionHandledAsBody(mav, rootCause.toString());
 	}
 
 	@Test //gh-27156
@@ -354,70 +345,52 @@ public class ExceptionHandlerExceptionResolverTests {
 		HandlerMethod handlerMethod = new HandlerMethod(new ResponseBodyController(), "handle");
 		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerMethod, ex);
 
-		assertThat(mav).as("Exception was not handled").isNotNull();
-		assertThat(mav.isEmpty()).isTrue();
+		assertExceptionHandledAsBody(mav, "");
 		assertThat(this.response.getStatus()).isEqualTo(HttpStatus.GATEWAY_TIMEOUT.value());
 		assertThat(this.response.getErrorMessage()).isEqualTo("Gateway Timeout");
-		assertThat(this.response.getContentAsString()).isEmpty();
 	}
 
 	@Test
 	void resolveExceptionControllerAdviceHandler() throws Exception {
-		AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(MyControllerAdviceConfig.class);
-		this.resolver.setApplicationContext(ctx);
-		this.resolver.afterPropertiesSet();
+		loadConfiguration(MyControllerAdviceConfig.class);
 
 		IllegalStateException ex = new IllegalStateException();
 		HandlerMethod handlerMethod = new HandlerMethod(new ResponseBodyController(), "handle");
 		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerMethod, ex);
 
-		assertThat(mav).as("Exception was not handled").isNotNull();
-		assertThat(mav.isEmpty()).isTrue();
-		assertThat(this.response.getContentAsString()).isEqualTo("BasePackageTestExceptionResolver: IllegalStateException");
+		assertExceptionHandledAsBody(mav, "BasePackageTestExceptionResolver: IllegalStateException");
 	}
 
 	@Test  // gh-26317
 	void resolveExceptionControllerAdviceHandlerMatchingCauseLevel2() throws Exception {
-		AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(MyControllerAdviceConfig.class);
-		this.resolver.setApplicationContext(ctx);
-		this.resolver.afterPropertiesSet();
+		loadConfiguration(MyControllerAdviceConfig.class);
 
 		Exception ex = new Exception(new IllegalStateException());
 		HandlerMethod handlerMethod = new HandlerMethod(new ResponseBodyController(), "handle");
 		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerMethod, ex);
 
-		assertThat(mav).as("Exception was not handled").isNotNull();
-		assertThat(mav.isEmpty()).isTrue();
-		assertThat(this.response.getContentAsString()).isEqualTo("BasePackageTestExceptionResolver: IllegalStateException");
+		assertExceptionHandledAsBody(mav, "BasePackageTestExceptionResolver: IllegalStateException");
 	}
 
 	@Test
 	void resolveExceptionControllerAdviceNoHandler() throws Exception {
-		AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(MyControllerAdviceConfig.class);
-		this.resolver.setApplicationContext(ctx);
-		this.resolver.afterPropertiesSet();
+		loadConfiguration(MyControllerAdviceConfig.class);
 
 		IllegalStateException ex = new IllegalStateException();
 		ModelAndView mav = this.resolver.resolveException(this.request, this.response, null, ex);
 
-		assertThat(mav).as("Exception was not handled").isNotNull();
-		assertThat(mav.isEmpty()).isTrue();
-		assertThat(this.response.getContentAsString()).isEqualTo("DefaultTestExceptionResolver: IllegalStateException");
+		assertExceptionHandledAsBody(mav, "DefaultTestExceptionResolver: IllegalStateException");
 	}
 
 	@Test  // SPR-16496
 	void resolveExceptionControllerAdviceAgainstProxy() throws Exception {
-		AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(MyControllerAdviceConfig.class);
-		this.resolver.setApplicationContext(ctx);
-		this.resolver.afterPropertiesSet();
+		loadConfiguration(MyControllerAdviceConfig.class);
 
 		IllegalStateException ex = new IllegalStateException();
 		HandlerMethod handlerMethod = new HandlerMethod(new ProxyFactory(new ResponseBodyController()).getProxy(), "handle");
 		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerMethod, ex);
 
-		assertThat(mav).as("Exception was not handled").isNotNull();
-		assertThat(mav.isEmpty()).isTrue();
-		assertThat(this.response.getContentAsString()).isEqualTo("BasePackageTestExceptionResolver: IllegalStateException");
+		assertExceptionHandledAsBody(mav, "BasePackageTestExceptionResolver: IllegalStateException");
 	}
 
 	@Test // gh-22619
@@ -431,15 +404,89 @@ public class ExceptionHandlerExceptionResolverTests {
 		ResourceHttpRequestHandler handler = new ResourceHttpRequestHandler();
 		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handler, ex);
 
-		assertThat(mav).as("Exception was not handled").isNotNull();
+		assertExceptionHandledAsBody(mav, "DefaultTestExceptionResolver: IllegalStateException");
+	}
+
+	@Test // gh-26772
+	void resolveExceptionViaMappedHandlerPredicate() throws Exception {
+		Object handler = new Object();
+
+		AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(MyControllerAdviceConfig.class);
+		this.resolver.setMappedHandlerPredicate(h -> h == handler);
+		this.resolver.setApplicationContext(ctx);
+		this.resolver.afterPropertiesSet();
+
+		ModelAndView mav = this.resolver.resolveException(
+				this.request, this.response, handler, new IllegalStateException());
+
+		assertExceptionHandledAsBody(mav, "DefaultTestExceptionResolver: IllegalStateException");
+	}
+
+	@Test
+	void resolveExceptionAsyncRequestNotUsable() throws Exception {
+		HttpServletResponse response = mock();
+		given(response.getOutputStream()).willThrow(new AsyncRequestNotUsableException("Simulated I/O failure"));
+
+		IllegalArgumentException ex = new IllegalArgumentException();
+		HandlerMethod handlerMethod = new HandlerMethod(new ResponseBodyController(), "handle");
+		this.resolver.afterPropertiesSet();
+		ModelAndView mav = this.resolver.resolveException(this.request, response, handlerMethod, ex);
+
+		assertThat(mav).isNotNull();
 		assertThat(mav.isEmpty()).isTrue();
-		assertThat(this.response.getContentAsString()).isEqualTo("DefaultTestExceptionResolver: IllegalStateException");
+	}
+
+	@Test
+	void resolveExceptionJsonMediaType() throws UnsupportedEncodingException, NoSuchMethodException {
+		IllegalArgumentException ex = new IllegalArgumentException();
+		HandlerMethod handlerMethod = new HandlerMethod(new MediaTypeController(), "handle");
+		this.resolver.afterPropertiesSet();
+		this.request.addHeader("Accept", "application/json");
+		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerMethod, ex);
+
+		assertExceptionHandledAsBody(mav, "jsonBody");
+	}
+
+	@Test
+	void resolveExceptionHtmlMediaType() throws NoSuchMethodException {
+		IllegalArgumentException ex = new IllegalArgumentException();
+		HandlerMethod handlerMethod = new HandlerMethod(new MediaTypeController(), "handle");
+		this.resolver.afterPropertiesSet();
+		this.request.addHeader("Accept", "text/html");
+		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerMethod, ex);
+
+		assertThat(mav).isNotNull();
+		assertThat(mav.getViewName()).isEqualTo("htmlView");
+	}
+
+	@Test
+	void resolveExceptionDefaultMediaType() throws NoSuchMethodException {
+		IllegalArgumentException ex = new IllegalArgumentException();
+		HandlerMethod handlerMethod = new HandlerMethod(new MediaTypeController(), "handle");
+		this.resolver.afterPropertiesSet();
+		this.request.addHeader("Accept", "*/*");
+		ModelAndView mav = this.resolver.resolveException(this.request, this.response, handlerMethod, ex);
+
+		assertThat(mav).isNotNull();
+		assertThat(mav.getViewName()).isEqualTo("htmlView");
 	}
 
 
 	private void assertMethodProcessorCount(int resolverCount, int handlerCount) {
 		assertThat(this.resolver.getArgumentResolvers().getResolvers()).hasSize(resolverCount);
 		assertThat(this.resolver.getReturnValueHandlers().getHandlers()).hasSize(handlerCount);
+	}
+
+	private void assertExceptionHandledAsBody(ModelAndView mav, String expectedBody) throws UnsupportedEncodingException {
+		assertThat(mav).as("Exception was not handled").isNotNull();
+		assertThat(mav.isEmpty()).isTrue();
+		assertThat(this.response.getContentAsString()).isEqualTo(expectedBody);
+	}
+
+	private void loadConfiguration(Class<?> configClass) {
+		AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(configClass);
+		this.resolver.setApplicationContext(ctx);
+		this.resolver.afterPropertiesSet();
 	}
 
 
@@ -652,6 +699,23 @@ public class ExceptionHandlerExceptionResolverTests {
 		public Object beforeBodyWrite(Object body, MethodParameter returnType, MediaType selectedContentType,
 				Class<? extends HttpMessageConverter<?>> selectedConverterType, ServerHttpRequest request, ServerHttpResponse response) {
 			return null;
+		}
+	}
+
+	@Controller
+	static class MediaTypeController {
+
+		public void handle() {}
+
+		@ExceptionHandler(exception = IllegalArgumentException.class, produces = "application/json")
+		@ResponseBody
+		public String handleExceptionJson() {
+			return "jsonBody";
+		}
+
+		@ExceptionHandler(exception = IllegalArgumentException.class, produces = {"text/html", "*/*"})
+		public String handleExceptionHtml() {
+			return "htmlView";
 		}
 	}
 

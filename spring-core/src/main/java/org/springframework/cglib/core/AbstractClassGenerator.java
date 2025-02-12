@@ -77,7 +77,7 @@ abstract public class AbstractClassGenerator<T> implements ClassGenerator {
 		private final Set<String> reservedClassNames = new HashSet<>();
 
 		/**
-		 * {@link AbstractClassGenerator} here holds "cache key" (e.g. {@link org.springframework.cglib.proxy.Enhancer}
+		 * {@link AbstractClassGenerator} here holds "cache key" (for example, {@link org.springframework.cglib.proxy.Enhancer}
 		 * configuration), and the value is the generated class plus some additional values
 		 * (see {@link #unwrapCachedValue(Object)}.
 		 * <p>The generated classes can be reused as long as their classloader is reachable.</p>
@@ -360,7 +360,7 @@ abstract public class AbstractClassGenerator<T> implements ClassGenerator {
 			// SPRING PATCH BEGIN
 			if (inNativeImage) {
 				throw new UnsupportedOperationException("CGLIB runtime enhancement not supported on native image. " +
-						"Make sure to include a pre-generated class on the classpath instead: " + getClassName());
+						"Make sure to enable Spring AOT processing to pre-generate '" + getClassName() + "' at build time.");
 			}
 			// SPRING PATCH END
 			byte[] b = strategy.generate(this);

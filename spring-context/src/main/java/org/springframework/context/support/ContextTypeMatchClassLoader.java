@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,10 +21,12 @@ import java.security.ProtectionDomain;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.DecoratingClassLoader;
 import org.springframework.core.OverridingClassLoader;
 import org.springframework.core.SmartClassLoader;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ReflectionUtils;
 
 /**
@@ -45,15 +47,26 @@ class ContextTypeMatchClassLoader extends DecoratingClassLoader implements Smart
 	}
 
 
-	private static Method findLoadedClassMethod;
+	private static final @Nullable Method findLoadedClassMethod;
 
 	static {
+		// Try to enable findLoadedClass optimization which allows us to selectively
+		// override classes that have not been loaded yet. If not accessible, we will
+		// always override requested classes, even when the classes have been loaded
+		// by the parent ClassLoader already and cannot be transformed anymore anyway.
+		Method method;
 		try {
-			findLoadedClassMethod = ClassLoader.class.getDeclaredMethod("findLoadedClass", String.class);
+			method = ClassLoader.class.getDeclaredMethod("findLoadedClass", String.class);
+			ReflectionUtils.makeAccessible(method);
 		}
-		catch (NoSuchMethodException ex) {
-			throw new IllegalStateException("Invalid [java.lang.ClassLoader] class: no 'findLoadedClass' method defined!");
+		catch (Throwable ex) {
+			// Typically a JDK 9+ InaccessibleObjectException...
+			// Avoid through JVM startup with --add-opens=java.base/java.lang=ALL-UNNAMED
+			method = null;
+			LogFactory.getLog(ContextTypeMatchClassLoader.class).debug(
+					"ClassLoader.findLoadedClass not accessible -> will always override requested class", ex);
 		}
+		findLoadedClassMethod = method;
 	}
 
 
@@ -96,19 +109,20 @@ class ContextTypeMatchClassLoader extends DecoratingClassLoader implements Smart
 			if (isExcluded(className) || ContextTypeMatchClassLoader.this.isExcluded(className)) {
 				return false;
 			}
-			ReflectionUtils.makeAccessible(findLoadedClassMethod);
-			ClassLoader parent = getParent();
-			while (parent != null) {
-				if (ReflectionUtils.invokeMethod(findLoadedClassMethod, parent, className) != null) {
-					return false;
+			if (findLoadedClassMethod != null) {
+				ClassLoader parent = getParent();
+				while (parent != null) {
+					if (ReflectionUtils.invokeMethod(findLoadedClassMethod, parent, className) != null) {
+						return false;
+					}
+					parent = parent.getParent();
 				}
-				parent = parent.getParent();
 			}
 			return true;
 		}
 
 		@Override
-		protected Class<?> loadClassForOverriding(String name) throws ClassNotFoundException {
+		protected @Nullable Class<?> loadClassForOverriding(String name) throws ClassNotFoundException {
 			byte[] bytes = bytesCache.get(name);
 			if (bytes == null) {
 				bytes = loadBytesForClass(name);

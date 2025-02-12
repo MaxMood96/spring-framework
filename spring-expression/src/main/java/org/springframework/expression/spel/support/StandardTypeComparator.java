@@ -19,10 +19,11 @@ package org.springframework.expression.spel.support;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.expression.TypeComparator;
 import org.springframework.expression.spel.SpelEvaluationException;
 import org.springframework.expression.spel.SpelMessage;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.NumberUtils;
 
@@ -36,6 +37,8 @@ import org.springframework.util.NumberUtils;
  * @since 3.0
  */
 public class StandardTypeComparator implements TypeComparator {
+
+	static final StandardTypeComparator INSTANCE = new StandardTypeComparator();
 
 	@Override
 	public boolean canCompare(@Nullable Object left, @Nullable Object right) {
@@ -53,7 +56,7 @@ public class StandardTypeComparator implements TypeComparator {
 	}
 
 	@Override
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings({"rawtypes", "unchecked"})
 	public int compare(@Nullable Object left, @Nullable Object right) throws SpelEvaluationException {
 		// If one is null, check if the other is
 		if (left == null) {

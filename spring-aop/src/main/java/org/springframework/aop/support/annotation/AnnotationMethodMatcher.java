@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,17 +20,17 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aop.support.AopUtils;
 import org.springframework.aop.support.StaticMethodMatcher;
 import org.springframework.core.annotation.AnnotatedElementUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
- * Simple {@link org.springframework.aop.MethodMatcher MethodMatcher} that looks
- * for a specific annotation being present on a method (checking both the method
- * on the invoked interface, if any, and the corresponding method on the target
- * class).
+ * Simple {@link org.springframework.aop.MethodMatcher MethodMatcher} that looks for
+ * a specific annotation being present on a method (checking both the method on the
+ * invoked interface, if any, and the corresponding method on the target class).
  *
  * @author Juergen Hoeller
  * @author Sam Brannen
@@ -90,13 +90,9 @@ public class AnnotationMethodMatcher extends StaticMethodMatcher {
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof AnnotationMethodMatcher otherMm)) {
-			return false;
-		}
-		return (this.annotationType.equals(otherMm.annotationType) && this.checkInherited == otherMm.checkInherited);
+		return (this == other || (other instanceof AnnotationMethodMatcher otherMm &&
+				this.annotationType.equals(otherMm.annotationType) &&
+				this.checkInherited == otherMm.checkInherited));
 	}
 
 	@Override

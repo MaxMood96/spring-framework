@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,12 @@
 
 package org.springframework.cache.interceptor;
 
+import java.lang.reflect.Method;
+
 import org.junit.jupiter.api.Test;
 
 import org.springframework.core.testfixture.io.SerializationTestUtils;
+import org.springframework.util.ReflectionUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,14 +31,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author Phillip Webb
  * @author Stephane Nicoll
  * @author Juergen Hoeller
+ * @author Sebastien Deleuze
  */
-public class SimpleKeyGeneratorTests {
+class SimpleKeyGeneratorTests {
 
 	private final SimpleKeyGenerator generator = new SimpleKeyGenerator();
 
 
 	@Test
-	public void noValues() {
+	void noValues() {
 		Object k1 = generateKey(new Object[] {});
 		Object k2 = generateKey(new Object[] {});
 		Object k3 = generateKey(new Object[] { "different" });
@@ -46,7 +50,7 @@ public class SimpleKeyGeneratorTests {
 	}
 
 	@Test
-	public void singleValue() {
+	void singleValue() {
 		Object k1 = generateKey(new Object[] { "a" });
 		Object k2 = generateKey(new Object[] { "a" });
 		Object k3 = generateKey(new Object[] { "different" });
@@ -58,7 +62,7 @@ public class SimpleKeyGeneratorTests {
 	}
 
 	@Test
-	public void multipleValues() {
+	void multipleValues() {
 		Object k1 = generateKey(new Object[] { "a", 1, "b" });
 		Object k2 = generateKey(new Object[] { "a", 1, "b" });
 		Object k3 = generateKey(new Object[] { "b", 1, "a" });
@@ -69,7 +73,7 @@ public class SimpleKeyGeneratorTests {
 	}
 
 	@Test
-	public void singleNullValue() {
+	void singleNullValue() {
 		Object k1 = generateKey(new Object[] { null });
 		Object k2 = generateKey(new Object[] { null });
 		Object k3 = generateKey(new Object[] { "different" });
@@ -81,7 +85,7 @@ public class SimpleKeyGeneratorTests {
 	}
 
 	@Test
-	public void multipleNullValues() {
+	void multipleNullValues() {
 		Object k1 = generateKey(new Object[] { "a", null, "b", null });
 		Object k2 = generateKey(new Object[] { "a", null, "b", null });
 		Object k3 = generateKey(new Object[] { "a", null, "b" });
@@ -92,7 +96,7 @@ public class SimpleKeyGeneratorTests {
 	}
 
 	@Test
-	public void plainArray() {
+	void plainArray() {
 		Object k1 = generateKey(new Object[] { new String[]{"a", "b"} });
 		Object k2 = generateKey(new Object[] { new String[]{"a", "b"} });
 		Object k3 = generateKey(new Object[] { new String[]{"b", "a"} });
@@ -103,7 +107,7 @@ public class SimpleKeyGeneratorTests {
 	}
 
 	@Test
-	public void arrayWithExtraParameter() {
+	void arrayWithExtraParameter() {
 		Object k1 = generateKey(new Object[] { new String[]{"a", "b"}, "c" });
 		Object k2 = generateKey(new Object[] { new String[]{"a", "b"}, "c" });
 		Object k3 = generateKey(new Object[] { new String[]{"b", "a"}, "c" });
@@ -114,7 +118,7 @@ public class SimpleKeyGeneratorTests {
 	}
 
 	@Test
-	public void serializedKeys() throws Exception {
+	void serializedKeys() throws Exception {
 		Object k1 = SerializationTestUtils.serializeAndDeserialize(generateKey(new Object[] { "a", 1, "b" }));
 		Object k2 = SerializationTestUtils.serializeAndDeserialize(generateKey(new Object[] { "a", 1, "b" }));
 		Object k3 = SerializationTestUtils.serializeAndDeserialize(generateKey(new Object[] { "b", 1, "a" }));
@@ -126,7 +130,8 @@ public class SimpleKeyGeneratorTests {
 
 
 	private Object generateKey(Object[] arguments) {
-		return this.generator.generate(null, null, arguments);
+		Method method = ReflectionUtils.findMethod(this.getClass(), "generateKey", Object[].class);
+		return this.generator.generate(this, method, arguments);
 	}
 
 }

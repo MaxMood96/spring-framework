@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,10 +24,10 @@ import java.util.Map;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.lang.Nullable;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.multipart.MultipartFile;
@@ -44,7 +44,7 @@ import org.springframework.web.multipart.MultipartHttpServletRequest;
 public abstract class AbstractMultipartHttpServletRequest extends HttpServletRequestWrapper
 		implements MultipartHttpServletRequest {
 
-	@Nullable
+	@SuppressWarnings("NullAway.Init")
 	private MultiValueMap<String, MultipartFile> multipartFiles;
 
 
@@ -84,7 +84,7 @@ public abstract class AbstractMultipartHttpServletRequest extends HttpServletReq
 	}
 
 	@Override
-	public MultipartFile getFile(String name) {
+	public @Nullable MultipartFile getFile(String name) {
 		return getMultipartFiles().getFirst(name);
 	}
 
@@ -101,7 +101,7 @@ public abstract class AbstractMultipartHttpServletRequest extends HttpServletReq
 
 	@Override
 	public Map<String, MultipartFile> getFileMap() {
-		return getMultipartFiles().toSingleValueMap();
+		return getMultipartFiles().asSingleValueMap();
 	}
 
 	@Override

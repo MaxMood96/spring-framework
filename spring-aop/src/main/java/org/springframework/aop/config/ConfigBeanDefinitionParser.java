@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package org.springframework.aop.config;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -45,7 +46,6 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.beans.factory.xml.BeanDefinitionParser;
 import org.springframework.beans.factory.xml.ParserContext;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 import org.springframework.util.xml.DomUtils;
 
@@ -97,8 +97,7 @@ class ConfigBeanDefinitionParser implements BeanDefinitionParser {
 
 
 	@Override
-	@Nullable
-	public BeanDefinition parse(Element element, ParserContext parserContext) {
+	public @Nullable BeanDefinition parse(Element element, ParserContext parserContext) {
 		CompositeComponentDefinition compositeDef =
 				new CompositeComponentDefinition(element.getTagName(), parserContext.extractSource(element));
 		parserContext.pushContainingComponent(compositeDef);
@@ -201,9 +200,8 @@ class ConfigBeanDefinitionParser implements BeanDefinitionParser {
 			List<BeanReference> beanReferences = new ArrayList<>();
 
 			List<Element> declareParents = DomUtils.getChildElementsByTagName(aspectElement, DECLARE_PARENTS);
-			for (int i = METHOD_INDEX; i < declareParents.size(); i++) {
-				Element declareParentsElement = declareParents.get(i);
-				beanDefinitions.add(parseDeclareParents(declareParentsElement, parserContext));
+			for (Element declareParent : declareParents) {
+				beanDefinitions.add(parseDeclareParents(declareParent, parserContext));
 			}
 
 			// We have to parse "advice" and all the advice kinds in one loop, to get the
@@ -405,24 +403,14 @@ class ConfigBeanDefinitionParser implements BeanDefinitionParser {
 	 */
 	private Class<?> getAdviceClass(Element adviceElement, ParserContext parserContext) {
 		String elementName = parserContext.getDelegate().getLocalName(adviceElement);
-		if (BEFORE.equals(elementName)) {
-			return AspectJMethodBeforeAdvice.class;
-		}
-		else if (AFTER.equals(elementName)) {
-			return AspectJAfterAdvice.class;
-		}
-		else if (AFTER_RETURNING_ELEMENT.equals(elementName)) {
-			return AspectJAfterReturningAdvice.class;
-		}
-		else if (AFTER_THROWING_ELEMENT.equals(elementName)) {
-			return AspectJAfterThrowingAdvice.class;
-		}
-		else if (AROUND.equals(elementName)) {
-			return AspectJAroundAdvice.class;
-		}
-		else {
-			throw new IllegalArgumentException("Unknown advice kind [" + elementName + "].");
-		}
+		return switch (elementName) {
+			case BEFORE -> AspectJMethodBeforeAdvice.class;
+			case AFTER -> AspectJAfterAdvice.class;
+			case AFTER_RETURNING_ELEMENT -> AspectJAfterReturningAdvice.class;
+			case AFTER_THROWING_ELEMENT -> AspectJAfterThrowingAdvice.class;
+			case AROUND -> AspectJAroundAdvice.class;
+			default -> throw new IllegalArgumentException("Unknown advice kind [" + elementName + "].");
+		};
 	}
 
 	/**
@@ -464,8 +452,7 @@ class ConfigBeanDefinitionParser implements BeanDefinitionParser {
 	 * {@link org.springframework.beans.factory.config.BeanDefinition} for the pointcut if  necessary
 	 * and returns its bean name, otherwise returns the bean name of the referred pointcut.
 	 */
-	@Nullable
-	private Object parsePointcutProperty(Element element, ParserContext parserContext) {
+	private @Nullable Object parsePointcutProperty(Element element, ParserContext parserContext) {
 		if (element.hasAttribute(POINTCUT) && element.hasAttribute(POINTCUT_REF)) {
 			parserContext.getReaderContext().error(
 					"Cannot define both 'pointcut' and 'pointcut-ref' on <advisor> tag.",

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,10 +36,10 @@ import javax.sql.DataSource;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.jdbc.CannotGetJdbcConnectionException;
 import org.springframework.jdbc.datasource.DataSourceUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.NumberUtils;
 import org.springframework.util.StringUtils;
 
@@ -141,7 +141,7 @@ public abstract class JdbcUtils {
 	 * {@link #getResultSetValue(java.sql.ResultSet, int)} for unknown types.
 	 * <p>Note that the returned value may not be assignable to the specified
 	 * required type, in case of an unknown type. Calling code needs to deal
-	 * with this case appropriately, e.g. throwing a corresponding exception.
+	 * with this case appropriately, for example, throwing a corresponding exception.
 	 * @param rs is the ResultSet holding the data
 	 * @param index is the column index
 	 * @param requiredType the required value type (may be {@code null})
@@ -150,8 +150,7 @@ public abstract class JdbcUtils {
 	 * @throws SQLException if thrown by the JDBC API
 	 * @see #getResultSetValue(ResultSet, int)
 	 */
-	@Nullable
-	public static Object getResultSetValue(ResultSet rs, int index, @Nullable Class<?> requiredType) throws SQLException {
+	public static @Nullable Object getResultSetValue(ResultSet rs, int index, @Nullable Class<?> requiredType) throws SQLException {
 		if (requiredType == null) {
 			return getResultSetValue(rs, index);
 		}
@@ -207,7 +206,7 @@ public abstract class JdbcUtils {
 		}
 		else if (requiredType.isEnum()) {
 			// Enums can either be represented through a String or an enum index value:
-			// leave enum type conversion up to the caller (e.g. a ConversionService)
+			// leave enum type conversion up to the caller (for example, a ConversionService)
 			// but make sure that we return nothing other than a String or an Integer.
 			Object obj = rs.getObject(index);
 			if (obj instanceof String) {
@@ -219,7 +218,7 @@ public abstract class JdbcUtils {
 				return NumberUtils.convertNumberToTargetClass(number, Integer.class);
 			}
 			else {
-				// e.g. on Postgres: getObject returns a PGObject but we need a String
+				// for example, on Postgres: getObject returns a PGObject, but we need a String
 				return rs.getString(index);
 			}
 		}
@@ -229,32 +228,27 @@ public abstract class JdbcUtils {
 			try {
 				return rs.getObject(index, requiredType);
 			}
-			catch (AbstractMethodError err) {
-				logger.debug("JDBC driver does not implement JDBC 4.1 'getObject(int, Class)' method", err);
-			}
-			catch (SQLFeatureNotSupportedException ex) {
+			catch (SQLFeatureNotSupportedException | AbstractMethodError ex) {
 				logger.debug("JDBC driver does not support JDBC 4.1 'getObject(int, Class)' method", ex);
 			}
 			catch (SQLException ex) {
-				logger.debug("JDBC driver has limited support for JDBC 4.1 'getObject(int, Class)' method", ex);
+				if (logger.isDebugEnabled()) {
+					logger.debug("JDBC driver has limited support for 'getObject(int, Class)' with column type: " +
+							requiredType.getName(), ex);
+				}
 			}
 
-			// Corresponding SQL types for JSR-310 / Joda-Time types, left up
-			// to the caller to convert them (e.g. through a ConversionService).
+			// Corresponding SQL types for JSR-310, left up to the caller to convert
+			// them (for example, through a ConversionService).
 			String typeName = requiredType.getSimpleName();
-			if ("LocalDate".equals(typeName)) {
-				return rs.getDate(index);
-			}
-			else if ("LocalTime".equals(typeName)) {
-				return rs.getTime(index);
-			}
-			else if ("LocalDateTime".equals(typeName)) {
-				return rs.getTimestamp(index);
-			}
-
-			// Fall back to getObject without type specification, again
-			// left up to the caller to convert the value if necessary.
-			return getResultSetValue(rs, index);
+			return switch (typeName) {
+				case "LocalDate" -> rs.getDate(index);
+				case "LocalTime" -> rs.getTime(index);
+				case "LocalDateTime" -> rs.getTimestamp(index);
+				// Fall back to getObject without type specification, again
+				// left up to the caller to convert the value if necessary.
+				default -> getResultSetValue(rs, index);
+			};
 		}
 
 		// Perform was-null check if necessary (for results that the JDBC driver returns as primitives).
@@ -279,8 +273,7 @@ public abstract class JdbcUtils {
 	 * @see java.sql.Clob
 	 * @see java.sql.Timestamp
 	 */
-	@Nullable
-	public static Object getResultSetValue(ResultSet rs, int index) throws SQLException {
+	public static @Nullable Object getResultSetValue(ResultSet rs, int index) throws SQLException {
 		Object obj = rs.getObject(index);
 		String className = null;
 		if (obj != null) {
@@ -415,14 +408,14 @@ public abstract class JdbcUtils {
 	}
 
 	/**
-	 * Return whether the given JDBC driver supports JDBC 2.0 batch updates.
+	 * Return whether the given JDBC driver supports JDBC batch updates.
 	 * <p>Typically invoked right before execution of a given set of statements:
 	 * to decide whether the set of SQL statements should be executed through
-	 * the JDBC 2.0 batch mechanism or simply in a traditional one-by-one fashion.
+	 * the JDBC batch mechanism or simply in a traditional one-by-one fashion.
 	 * <p>Logs a warning if the "supportsBatchUpdates" methods throws an exception
 	 * and simply returns {@code false} in that case.
 	 * @param con the Connection to check
-	 * @return whether JDBC 2.0 batch updates are supported
+	 * @return whether JDBC batch updates are supported
 	 * @see java.sql.DatabaseMetaData#supportsBatchUpdates()
 	 */
 	public static boolean supportsBatchUpdates(Connection con) {
@@ -448,10 +441,9 @@ public abstract class JdbcUtils {
 	 * Extract a common name for the target database in use even if
 	 * various drivers/platforms provide varying names at runtime.
 	 * @param source the name as provided in database meta-data
-	 * @return the common name to be used (e.g. "DB2" or "Sybase")
+	 * @return the common name to be used (for example, "DB2" or "Sybase")
 	 */
-	@Nullable
-	public static String commonDatabaseName(@Nullable String source) {
+	public static @Nullable String commonDatabaseName(@Nullable String source) {
 		String name = source;
 		if (source != null && source.startsWith("DB2")) {
 			name = "DB2";
@@ -481,19 +473,18 @@ public abstract class JdbcUtils {
 	 * Resolve the standard type name for the given SQL type, if possible.
 	 * @param sqlType the SQL type to resolve
 	 * @return the corresponding constant name in {@link java.sql.Types}
-	 * (e.g. "VARCHAR"/"NUMERIC"), or {@code null} if not resolvable
+	 * (for example, "VARCHAR"/"NUMERIC"), or {@code null} if not resolvable
 	 * @since 5.2
 	 */
-	@Nullable
-	public static String resolveTypeName(int sqlType) {
+	public static @Nullable String resolveTypeName(int sqlType) {
 		return typeNames.get(sqlType);
 	}
 
 	/**
 	 * Determine the column name to use. The column name is determined based on a
 	 * lookup using ResultSetMetaData.
-	 * <p>This method implementation takes into account recent clarifications
-	 * expressed in the JDBC 4.0 specification:
+	 * <p>This method's implementation takes into account clarifications expressed
+	 * in the JDBC 4.0 specification:
 	 * <p><i>columnLabel - the label for the column specified with the SQL AS clause.
 	 * If the SQL AS clause was not specified, then the label is the name of the column</i>.
 	 * @param resultSetMetaData the current meta-data to use
@@ -510,34 +501,64 @@ public abstract class JdbcUtils {
 	}
 
 	/**
-	 * Convert a column name with underscores to the corresponding property name using "camel case".
-	 * A name like "customer_number" would match a "customerNumber" property name.
-	 * @param name the column name to be converted
-	 * @return the name using "camel case"
+	 * Convert a property name using "camelCase" to a corresponding column name with underscores.
+	 * A name like "customerNumber" would match a "customer_number" column name.
+	 * @param name the property name to be converted
+	 * @return the column name using underscores
+	 * @since 6.1
+	 * @see #convertUnderscoreNameToPropertyName
 	 */
-	public static String convertUnderscoreNameToPropertyName(@Nullable String name) {
+	public static String convertPropertyNameToUnderscoreName(@Nullable String name) {
+		if (!StringUtils.hasLength(name)) {
+			return "";
+		}
+
 		StringBuilder result = new StringBuilder();
-		boolean nextIsUpper = false;
-		if (name != null && name.length() > 0) {
-			if (name.length() > 1 && name.charAt(1) == '_') {
-				result.append(Character.toUpperCase(name.charAt(0)));
+		result.append(Character.toLowerCase(name.charAt(0)));
+		for (int i = 1; i < name.length(); i++) {
+			char c = name.charAt(i);
+			if (Character.isUpperCase(c)) {
+				result.append('_').append(Character.toLowerCase(c));
 			}
 			else {
-				result.append(Character.toLowerCase(name.charAt(0)));
+				result.append(c);
 			}
-			for (int i = 1; i < name.length(); i++) {
-				char c = name.charAt(i);
-				if (c == '_') {
-					nextIsUpper = true;
+		}
+		return result.toString();
+	}
+
+	/**
+	 * Convert a column name with underscores to the corresponding property name using "camelCase".
+	 * A name like "customer_number" would match a "customerNumber" property name.
+	 * @param name the potentially underscores-based column name to be converted
+	 * @return the name using "camelCase"
+	 * @see #convertPropertyNameToUnderscoreName
+	 */
+	public static String convertUnderscoreNameToPropertyName(@Nullable String name) {
+		if (!StringUtils.hasLength(name)) {
+			return "";
+		}
+
+		StringBuilder result = new StringBuilder();
+		boolean nextIsUpper = false;
+		if (name.length() > 1 && name.charAt(1) == '_') {
+			result.append(Character.toUpperCase(name.charAt(0)));
+		}
+		else {
+			result.append(Character.toLowerCase(name.charAt(0)));
+		}
+		for (int i = 1; i < name.length(); i++) {
+			char c = name.charAt(i);
+			if (c == '_') {
+				nextIsUpper = true;
+			}
+			else {
+				if (nextIsUpper) {
+					result.append(Character.toUpperCase(c));
+					nextIsUpper = false;
 				}
 				else {
-					if (nextIsUpper) {
-						result.append(Character.toUpperCase(c));
-						nextIsUpper = false;
-					}
-					else {
-						result.append(Character.toLowerCase(c));
-					}
+					result.append(Character.toLowerCase(c));
 				}
 			}
 		}

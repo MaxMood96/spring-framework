@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@ package org.springframework.aop.support;
 
 import java.io.Serializable;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aop.ClassFilter;
 import org.springframework.aop.MethodMatcher;
 import org.springframework.aop.Pointcut;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -187,14 +188,9 @@ public class ComposablePointcut implements Pointcut, Serializable {
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof ComposablePointcut otherPointcut)) {
-			return false;
-		}
-		return (this.classFilter.equals(otherPointcut.classFilter) &&
-				this.methodMatcher.equals(otherPointcut.methodMatcher));
+		return (this == other || (other instanceof ComposablePointcut otherPointcut &&
+				this.classFilter.equals(otherPointcut.classFilter) &&
+				this.methodMatcher.equals(otherPointcut.methodMatcher)));
 	}
 
 	@Override

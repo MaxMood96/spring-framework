@@ -24,9 +24,9 @@ import java.util.Map;
 import java.util.Set;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.HttpHeaders;
-import org.springframework.lang.Nullable;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -45,10 +45,10 @@ public class DefaultMultipartHttpServletRequest extends AbstractMultipartHttpSer
 
 	private static final String CONTENT_TYPE = "Content-Type";
 
-	@Nullable
+	@SuppressWarnings("NullAway.Init")
 	private Map<String, String[]> multipartParameters;
 
-	@Nullable
+	@SuppressWarnings("NullAway.Init")
 	private Map<String, String> multipartParameterContentTypes;
 
 
@@ -78,8 +78,7 @@ public class DefaultMultipartHttpServletRequest extends AbstractMultipartHttpSer
 
 
 	@Override
-	@Nullable
-	public String getParameter(String name) {
+	public @Nullable String getParameter(String name) {
 		String[] values = getMultipartParameters().get(name);
 		if (values != null) {
 			return (values.length > 0 ? values[0] : null);
@@ -130,7 +129,7 @@ public class DefaultMultipartHttpServletRequest extends AbstractMultipartHttpSer
 	}
 
 	@Override
-	public String getMultipartContentType(String paramOrFileName) {
+	public @Nullable String getMultipartContentType(String paramOrFileName) {
 		MultipartFile file = getFile(paramOrFileName);
 		if (file != null) {
 			return file.getContentType();
@@ -141,7 +140,7 @@ public class DefaultMultipartHttpServletRequest extends AbstractMultipartHttpSer
 	}
 
 	@Override
-	public HttpHeaders getMultipartHeaders(String paramOrFileName) {
+	public @Nullable HttpHeaders getMultipartHeaders(String paramOrFileName) {
 		String contentType = getMultipartContentType(paramOrFileName);
 		if (contentType != null) {
 			HttpHeaders headers = new HttpHeaders();

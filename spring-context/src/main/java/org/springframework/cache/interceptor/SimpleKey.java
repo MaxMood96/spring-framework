@@ -21,9 +21,9 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.Arrays;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
-import org.springframework.util.StringUtils;
 
 /**
  * A simple key as returned from the {@link SimpleKeyGenerator}.
@@ -42,7 +42,7 @@ public class SimpleKey implements Serializable {
 	public static final SimpleKey EMPTY = new SimpleKey();
 
 
-	private final Object[] params;
+	private final @Nullable Object[] params;
 
 	// Effectively final, just re-calculated on deserialization
 	private transient int hashCode;
@@ -52,7 +52,7 @@ public class SimpleKey implements Serializable {
 	 * Create a new {@link SimpleKey} instance.
 	 * @param elements the elements of the key
 	 */
-	public SimpleKey(Object... elements) {
+	public SimpleKey(@Nullable Object... elements) {
 		Assert.notNull(elements, "Elements must not be null");
 		this.params = elements.clone();
 		// Pre-calculate hashCode field
@@ -61,9 +61,8 @@ public class SimpleKey implements Serializable {
 
 
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return (this == obj ||
-				(obj instanceof SimpleKey that && Arrays.deepEquals(this.params, that.params)));
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof SimpleKey that && Arrays.deepEquals(this.params, that.params)));
 	}
 
 	@Override
@@ -74,7 +73,7 @@ public class SimpleKey implements Serializable {
 
 	@Override
 	public String toString() {
-		return getClass().getSimpleName() + " [" + StringUtils.arrayToCommaDelimitedString(this.params) + "]";
+		return getClass().getSimpleName() + " " + Arrays.deepToString(this.params);
 	}
 
 	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {

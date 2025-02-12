@@ -42,8 +42,8 @@ import jakarta.jms.TemporaryQueue;
 import jakarta.jms.TemporaryTopic;
 import jakarta.jms.Topic;
 import jakarta.jms.TopicSession;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ObjectUtils;
@@ -240,7 +240,7 @@ public class CachingConnectionFactory extends SingleConnectionFactory {
 	 * Checks for a cached Session for the given mode.
 	 */
 	@Override
-	protected Session getSession(Connection con, Integer mode) throws JMSException {
+	protected @Nullable Session getSession(Connection con, Integer mode) throws JMSException {
 		if (!this.active) {
 			return null;
 		}
@@ -311,8 +311,7 @@ public class CachingConnectionFactory extends SingleConnectionFactory {
 		}
 
 		@Override
-		@Nullable
-		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+		public @Nullable Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 			String methodName = method.getName();
 			if (methodName.equals("equals")) {
 				// Only consider equal when proxies are identical.
@@ -537,8 +536,7 @@ public class CachingConnectionFactory extends SingleConnectionFactory {
 
 		private final Destination destination;
 
-		@Nullable
-		private String destinationString;
+		private @Nullable String destinationString;
 
 		public DestinationCacheKey(Destination destination) {
 			Assert.notNull(destination, "Destination must not be null");
@@ -559,11 +557,10 @@ public class CachingConnectionFactory extends SingleConnectionFactory {
 		}
 
 		@Override
-		public boolean equals(@Nullable Object obj) {
+		public boolean equals(@Nullable Object other) {
 			// Effectively checking object equality as well as toString equality.
 			// On WebSphere MQ, Destination objects do not implement equals...
-			return (this == obj || (obj instanceof DestinationCacheKey otherKey &&
-					destinationEquals(otherKey)));
+			return (this == other || (other instanceof DestinationCacheKey that && destinationEquals(that)));
 		}
 
 		@Override
@@ -592,14 +589,11 @@ public class CachingConnectionFactory extends SingleConnectionFactory {
 	 */
 	private static class ConsumerCacheKey extends DestinationCacheKey {
 
-		@Nullable
-		private final String selector;
+		private final @Nullable String selector;
 
-		@Nullable
-		private final Boolean noLocal;
+		private final @Nullable Boolean noLocal;
 
-		@Nullable
-		private final String subscription;
+		private final @Nullable String subscription;
 
 		private final boolean durable;
 
@@ -615,22 +609,17 @@ public class CachingConnectionFactory extends SingleConnectionFactory {
 
 		@Override
 		public boolean equals(@Nullable Object other) {
-			if (this == other) {
-				return true;
-			}
-			if (!(other instanceof ConsumerCacheKey otherKey)) {
-				return false;
-			}
-			return (destinationEquals(otherKey) &&
-					ObjectUtils.nullSafeEquals(this.selector, otherKey.selector) &&
-					ObjectUtils.nullSafeEquals(this.noLocal, otherKey.noLocal) &&
-					ObjectUtils.nullSafeEquals(this.subscription, otherKey.subscription) &&
-					this.durable == otherKey.durable);
+			return (this == other || (other instanceof ConsumerCacheKey that &&
+					destinationEquals(that) &&
+					ObjectUtils.nullSafeEquals(this.selector, that.selector) &&
+					ObjectUtils.nullSafeEquals(this.noLocal, that.noLocal) &&
+					ObjectUtils.nullSafeEquals(this.subscription, that.subscription) &&
+					this.durable == that.durable));
 		}
 
 		@Override
 		public int hashCode() {
-			return (31 * super.hashCode() + ObjectUtils.nullSafeHashCode(this.selector));
+			return super.hashCode() * 31 + ObjectUtils.nullSafeHashCode(this.selector);
 		}
 
 		@Override

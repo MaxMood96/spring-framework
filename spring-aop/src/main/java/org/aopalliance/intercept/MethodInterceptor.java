@@ -16,15 +16,14 @@
 
 package org.aopalliance.intercept;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Intercepts calls on an interface on its way to the target. These
  * are nested "on top" of the target.
  *
  * <p>The user should implement the {@link #invoke(MethodInvocation)}
- * method to modify the original behavior. E.g. the following class
+ * method to modify the original behavior. For example, the following class
  * implements a tracing interceptor (traces all the calls on the
  * intercepted method(s)):
  *
@@ -55,7 +54,6 @@ public interface MethodInterceptor extends Interceptor {
 	 * @throws Throwable if the interceptors or the target object
 	 * throws an exception
 	 */
-	@Nullable
-	Object invoke(@Nonnull MethodInvocation invocation) throws Throwable;
+	@Nullable Object invoke(MethodInvocation invocation) throws Throwable;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,8 @@ import java.sql.SQLTransactionRollbackException;
 import java.sql.SQLTransientConnectionException;
 import java.sql.SQLTransientException;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataAccessResourceFailureException;
@@ -42,7 +44,6 @@ import org.springframework.dao.QueryTimeoutException;
 import org.springframework.dao.RecoverableDataAccessException;
 import org.springframework.dao.TransientDataAccessResourceException;
 import org.springframework.jdbc.BadSqlGrammarException;
-import org.springframework.lang.Nullable;
 
 /**
  * {@link SQLExceptionTranslator} implementation which analyzes the specific
@@ -50,6 +51,8 @@ import org.springframework.lang.Nullable;
  *
  * <p>Falls back to a standard {@link SQLStateSQLExceptionTranslator} if the JDBC
  * driver does not actually expose JDBC 4 compliant {@code SQLException} subclasses.
+ *
+ * <p>This translator serves as the default translator as of 6.0.
  *
  * @author Thomas Risberg
  * @author Juergen Hoeller
@@ -65,14 +68,13 @@ public class SQLExceptionSubclassTranslator extends AbstractFallbackSQLException
 	}
 
 	@Override
-	@Nullable
-	protected DataAccessException doTranslate(String task, @Nullable String sql, SQLException ex) {
+	protected @Nullable DataAccessException doTranslate(String task, @Nullable String sql, SQLException ex) {
 		if (ex instanceof SQLTransientException) {
 			if (ex instanceof SQLTransientConnectionException) {
 				return new TransientDataAccessResourceException(buildMessage(task, sql, ex), ex);
 			}
 			if (ex instanceof SQLTransactionRollbackException) {
-				if ("40001".equals(ex.getSQLState())) {
+				if (SQLStateSQLExceptionTranslator.indicatesCannotAcquireLock(ex.getSQLState())) {
 					return new CannotAcquireLockException(buildMessage(task, sql, ex), ex);
 				}
 				return new PessimisticLockingFailureException(buildMessage(task, sql, ex), ex);

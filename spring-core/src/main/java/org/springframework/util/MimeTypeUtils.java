@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,7 +30,7 @@ import java.util.Random;
 import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Miscellaneous {@link MimeType} utility methods.
@@ -50,14 +49,6 @@ public abstract class MimeTypeUtils {
 					'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A',
 					'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
 					'V', 'W', 'X', 'Y', 'Z'};
-
-	/**
-	 * Comparator formally used by {@link #sortBySpecificity(List)}.
-	 * @deprecated As of 6.0, with no direct replacement
-	 */
-	@SuppressWarnings("removal")
-	@Deprecated(since = "6.0", forRemoval = true)
-	public static final Comparator<MimeType> SPECIFICITY_COMPARATOR = new MimeType.SpecificityComparator<>();
 
 	/**
 	 * Public constant mime type that includes all media ranges (i.e. "&#42;/&#42;").
@@ -176,8 +167,7 @@ public abstract class MimeTypeUtils {
 	private static final ConcurrentLruCache<String, MimeType> cachedMimeTypes =
 			new ConcurrentLruCache<>(64, MimeTypeUtils::parseMimeTypeInternal);
 
-	@Nullable
-	private static volatile Random random;
+	private static volatile @Nullable Random random;
 
 	static {
 		// Not using "parseMimeType" to avoid static init cost
@@ -330,10 +320,10 @@ public abstract class MimeTypeUtils {
 	}
 
 	/**
-	 * Return a string representation of the given list of {@code MimeType} objects.
-	 * @param mimeTypes the string to parse
-	 * @return the list of mime types
-	 * @throws IllegalArgumentException if the String cannot be parsed
+	 * Generate a string representation of the given collection of {@link MimeType}
+	 * objects.
+	 * @param mimeTypes the {@code MimeType} objects
+	 * @return a string representation of the {@code MimeType} objects
 	 */
 	public static String toString(Collection<? extends MimeType> mimeTypes) {
 		StringBuilder builder = new StringBuilder();
@@ -348,21 +338,21 @@ public abstract class MimeTypeUtils {
 	}
 
 	/**
-	 * Sorts the given list of {@code MimeType} objects by
+	 * Sort the given list of {@code MimeType} objects by
 	 * {@linkplain MimeType#isMoreSpecific(MimeType) specificity}.
-	 *
-	 * <p>Because of the computational cost, this method throws an exception
-	 * when the given list contains too many elements.
+	 * <p>Because of the computational cost, this method throws an exception if
+	 * the given list contains too many elements.
 	 * @param mimeTypes the list of mime types to be sorted
-	 * @throws IllegalArgumentException if {@code mimeTypes} contains more
-	 * than 50 elements
+	 * @throws InvalidMimeTypeException if {@code mimeTypes} contains more than 50 elements
 	 * @see <a href="https://tools.ietf.org/html/rfc7231#section-5.3.2">HTTP 1.1: Semantics
 	 * and Content, section 5.3.2</a>
 	 * @see MimeType#isMoreSpecific(MimeType)
 	 */
 	public static <T extends MimeType> void sortBySpecificity(List<T> mimeTypes) {
 		Assert.notNull(mimeTypes, "'mimeTypes' must not be null");
-		Assert.isTrue(mimeTypes.size() <= 50, "Too many elements");
+		if (mimeTypes.size() > 50) {
+			throw new InvalidMimeTypeException(mimeTypes.toString(), "Too many elements");
+		}
 
 		bubbleSort(mimeTypes, MimeType::isLessSpecific);
 	}

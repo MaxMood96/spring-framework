@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,58 +42,60 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
  * @author Stephane Nicoll
  * @since 4.3
  */
-public class CacheSyncFailureTests {
+class CacheSyncFailureTests {
 
 	private ConfigurableApplicationContext context;
 
 	private SimpleService simpleService;
 
+
 	@BeforeEach
-	public void setUp() {
+	void setup() {
 		this.context = new AnnotationConfigApplicationContext(Config.class);
 		this.simpleService = this.context.getBean(SimpleService.class);
 	}
 
 	@AfterEach
-	public void closeContext() {
+	void closeContext() {
 		if (this.context != null) {
 			this.context.close();
 		}
 	}
 
+
 	@Test
-	public void unlessSync() {
-		assertThatIllegalStateException().isThrownBy(() ->
-				this.simpleService.unlessSync("key"))
-			.withMessageContaining("@Cacheable(sync=true) does not support unless attribute");
+	void unlessSync() {
+		assertThatIllegalStateException()
+				.isThrownBy(() -> this.simpleService.unlessSync("key"))
+				.withMessageContaining("A sync=true operation does not support the unless attribute");
 	}
 
 	@Test
-	public void severalCachesSync() {
-		assertThatIllegalStateException().isThrownBy(() ->
-				this.simpleService.severalCachesSync("key"))
-			.withMessageContaining("@Cacheable(sync=true) only allows a single cache");
+	void severalCachesSync() {
+		assertThatIllegalStateException()
+				.isThrownBy(() -> this.simpleService.severalCachesSync("key"))
+				.withMessageContaining("A sync=true operation is restricted to a single cache");
 	}
 
 	@Test
-	public void severalCachesWithResolvedSync() {
-		assertThatIllegalStateException().isThrownBy(() ->
-				this.simpleService.severalCachesWithResolvedSync("key"))
-			.withMessageContaining("@Cacheable(sync=true) only allows a single cache");
+	void severalCachesWithResolvedSync() {
+		assertThatIllegalStateException()
+				.isThrownBy(() -> this.simpleService.severalCachesWithResolvedSync("key"))
+				.withMessageContaining("A sync=true operation is restricted to a single cache");
 	}
 
 	@Test
-	public void syncWithAnotherOperation() {
-		assertThatIllegalStateException().isThrownBy(() ->
-				this.simpleService.syncWithAnotherOperation("key"))
-			.withMessageContaining("@Cacheable(sync=true) cannot be combined with other cache operations");
+	void syncWithAnotherOperation() {
+		assertThatIllegalStateException()
+				.isThrownBy(() -> this.simpleService.syncWithAnotherOperation("key"))
+				.withMessageContaining("A sync=true operation cannot be combined with other cache operations");
 	}
 
 	@Test
-	public void syncWithTwoGetOperations() {
-		assertThatIllegalStateException().isThrownBy(() ->
-				this.simpleService.syncWithTwoGetOperations("key"))
-			.withMessageContaining("Only one @Cacheable(sync=true) entry is allowed");
+	void syncWithTwoGetOperations() {
+		assertThatIllegalStateException()
+				.isThrownBy(() -> this.simpleService.syncWithTwoGetOperations("key"))
+				.withMessageContaining("Only one sync=true operation is allowed");
 	}
 
 
@@ -130,6 +132,7 @@ public class CacheSyncFailureTests {
 			return this.counter.getAndIncrement();
 		}
 	}
+
 
 	@Configuration
 	@EnableCaching

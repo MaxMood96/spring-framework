@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Unit tests for {@link HttpRequestValues}.
+ * Tests for {@link HttpRequestValues}.
  *
  * @author Rossen Stoyanchev
  */
@@ -45,6 +45,7 @@ class HttpRequestValuesTests {
 
 		assertThat(requestValues.getUri()).isNull();
 		assertThat(requestValues.getUriTemplate()).isEmpty();
+		assertThat(requestValues.getUriBuilderFactory()).isNull();
 	}
 
 	@ParameterizedTest
@@ -78,17 +79,17 @@ class HttpRequestValuesTests {
 
 		assertThat(uriTemplate)
 				.isEqualTo("/path?" +
-						"{queryParam0}={queryParam0[0]}&" +
-						"{queryParam1}={queryParam1[0]}&" +
-						"{queryParam1}={queryParam1[1]}");
+						"{param1}={param1[0]}&" +
+						"{param2}={param2[0]}&" +
+						"{param2}={param2[1]}");
 
 		assertThat(requestValues.getUriVariables())
-				.containsOnlyKeys("queryParam0", "queryParam1", "queryParam0[0]", "queryParam1[0]", "queryParam1[1]")
-				.containsEntry("queryParam0", "param1")
-				.containsEntry("queryParam1", "param2")
-				.containsEntry("queryParam0[0]", "1st value")
-				.containsEntry("queryParam1[0]", "2nd value A")
-				.containsEntry("queryParam1[1]", "2nd value B");
+				.containsOnlyKeys("param1", "param2", "param1[0]", "param2[0]", "param2[1]")
+				.containsEntry("param1", "param1")
+				.containsEntry("param2", "param2")
+				.containsEntry("param1[0]", "1st value")
+				.containsEntry("param2[0]", "2nd value A")
+				.containsEntry("param2[1]", "2nd value B");
 
 		URI uri = UriComponentsBuilder.fromUriString(uriTemplate)
 				.encode()
@@ -96,6 +97,24 @@ class HttpRequestValuesTests {
 
 		assertThat(uri.toString())
 				.isEqualTo("/path?param1=1st%20value&param2=2nd%20value%20A&param2=2nd%20value%20B");
+	}
+
+	@Test // gh-34364
+	void queryParamWithSemicolon() {
+		HttpRequestValues requestValues = HttpRequestValues.builder().setHttpMethod(HttpMethod.POST)
+				.setUriTemplate("/path")
+				.addRequestParameter("userId:eq", "test value")
+				.build();
+
+		String uriTemplate = requestValues.getUriTemplate();
+		assertThat(uriTemplate).isEqualTo("/path?{userId%3Aeq}={userId%3Aeq[0]}");
+
+		URI uri = UriComponentsBuilder.fromUriString(uriTemplate)
+				.encode()
+				.build(requestValues.getUriVariables());
+
+		assertThat(uri.toString())
+				.isEqualTo("/path?userId%3Aeq=test%20value");
 	}
 
 	@Test
@@ -125,9 +144,9 @@ class HttpRequestValuesTests {
 				.build();
 
 		@SuppressWarnings("unchecked")
-		MultiValueMap<String, HttpEntity<?>> map = (MultiValueMap<String, HttpEntity<?>>) requestValues.getBodyValue();
+		MultiValueMap<String, Object> map = (MultiValueMap<String, Object>) requestValues.getBodyValue();
 		assertThat(map).hasSize(2);
-		assertThat(map.getFirst("form field").getBody()).isEqualTo("form value");
+		assertThat(map.getFirst("form field")).isEqualTo("form value");
 		assertThat(map.getFirst("entity")).isEqualTo(entity);
 	}
 
@@ -143,12 +162,18 @@ class HttpRequestValuesTests {
 		String uriTemplate = requestValues.getUriTemplate();
 		assertThat(uriTemplate).isNotNull();
 
-		assertThat(uriTemplate).isEqualTo("/path?{queryParam0}={queryParam0[0]}");
+		assertThat(uriTemplate).isEqualTo("/path?{query param}={query param[0]}");
+
+		URI uri = UriComponentsBuilder.fromUriString(uriTemplate)
+				.encode()
+				.build(requestValues.getUriVariables());
+		assertThat(uri.toString())
+				.isEqualTo("/path?query%20param=query%20value");
 
 		@SuppressWarnings("unchecked")
-		MultiValueMap<String, HttpEntity<?>> map = (MultiValueMap<String, HttpEntity<?>>) requestValues.getBodyValue();
+		MultiValueMap<String, Object> map = (MultiValueMap<String, Object>) requestValues.getBodyValue();
 		assertThat(map).hasSize(1);
-		assertThat(map.getFirst("form field").getBody()).isEqualTo("form value");
+		assertThat(map.getFirst("form field")).isEqualTo("form value");
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.springframework.web.socket.sockjs.support;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.log.LogFormatUtils;
 import org.springframework.http.HttpHeaders;
@@ -39,7 +41,6 @@ import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
@@ -55,7 +56,7 @@ import org.springframework.web.util.WebUtils;
 
 /**
  * An abstract base class for {@link SockJsService} implementations that provides SockJS
- * path resolution and handling of static SockJS requests (e.g. "/info", "/iframe.html",
+ * path resolution and handling of static SockJS requests (for example, "/info", "/iframe.html",
  * etc). Sub-classes must handle session URLs (i.e. transport-specific requests).
  *
  * <p>By default, only same origin requests are allowed. Use {@link #setAllowedOrigins}
@@ -72,7 +73,7 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 	private static final long ONE_YEAR = TimeUnit.DAYS.toSeconds(365);
 
 
-	private static final Random random = new Random();
+	private static final Random random = new SecureRandom();
 
 	protected final Log logger = LogFactory.getLog(getClass());
 
@@ -80,7 +81,7 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 
 	private String name = "SockJSService@" + ObjectUtils.getIdentityHexString(this);
 
-	private String clientLibraryUrl = "https://cdn.jsdelivr.net/sockjs/1.0.0/sockjs.min.js";
+	private String clientLibraryUrl = "https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js";
 
 	private int streamBytesLimit = 128 * 1024;
 
@@ -143,7 +144,7 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 	}
 
 	/**
-	 * Transports with no native cross-domain communication (e.g. "eventsource",
+	 * Transports with no native cross-domain communication (for example, "eventsource",
 	 * "htmlfile") must get a simple page from the "foreign" domain in an invisible
 	 * {@code iframe} so that code in the {@code iframe} can run from a domain
 	 * local to the SockJS server. Since the {@code iframe} needs to load the
@@ -195,7 +196,7 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 	/**
 	 * The SockJS protocol requires a server to respond to an initial "/info" request from
 	 * clients with a "cookie_needed" boolean property that indicates whether the use of a
-	 * JSESSIONID cookie is required for the application to function correctly, e.g. for
+	 * JSESSIONID cookie is required for the application to function correctly, for example, for
 	 * load balancing or in Java Servlet containers for the use of an HTTP session.
 	 * <p>This is especially important for IE 8,9 that support XDomainRequest -- a modified
 	 * AJAX/XHR -- that can do requests across domains but does not send any cookies. In
@@ -341,7 +342,7 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 	 * @since 4.1.2
 	 */
 	@SuppressWarnings("ConstantConditions")
-	public Collection<String> getAllowedOrigins() {
+	public @Nullable Collection<String> getAllowedOrigins() {
 		return this.corsConfiguration.getAllowedOrigins();
 	}
 	/**
@@ -363,7 +364,7 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 	 * @since 5.3.2
 	 */
 	@SuppressWarnings("ConstantConditions")
-	public Collection<String> getAllowedOriginPatterns() {
+	public @Nullable Collection<String> getAllowedOriginPatterns() {
 		return this.corsConfiguration.getAllowedOriginPatterns();
 	}
 
@@ -415,8 +416,8 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 			}
 
 			else if (sockJsPath.matches("/iframe[0-9-.a-z_]*.html")) {
-				if (!getAllowedOrigins().isEmpty() && !getAllowedOrigins().contains("*") ||
-						!getAllowedOriginPatterns().isEmpty()) {
+				if (!CollectionUtils.isEmpty(getAllowedOrigins()) && !getAllowedOrigins().contains("*") ||
+						!CollectionUtils.isEmpty(getAllowedOriginPatterns())) {
 					if (requestInfo != null) {
 						logger.debug("Iframe support is disabled when an origin check is required. " +
 								"Ignoring transport request: " + requestInfo);
@@ -424,7 +425,7 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 					response.setStatusCode(HttpStatus.NOT_FOUND);
 					return;
 				}
-				if (getAllowedOrigins().isEmpty()) {
+				if (CollectionUtils.isEmpty(getAllowedOrigins())) {
 					response.getHeaders().add(XFRAME_OPTIONS_HEADER, "SAMEORIGIN");
 				}
 				if (requestInfo != null) {
@@ -507,7 +508,7 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 
 	/**
 	 * Ensure the path does not contain a file extension, either in the filename
-	 * (e.g. "/jsonp.bat") or possibly after path parameters ("/jsonp;Setup.bat")
+	 * (for example, "/jsonp.bat") or possibly after path parameters ("/jsonp;Setup.bat")
 	 * which could be used for RFD exploits.
 	 * <p>Since the last part of the path is expected to be a transport type, the
 	 * presence of an extension would not work. All we need to do is check if
@@ -539,8 +540,7 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 	}
 
 	@Override
-	@Nullable
-	public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
+	public @Nullable CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
 		if (!this.suppressCors && (request.getHeader(HttpHeaders.ORIGIN) != null)) {
 			return this.corsConfiguration;
 		}

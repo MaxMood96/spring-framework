@@ -16,9 +16,10 @@
 
 package org.springframework.web.method.annotation;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.ConversionNotSupportedException;
 import org.springframework.core.MethodParameter;
-import org.springframework.lang.Nullable;
 
 /**
  * A ConversionNotSupportedException raised while resolving a method argument.
@@ -37,7 +38,7 @@ public class MethodArgumentConversionNotSupportedException extends ConversionNot
 
 
 	public MethodArgumentConversionNotSupportedException(@Nullable Object value,
-			@Nullable Class<?> requiredType, String name, MethodParameter param, Throwable cause) {
+			@Nullable Class<?> requiredType, String name, MethodParameter param, @Nullable Throwable cause) {
 
 		super(value, requiredType, cause);
 		this.name = name;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,9 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.ApplicationContextInitializer;
-import org.springframework.lang.Nullable;
 import org.springframework.web.WebApplicationInitializer;
 
 /**
@@ -58,7 +58,7 @@ public abstract class AbstractContextLoaderInitializer implements WebApplication
 	protected void registerContextLoaderListener(ServletContext servletContext) {
 		WebApplicationContext rootAppContext = createRootApplicationContext();
 		if (rootAppContext != null) {
-			ContextLoaderListener listener = new ContextLoaderListener(rootAppContext);
+			ContextLoaderListener listener = new ContextLoaderListener(rootAppContext, servletContext);
 			listener.setContextInitializers(getRootApplicationContextInitializers());
 			servletContext.addListener(listener);
 		}
@@ -79,8 +79,7 @@ public abstract class AbstractContextLoaderInitializer implements WebApplication
 	 * desired
 	 * @see org.springframework.web.servlet.support.AbstractDispatcherServletInitializer
 	 */
-	@Nullable
-	protected abstract WebApplicationContext createRootApplicationContext();
+	protected abstract @Nullable WebApplicationContext createRootApplicationContext();
 
 	/**
 	 * Specify application context initializers to be applied to the root application
@@ -89,8 +88,7 @@ public abstract class AbstractContextLoaderInitializer implements WebApplication
 	 * @see #createRootApplicationContext()
 	 * @see ContextLoaderListener#setContextInitializers
 	 */
-	@Nullable
-	protected ApplicationContextInitializer<?>[] getRootApplicationContextInitializers() {
+	protected ApplicationContextInitializer<?> @Nullable [] getRootApplicationContextInitializers() {
 		return null;
 	}
 

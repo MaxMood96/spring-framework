@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,8 @@ package org.springframework.web.servlet.mvc.method.annotation;
 
 import java.util.List;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.web.bind.ServletRequestDataBinder;
 import org.springframework.web.bind.support.WebBindingInitializer;
 import org.springframework.web.context.request.NativeWebRequest;
@@ -49,7 +50,7 @@ public class ServletRequestDataBinderFactory extends InitBinderDataBinderFactory
 	 */
 	@Override
 	protected ServletRequestDataBinder createBinderInstance(
-			@Nullable Object target, String objectName, NativeWebRequest request) throws Exception  {
+			@Nullable Object target, String objectName, NativeWebRequest request) throws Exception {
 
 		return new ExtendedServletRequestDataBinder(target, objectName);
 	}

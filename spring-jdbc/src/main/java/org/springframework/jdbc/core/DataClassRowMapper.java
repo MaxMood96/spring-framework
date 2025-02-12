@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,12 +20,13 @@ import java.lang.reflect.Constructor;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.TypeConverter;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.TypeDescriptor;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -57,17 +58,15 @@ import org.springframework.util.Assert;
  * @author Sam Brannen
  * @since 5.3
  * @param <T> the result type
+ * @see SimplePropertyRowMapper
  */
 public class DataClassRowMapper<T> extends BeanPropertyRowMapper<T> {
 
-	@Nullable
-	private Constructor<T> mappedConstructor;
+	private @Nullable Constructor<T> mappedConstructor;
 
-	@Nullable
-	private String[] constructorParameterNames;
+	private @Nullable String @Nullable [] constructorParameterNames;
 
-	@Nullable
-	private TypeDescriptor[] constructorParameterTypes;
+	private TypeDescriptor @Nullable [] constructorParameterTypes;
 
 
 	/**
@@ -106,10 +105,10 @@ public class DataClassRowMapper<T> extends BeanPropertyRowMapper<T> {
 	}
 
 	@Override
-	protected T constructMappedInstance(ResultSet rs, TypeConverter tc) throws SQLException  {
+	protected T constructMappedInstance(ResultSet rs, TypeConverter tc) throws SQLException {
 		Assert.state(this.mappedConstructor != null, "Mapped constructor was not initialized");
 
-		Object[] args;
+		@Nullable Object[] args;
 		if (this.constructorParameterNames != null && this.constructorParameterTypes != null) {
 			args = new Object[this.constructorParameterNames.length];
 			for (int i = 0; i < args.length; i++) {

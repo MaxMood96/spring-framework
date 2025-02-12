@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,15 +35,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
 /**
- * Unit tests for {@link DefaultServerRequestBuilder}.
+ * Tests for {@link DefaultServerRequestBuilder}.
  *
  * @author Arjen Poutsma
  * @author Sam Brannen
  */
-public class DefaultServerRequestBuilderTests {
+class DefaultServerRequestBuilderTests {
 
 	@Test
-	public void from() {
+	void from() {
 		MockServerHttpRequest request = MockServerHttpRequest.post("https://example.com")
 				.header("foo", "bar")
 				.build();
@@ -73,7 +73,7 @@ public class DefaultServerRequestBuilderTests {
 		assertThat(result.uri()).isEqualTo(uri);
 		assertThat(result.requestPath().pathWithinApplication().value()).isEqualTo("/bar");
 		assertThat(result.requestPath().contextPath().value()).isEqualTo("/foo");
-		assertThat(result.headers().asHttpHeaders()).hasSize(1);
+		assertThat(result.headers().asHttpHeaders().size()).isOne();
 		assertThat(result.headers().asHttpHeaders().getFirst("foo")).isEqualTo("baar");
 		assertThat(result.cookies()).hasSize(1);
 		assertThat(result.cookies().getFirst("baz").getValue()).isEqualTo("quux");

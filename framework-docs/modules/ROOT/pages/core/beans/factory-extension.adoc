@@ -22,10 +22,9 @@ in which these `BeanPostProcessor` instances run by setting the `order` property
 You can set this property only if the `BeanPostProcessor` implements the `Ordered`
 interface. If you write your own `BeanPostProcessor`, you should consider implementing
 the `Ordered` interface, too. For further details, see the javadoc of the
-{api-spring-framework}/beans/factory/config/BeanPostProcessor.html[`BeanPostProcessor`]
-and {api-spring-framework}/core/Ordered.html[`Ordered`] interfaces. See also the note
-on xref:core/beans/factory-extension.adoc#beans-factory-programmatically-registering-beanpostprocessors[programmatic registration of `BeanPostProcessor` instances]
-.
+{spring-framework-api}/beans/factory/config/BeanPostProcessor.html[`BeanPostProcessor`]
+and {spring-framework-api}/core/Ordered.html[`Ordered`] interfaces. See also the note on
+xref:core/beans/factory-extension.adoc#beans-factory-programmatically-registering-beanpostprocessors[programmatic registration of `BeanPostProcessor` instances].
 
 [NOTE]
 ====
@@ -124,7 +123,7 @@ The following listing shows the custom `BeanPostProcessor` implementation class 
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary",chomp="-packages"]
+[source,java,indent=0,subs="verbatim,quotes",chomp="-packages"]
 ----
 	package scripting;
 
@@ -146,7 +145,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary",chomp="-packages"]
+[source,kotlin,indent=0,subs="verbatim,quotes",chomp="-packages"]
 ----
 	package scripting
 
@@ -206,7 +205,7 @@ The following Java application runs the preceding code and configuration:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	import org.springframework.context.ApplicationContext;
 	import org.springframework.context.support.ClassPathXmlApplicationContext;
@@ -225,7 +224,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
     import org.springframework.beans.factory.getBean
 
@@ -273,18 +272,19 @@ which these `BeanFactoryPostProcessor` instances run by setting the `order` prop
 However, you can only set this property if the `BeanFactoryPostProcessor` implements the
 `Ordered` interface. If you write your own `BeanFactoryPostProcessor`, you should
 consider implementing the `Ordered` interface, too. See the javadoc of the
-{api-spring-framework}/beans/factory/config/BeanFactoryPostProcessor.html[`BeanFactoryPostProcessor`]
-and {api-spring-framework}/core/Ordered.html[`Ordered`] interfaces for more details.
+{spring-framework-api}/beans/factory/config/BeanFactoryPostProcessor.html[`BeanFactoryPostProcessor`]
+and {spring-framework-api}/core/Ordered.html[`Ordered`] interfaces for more details.
 
 [NOTE]
 ====
 If you want to change the actual bean instances (that is, the objects that are created
 from the configuration metadata), then you instead need to use a `BeanPostProcessor`
-(described earlier in xref:core/beans/factory-extension.adoc#beans-factory-extension-bpp[Customizing Beans by Using a `BeanPostProcessor`]). While it is technically possible
-to work with bean instances within a `BeanFactoryPostProcessor` (for example, by using
-`BeanFactory.getBean()`), doing so causes premature bean instantiation, violating the
-standard container lifecycle. This may cause negative side effects, such as bypassing
-bean post processing.
+(described earlier in
+xref:core/beans/factory-extension.adoc#beans-factory-extension-bpp[Customizing Beans by Using a `BeanPostProcessor`]).
+While it is technically possible to work with bean instances within a `BeanFactoryPostProcessor`
+(for example, by using `BeanFactory.getBean()`), doing so causes premature bean instantiation,
+violating the standard container lifecycle. This may cause negative side effects, such as
+bypassing bean post processing.
 
 Also, `BeanFactoryPostProcessor` instances are scoped per-container. This is only relevant
 if you use container hierarchies. If you define a `BeanFactoryPostProcessor` in one
@@ -331,8 +331,7 @@ with placeholder values is defined:
 		<property name="locations" value="classpath:com/something/jdbc.properties"/>
 	</bean>
 
-	<bean id="dataSource" destroy-method="close"
-			class="org.apache.commons.dbcp.BasicDataSource">
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
 		<property name="driverClassName" value="${jdbc.driverClassName}"/>
 		<property name="url" value="${jdbc.url}"/>
 		<property name="username" value="${jdbc.username}"/>
@@ -372,6 +371,17 @@ comma-separated list in the `location` attribute, as the following example shows
 The `PropertySourcesPlaceholderConfigurer` not only looks for properties in the `Properties`
 file you specify. By default, if it cannot find a property in the specified properties files,
 it checks against Spring `Environment` properties and regular Java `System` properties.
+
+[WARNING]
+=====
+Only one such element should be defined for a given application with the properties
+that it needs. Several property placeholders can be configured as long as they have distinct
+placeholder syntax (`${...}`).
+
+If you need to modularize the source of properties used for the replacement, you should
+not create multiple properties placeholders. Rather, you should create your own
+`PropertySourcesPlaceholderConfigurer` bean that gathers the properties to use.
+=====
 
 [TIP]
 =====
@@ -429,12 +439,12 @@ dataSource.url=jdbc:mysql:mydb
 ----
 
 This example file can be used with a container definition that contains a bean called
-`dataSource` that has `driver` and `url` properties.
+`dataSource` that has `driverClassName` and `url` properties.
 
 Compound property names are also supported, as long as every component of the path
 except the final property being overridden is already non-null (presumably initialized
-by the constructors). In the following example, the `sammy` property of the `bob` property of the `fred` property of the `tom` bean
-is set to the scalar value `123`:
+by the constructors). In the following example, the `sammy` property of the `bob`
+property of the `fred` property of the `tom` bean is set to the scalar value `123`:
 
 [literal,subs="verbatim,quotes"]
 ----

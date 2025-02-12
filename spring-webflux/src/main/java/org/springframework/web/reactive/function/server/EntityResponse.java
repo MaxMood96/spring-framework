@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -150,6 +150,18 @@ public interface EntityResponse<T> extends ServerResponse {
 		Builder<T> headers(HttpHeaders headers);
 
 		/**
+		 * Manipulate this entity's headers with the given consumer. The
+		 * headers provided to the consumer are "live", so that the consumer can be used to
+		 * {@linkplain HttpHeaders#set(String, String) overwrite} existing header values,
+		 * {@linkplain HttpHeaders#remove(String) remove} values, or use any of the other
+		 * {@link HttpHeaders} methods.
+		 * @param headersConsumer a function that consumes the {@code HttpHeaders}
+		 * @return this builder
+		 * @since 6.1
+		 */
+		Builder<T> headers(Consumer<HttpHeaders> headersConsumer);
+
+		/**
 		 * Set the HTTP status.
 		 * @param status the response status
 		 * @return this builder
@@ -251,7 +263,7 @@ public interface EntityResponse<T> extends ServerResponse {
 		Builder<T> cacheControl(CacheControl cacheControl);
 
 		/**
-		 * Configure one or more request header names (e.g. "Accept-Language") to
+		 * Configure one or more request header names (for example, "Accept-Language") to
 		 * add to the "Vary" response header to inform clients that the response is
 		 * subject to content negotiation and variances based on the value of the
 		 * given request headers. The configured request header names are added only

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@ package org.springframework.web.context.request.async;
 
 import java.util.concurrent.Callable;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.core.task.AsyncTaskExecutor;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.web.context.request.NativeWebRequest;
 
@@ -38,22 +39,19 @@ public class WebAsyncTask<V> implements BeanFactoryAware {
 
 	private final Callable<V> callable;
 
-	@Nullable
-	private final Long timeout;
+	private final @Nullable Long timeout;
 
-	@Nullable
-	private final AsyncTaskExecutor executor;
+	private final @Nullable AsyncTaskExecutor executor;
 
-	@Nullable
-	private final String executorName;
+	private final @Nullable String executorName;
 
-	private BeanFactory beanFactory;
+	private @Nullable BeanFactory beanFactory;
 
-	private Callable<V> timeoutCallback;
+	private @Nullable Callable<V> timeoutCallback;
 
-	private Callable<V> errorCallback;
+	private @Nullable Callable<V> errorCallback;
 
-	private Runnable completionCallback;
+	private @Nullable Runnable completionCallback;
 
 
 	/**
@@ -122,8 +120,7 @@ public class WebAsyncTask<V> implements BeanFactoryAware {
 	/**
 	 * Return the timeout value in milliseconds, or {@code null} if no timeout is set.
 	 */
-	@Nullable
-	public Long getTimeout() {
+	public @Nullable Long getTimeout() {
 		return this.timeout;
 	}
 
@@ -141,8 +138,7 @@ public class WebAsyncTask<V> implements BeanFactoryAware {
 	 * Return the AsyncTaskExecutor to use for concurrent handling,
 	 * or {@code null} if none specified.
 	 */
-	@Nullable
-	public AsyncTaskExecutor getExecutor() {
+	public @Nullable AsyncTaskExecutor getExecutor() {
 		if (this.executor != null) {
 			return this.executor;
 		}

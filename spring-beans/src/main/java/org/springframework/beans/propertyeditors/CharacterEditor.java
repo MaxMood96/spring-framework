@@ -18,7 +18,8 @@ package org.springframework.beans.propertyeditors;
 
 import java.beans.PropertyEditorSupport;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.StringUtils;
 
 /**
@@ -30,7 +31,7 @@ import org.springframework.util.StringUtils;
  * {@link org.springframework.beans.BeanWrapperImpl} will register this
  * editor by default.
  *
- * <p>Also supports conversion from a Unicode character sequence; e.g.
+ * <p>Also supports conversion from a Unicode character sequence; for example,
  * {@code u0041} ('A').
  *
  * @author Juergen Hoeller

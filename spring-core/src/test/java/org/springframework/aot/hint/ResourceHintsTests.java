@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -117,7 +117,7 @@ class ResourceHintsTests {
 	@Test
 	void registerPatternWithIncludesAndExcludes() {
 		this.resourceHints.registerPattern(resourceHint ->
-				resourceHint.includes("com/example/*.properties").excludes("com/example/to-ignore.properties"));
+				resourceHint.includes("com/example/*.properties"));
 		assertThat(this.resourceHints.resourcePatternHints()).singleElement().satisfies(patternOf(
 				List.of("/", "com", "com/example", "com/example/*.properties"),
 				List.of("com/example/to-ignore.properties")));
@@ -132,7 +132,6 @@ class ResourceHintsTests {
 	}
 
 	@Test
-	@SuppressWarnings("unchecked")
 	void registerIfPresentIgnoreMissingLocation() {
 		Consumer<ResourcePatternHints.Builder> hintBuilder = mock();
 		this.resourceHints.registerPatternIfPresent(null, "location/does-not-exist/", hintBuilder);
@@ -199,10 +198,7 @@ class ResourceHintsTests {
 	}
 
 	private Consumer<ResourcePatternHints> patternOf(List<String> includes, List<String> excludes) {
-		return pattern -> {
-			assertThat(pattern.getIncludes()).map(ResourcePatternHint::getPattern).containsExactlyInAnyOrderElementsOf(includes);
-			assertThat(pattern.getExcludes()).map(ResourcePatternHint::getPattern).containsExactlyElementsOf(excludes);
-		};
+		return pattern -> assertThat(pattern.getIncludes()).map(ResourcePatternHint::getPattern).containsExactlyInAnyOrderElementsOf(includes);
 	}
 
 	static class Nested {

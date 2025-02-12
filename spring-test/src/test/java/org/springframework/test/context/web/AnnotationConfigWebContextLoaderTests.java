@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /**
- * Unit tests for {@link AnnotationConfigWebContextLoader}.
+ * Tests for {@link AnnotationConfigWebContextLoader}.
  *
  * @author Sam Brannen
  * @since 4.0.4
@@ -33,14 +33,15 @@ class AnnotationConfigWebContextLoaderTests {
 
 
 	@Test
-	void configMustNotContainLocations() throws Exception {
+	@SuppressWarnings("deprecation")
+	void configMustNotContainLocations() {
 		AnnotationConfigWebContextLoader loader = new AnnotationConfigWebContextLoader();
 		WebMergedContextConfiguration mergedConfig = new WebMergedContextConfiguration(getClass(),
 				new String[] { "config.xml" }, EMPTY_CLASS_ARRAY, null, EMPTY_STRING_ARRAY, EMPTY_STRING_ARRAY,
 				EMPTY_STRING_ARRAY, "resource/path", loader, null, null);
 		assertThatIllegalStateException()
-			.isThrownBy(() -> loader.loadContext(mergedConfig))
-			.withMessageContaining("does not support resource locations");
+				.isThrownBy(() -> loader.loadContext(mergedConfig))
+				.withMessageContaining("does not support resource locations");
 	}
 
 }

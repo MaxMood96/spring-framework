@@ -26,7 +26,6 @@ are described in this chapter.
 Spring includes a number of packages dedicated to mocking:
 
 * xref:testing/unit.adoc#mock-objects-env[Environment]
-* xref:testing/unit.adoc#mock-objects-jndi[JNDI]
 * xref:testing/unit.adoc#mock-objects-servlet[Servlet API]
 * xref:testing/unit.adoc#mock-objects-web-reactive[Spring Web Reactive]
 
@@ -42,20 +41,6 @@ and xref:core/beans/environment.adoc#beans-property-source-abstraction[`Property
 out-of-container tests for code that depends on environment-specific properties.
 
 
-[[mock-objects-jndi]]
-=== JNDI
-
-The `org.springframework.mock.jndi` package contains a partial implementation of the JNDI
-SPI, which you can use to set up a simple JNDI environment for test suites or stand-alone
-applications. If, for example, JDBC `DataSource` instances get bound to the same JNDI
-names in test code as they do in a Jakarta EE container, you can reuse both application code
-and configuration in testing scenarios without modification.
-
-WARNING: The mock JNDI support in the `org.springframework.mock.jndi` package is
-officially deprecated as of Spring Framework 5.2 in favor of complete solutions from third
-parties such as https://github.com/h-thurow/Simple-JNDI[Simple-JNDI].
-
-
 [[mock-objects-servlet]]
 === Servlet API
 
@@ -68,8 +53,8 @@ or alternative Servlet API mock objects (such as http://www.mockobjects.com[Mock
 TIP: Since Spring Framework 6.0, the mock objects in `org.springframework.mock.web` are
 based on the Servlet 6.0 API.
 
-The Spring MVC Test framework builds on the mock Servlet API objects to provide an
-integration testing framework for Spring MVC. See xref:testing/spring-mvc-test-framework.adoc[MockMvc].
+MockMvc builds on the mock Servlet API objects to provide an integration testing
+framework for Spring MVC. See xref:testing/mockmvc.adoc[MockMvc].
 
 
 [[mock-objects-web-reactive]]
@@ -112,16 +97,16 @@ categories:
 The `org.springframework.test.util` package contains several general purpose utilities
 for use in unit and integration testing.
 
-{api-spring-framework}/test/util/AopTestUtils.html[`AopTestUtils`] is a collection of
+{spring-framework-api}/test/util/AopTestUtils.html[`AopTestUtils`] is a collection of
 AOP-related utility methods. You can use these methods to obtain a reference to the
 underlying target object hidden behind one or more Spring proxies. For example, if you
 have configured a bean as a dynamic mock by using a library such as EasyMock or Mockito,
 and the mock is wrapped in a Spring proxy, you may need direct access to the underlying
 mock to configure expectations on it and perform verifications. For Spring's core AOP
-utilities, see {api-spring-framework}/aop/support/AopUtils.html[`AopUtils`] and
-{api-spring-framework}/aop/framework/AopProxyUtils.html[`AopProxyUtils`].
+utilities, see {spring-framework-api}/aop/support/AopUtils.html[`AopUtils`] and
+{spring-framework-api}/aop/framework/AopProxyUtils.html[`AopProxyUtils`].
 
-{api-spring-framework}/test/util/ReflectionTestUtils.html[`ReflectionTestUtils`] is a
+{spring-framework-api}/test/util/ReflectionTestUtils.html[`ReflectionTestUtils`] is a
 collection of reflection-based utility methods. You can use these methods in testing
 scenarios where you need to change the value of a constant, set a non-`public` field,
 invoke a non-`public` setter method, or invoke a non-`public` configuration or lifecycle
@@ -135,7 +120,7 @@ callback method when testing application code for use cases such as the followin
 * Use of annotations such as `@PostConstruct` and `@PreDestroy` for lifecycle callback
   methods.
 
-{api-spring-framework}/test/util/TestSocketUtils.html[`TestSocketUtils`] is a simple
+{spring-framework-api}/test/util/TestSocketUtils.html[`TestSocketUtils`] is a simple
 utility for finding available TCP ports on `localhost` for use in integration testing
 scenarios.
 
@@ -155,7 +140,7 @@ server for the port it is currently using.
 === Spring MVC Testing Utilities
 
 The `org.springframework.test.web` package contains
-{api-spring-framework}/test/web/ModelAndViewAssert.html[`ModelAndViewAssert`], which you
+{spring-framework-api}/test/web/ModelAndViewAssert.html[`ModelAndViewAssert`], which you
 can use in combination with JUnit, TestNG, or any other testing framework for unit tests
 that deal with Spring MVC `ModelAndView` objects.
 
@@ -165,4 +150,4 @@ combined with `MockHttpServletRequest`, `MockHttpSession`, and so on from Spring
 xref:testing/unit.adoc#mock-objects-servlet[Servlet API mocks]. For thorough integration testing of your
 Spring MVC and REST `Controller` classes in conjunction with your `WebApplicationContext`
 configuration for Spring MVC, use the
-xref:testing/spring-mvc-test-framework.adoc[Spring MVC Test Framework] instead.
+xref:testing/mockmvc.adoc[MockMvc] instead.

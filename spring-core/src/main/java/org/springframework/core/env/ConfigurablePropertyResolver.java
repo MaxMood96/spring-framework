@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 
 package org.springframework.core.env;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.convert.support.ConfigurableConversionService;
-import org.springframework.lang.Nullable;
 
 /**
  * Configuration interface to be implemented by most if not all {@link PropertyResolver}
@@ -26,6 +27,7 @@ import org.springframework.lang.Nullable;
  * used when converting property values from one type to another.
  *
  * @author Chris Beams
+ * @author Stephane Nicoll
  * @since 3.1
  */
 public interface ConfigurablePropertyResolver extends PropertyResolver {
@@ -73,6 +75,13 @@ public interface ConfigurablePropertyResolver extends PropertyResolver {
 	 * special character should be processed as a value separator.
 	 */
 	void setValueSeparator(@Nullable String valueSeparator);
+
+	/**
+	 * Specify the escape character to use to ignore placeholder prefix or
+	 * value separator, or {@code null} if no escaping should take place.
+	 * @since 6.2
+	 */
+	void setEscapeCharacter(@Nullable Character escapeCharacter);
 
 	/**
 	 * Set whether to throw an exception when encountering an unresolvable placeholder

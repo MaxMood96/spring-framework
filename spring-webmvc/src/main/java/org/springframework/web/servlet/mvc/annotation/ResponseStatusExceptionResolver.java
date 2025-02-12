@@ -20,12 +20,12 @@ import java.io.IOException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.MessageSource;
 import org.springframework.context.MessageSourceAware;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.core.annotation.AnnotatedElementUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -56,19 +56,17 @@ import org.springframework.web.servlet.handler.AbstractHandlerExceptionResolver;
  */
 public class ResponseStatusExceptionResolver extends AbstractHandlerExceptionResolver implements MessageSourceAware {
 
-	@Nullable
-	private MessageSource messageSource;
+	private @Nullable MessageSource messageSource;
 
 
 	@Override
-	public void setMessageSource(MessageSource messageSource) {
+	public void setMessageSource(@Nullable MessageSource messageSource) {
 		this.messageSource = messageSource;
 	}
 
 
 	@Override
-	@Nullable
-	protected ModelAndView doResolveException(
+	protected @Nullable ModelAndView doResolveException(
 			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler, Exception ex) {
 
 		try {
@@ -101,7 +99,7 @@ public class ResponseStatusExceptionResolver extends AbstractHandlerExceptionRes
 	 * @param request current HTTP request
 	 * @param response current HTTP response
 	 * @param handler the executed handler, or {@code null} if none chosen at the
-	 * time of the exception, e.g. if multipart resolution failed
+	 * time of the exception, for example, if multipart resolution failed
 	 * @param ex the exception
 	 * @return an empty ModelAndView, i.e. exception resolved
 	 */
@@ -123,7 +121,7 @@ public class ResponseStatusExceptionResolver extends AbstractHandlerExceptionRes
 	 * @param request current HTTP request
 	 * @param response current HTTP response
 	 * @param handler the executed handler, or {@code null} if none chosen at the
-	 * time of the exception, e.g. if multipart resolution failed
+	 * time of the exception, for example, if multipart resolution failed
 	 * @return an empty ModelAndView, i.e. exception resolved
 	 * @since 5.0
 	 */

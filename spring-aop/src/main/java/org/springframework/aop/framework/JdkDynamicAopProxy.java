@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package org.springframework.aop.framework;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -25,13 +27,15 @@ import java.util.List;
 import org.aopalliance.intercept.MethodInvocation;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aop.AopInvocationException;
 import org.springframework.aop.RawTargetAccess;
 import org.springframework.aop.TargetSource;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.core.DecoratingProxy;
-import org.springframework.lang.Nullable;
+import org.springframework.core.KotlinDetector;
+import org.springframework.core.MethodParameter;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 
@@ -58,6 +62,7 @@ import org.springframework.util.ClassUtils;
  * @author Rob Harrop
  * @author Dave Syer
  * @author Sergey Tsypanov
+ * @author Sebastien Deleuze
  * @see java.lang.reflect.Proxy
  * @see AdvisedSupport
  * @see ProxyFactory
@@ -68,14 +73,10 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 	private static final long serialVersionUID = 5531744639992436476L;
 
 
-	/*
-	 * NOTE: We could avoid the code duplication between this class and the CGLIB
-	 * proxies by refactoring "invoke" into a template method. However, this approach
-	 * adds at least 10% performance overhead versus a copy-paste solution, so we sacrifice
-	 * elegance for performance (we have a good test suite to ensure that the different
-	 * proxies behave the same :-)).
-	 * This way, we can also more easily take advantage of minor optimizations in each class.
-	 */
+	private static final String COROUTINES_FLOW_CLASS_NAME = "kotlinx.coroutines.flow.Flow";
+
+	private static final boolean coroutinesReactorPresent = ClassUtils.isPresent(
+			"kotlinx.coroutines.reactor.MonoKt", JdkDynamicAopProxy.class.getClassLoader());
 
 	/** We use a static Log to avoid serialization issues. */
 	private static final Log logger = LogFactory.getLog(JdkDynamicAopProxy.class);
@@ -83,17 +84,8 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 	/** Config used to configure this proxy. */
 	private final AdvisedSupport advised;
 
-	private final Class<?>[] proxiedInterfaces;
-
-	/**
-	 * Is the {@link #equals} method defined on the proxied interfaces?
-	 */
-	private boolean equalsDefined;
-
-	/**
-	 * Is the {@link #hashCode} method defined on the proxied interfaces?
-	 */
-	private boolean hashCodeDefined;
+	/** Cached in {@link AdvisedSupport#proxyMetadataCache}. */
+	private transient ProxiedInterfacesCache cache;
 
 
 	/**
@@ -105,8 +97,17 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 	public JdkDynamicAopProxy(AdvisedSupport config) throws AopConfigException {
 		Assert.notNull(config, "AdvisedSupport must not be null");
 		this.advised = config;
-		this.proxiedInterfaces = AopProxyUtils.completeProxiedInterfaces(this.advised, true);
-		findDefinedEqualsAndHashCodeMethods(this.proxiedInterfaces);
+
+		// Initialize ProxiedInterfacesCache if not cached already
+		ProxiedInterfacesCache cache;
+		if (config.proxyMetadataCache instanceof ProxiedInterfacesCache proxiedInterfacesCache) {
+			cache = proxiedInterfacesCache;
+		}
+		else {
+			cache = new ProxiedInterfacesCache(config);
+			config.proxyMetadataCache = cache;
+		}
+		this.cache = cache;
 	}
 
 
@@ -120,40 +121,39 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 		if (logger.isTraceEnabled()) {
 			logger.trace("Creating JDK dynamic proxy: " + this.advised.getTargetSource());
 		}
-		if (classLoader == null || classLoader.getParent() == null) {
-			// JDK bootstrap loader or platform loader suggested ->
-			// use higher-level loader which can see Spring infrastructure classes
-			classLoader = getClass().getClassLoader();
-		}
-		return Proxy.newProxyInstance(classLoader, this.proxiedInterfaces, this);
+		return Proxy.newProxyInstance(determineClassLoader(classLoader), this.cache.proxiedInterfaces, this);
 	}
 
 	@SuppressWarnings("deprecation")
 	@Override
 	public Class<?> getProxyClass(@Nullable ClassLoader classLoader) {
-		return Proxy.getProxyClass(classLoader, this.proxiedInterfaces);
+		return Proxy.getProxyClass(determineClassLoader(classLoader), this.cache.proxiedInterfaces);
 	}
 
 	/**
-	 * Finds any {@link #equals} or {@link #hashCode} method that may be defined
-	 * on the supplied set of interfaces.
-	 * @param proxiedInterfaces the interfaces to introspect
+	 * Determine whether the JDK bootstrap or platform loader has been suggested ->
+	 * use higher-level loader which can see Spring infrastructure classes instead.
 	 */
-	private void findDefinedEqualsAndHashCodeMethods(Class<?>[] proxiedInterfaces) {
-		for (Class<?> proxiedInterface : proxiedInterfaces) {
-			Method[] methods = proxiedInterface.getDeclaredMethods();
-			for (Method method : methods) {
-				if (AopUtils.isEqualsMethod(method)) {
-					this.equalsDefined = true;
+	private ClassLoader determineClassLoader(@Nullable ClassLoader classLoader) {
+		if (classLoader == null) {
+			// JDK bootstrap loader -> use spring-aop ClassLoader instead.
+			return getClass().getClassLoader();
+		}
+		if (classLoader.getParent() == null) {
+			// Potentially the JDK platform loader on JDK 9+
+			ClassLoader aopClassLoader = getClass().getClassLoader();
+			ClassLoader aopParent = aopClassLoader.getParent();
+			while (aopParent != null) {
+				if (classLoader == aopParent) {
+					// Suggested ClassLoader is ancestor of spring-aop ClassLoader
+					// -> use spring-aop ClassLoader itself instead.
+					return aopClassLoader;
 				}
-				if (AopUtils.isHashCodeMethod(method)) {
-					this.hashCodeDefined = true;
-				}
-				if (this.equalsDefined && this.hashCodeDefined) {
-					return;
-				}
+				aopParent = aopParent.getParent();
 			}
 		}
+		// Regular case: use suggested ClassLoader as-is.
+		return classLoader;
 	}
 
 
@@ -163,8 +163,7 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 	 * unless a hook method throws an exception.
 	 */
 	@Override
-	@Nullable
-	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+	public @Nullable Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 		Object oldProxy = null;
 		boolean setProxyContext = false;
 
@@ -172,11 +171,11 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 		Object target = null;
 
 		try {
-			if (!this.equalsDefined && AopUtils.isEqualsMethod(method)) {
+			if (!this.cache.equalsDefined && AopUtils.isEqualsMethod(method)) {
 				// The target does not implement the equals(Object) method itself.
 				return equals(args[0]);
 			}
-			else if (!this.hashCodeDefined && AopUtils.isHashCodeMethod(method)) {
+			else if (!this.cache.hashCodeDefined && AopUtils.isHashCodeMethod(method)) {
 				// The target does not implement the hashCode() method itself.
 				return hashCode();
 			}
@@ -212,7 +211,7 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 				// We can skip creating a MethodInvocation: just invoke the target directly
 				// Note that the final invoker must be an InvokerInterceptor so we know it does
 				// nothing but a reflective operation on the target, and no hot swapping or fancy proxying.
-				Object[] argsToUse = AopProxyUtils.adaptArgumentsIfNecessary(method, args);
+				@Nullable Object[] argsToUse = AopProxyUtils.adaptArgumentsIfNecessary(method, args);
 				retVal = AopUtils.invokeJoinpointUsingReflection(target, method, argsToUse);
 			}
 			else {
@@ -233,9 +232,13 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 				// a reference to itself in another returned object.
 				retVal = proxy;
 			}
-			else if (retVal == null && returnType != Void.TYPE && returnType.isPrimitive()) {
+			else if (retVal == null && returnType != void.class && returnType.isPrimitive()) {
 				throw new AopInvocationException(
 						"Null return value from advice does not match primitive return type for: " + method);
+			}
+			if (coroutinesReactorPresent && KotlinDetector.isSuspendingFunction(method)) {
+				return COROUTINES_FLOW_CLASS_NAME.equals(new MethodParameter(method, -1).getParameterType().getName()) ?
+						CoroutinesUtils.asFlow(retVal) : CoroutinesUtils.awaitSingleOrNull(retVal, args[args.length - 1]);
 			}
 			return retVal;
 		}
@@ -292,6 +295,65 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 	@Override
 	public int hashCode() {
 		return JdkDynamicAopProxy.class.hashCode() * 13 + this.advised.getTargetSource().hashCode();
+	}
+
+
+	//---------------------------------------------------------------------
+	// Serialization support
+	//---------------------------------------------------------------------
+
+	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+		// Rely on default serialization; just initialize state after deserialization.
+		ois.defaultReadObject();
+
+		// Initialize transient fields.
+		this.cache = new ProxiedInterfacesCache(this.advised);
+	}
+
+
+	/**
+	 * Holder for the complete proxied interfaces and derived metadata,
+	 * to be cached in {@link AdvisedSupport#proxyMetadataCache}.
+	 * @since 6.1.3
+	 */
+	private static final class ProxiedInterfacesCache {
+
+		final Class<?>[] proxiedInterfaces;
+
+		final boolean equalsDefined;
+
+		final boolean hashCodeDefined;
+
+		ProxiedInterfacesCache(AdvisedSupport config) {
+			this.proxiedInterfaces = AopProxyUtils.completeProxiedInterfaces(config, true);
+
+			// Find any {@link #equals} or {@link #hashCode} method that may be defined
+			// on the supplied set of interfaces.
+			boolean equalsDefined = false;
+			boolean hashCodeDefined = false;
+			for (Class<?> proxiedInterface : this.proxiedInterfaces) {
+				Method[] methods = proxiedInterface.getDeclaredMethods();
+				for (Method method : methods) {
+					if (AopUtils.isEqualsMethod(method)) {
+						equalsDefined = true;
+						if (hashCodeDefined) {
+							break;
+						}
+					}
+					if (AopUtils.isHashCodeMethod(method)) {
+						hashCodeDefined = true;
+						if (equalsDefined) {
+							break;
+						}
+					}
+				}
+				if (equalsDefined && hashCodeDefined) {
+					break;
+				}
+			}
+			this.equalsDefined = equalsDefined;
+			this.hashCodeDefined = hashCodeDefined;
+		}
 	}
 
 }

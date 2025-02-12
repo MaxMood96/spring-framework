@@ -18,7 +18,8 @@ package org.springframework.beans;
 
 import java.io.Serializable;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
@@ -44,23 +45,19 @@ public class PropertyValue extends BeanMetadataAttributeAccessor implements Seri
 
 	private final String name;
 
-	@Nullable
-	private final Object value;
+	private final @Nullable Object value;
 
 	private boolean optional = false;
 
 	private boolean converted = false;
 
-	@Nullable
-	private Object convertedValue;
+	private @Nullable Object convertedValue;
 
 	/** Package-visible field that indicates whether conversion is necessary. */
-	@Nullable
-	volatile Boolean conversionNecessary;
+	volatile @Nullable Boolean conversionNecessary;
 
 	/** Package-visible field for caching the resolved property path tokens. */
-	@Nullable
-	transient volatile Object resolvedTokens;
+	transient volatile @Nullable Object resolvedTokens;
 
 
 	/**
@@ -122,8 +119,7 @@ public class PropertyValue extends BeanMetadataAttributeAccessor implements Seri
 	 * It is the responsibility of the BeanWrapper implementation to
 	 * perform type conversion.
 	 */
-	@Nullable
-	public Object getValue() {
+	public @Nullable Object getValue() {
 		return this.value;
 	}
 
@@ -181,28 +177,22 @@ public class PropertyValue extends BeanMetadataAttributeAccessor implements Seri
 	 * Return the converted value of this property value,
 	 * after processed type conversion.
 	 */
-	@Nullable
-	public synchronized Object getConvertedValue() {
+	public synchronized @Nullable Object getConvertedValue() {
 		return this.convertedValue;
 	}
 
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof PropertyValue otherPv)) {
-			return false;
-		}
-		return (this.name.equals(otherPv.name) &&
-				ObjectUtils.nullSafeEquals(this.value, otherPv.value) &&
-				ObjectUtils.nullSafeEquals(getSource(), otherPv.getSource()));
+		return (this == other || (other instanceof PropertyValue that &&
+				this.name.equals(that.name) &&
+				ObjectUtils.nullSafeEquals(this.value, that.value) &&
+				ObjectUtils.nullSafeEquals(getSource(), that.getSource())));
 	}
 
 	@Override
 	public int hashCode() {
-		return this.name.hashCode() * 29 + ObjectUtils.nullSafeHashCode(this.value);
+		return ObjectUtils.nullSafeHash(this.name, this.value);
 	}
 
 	@Override

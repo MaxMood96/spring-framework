@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,13 @@
 
 package org.springframework.http.server.reactive.observation;
 
+import java.util.Locale;
+import java.util.Set;
+
 import io.micrometer.common.KeyValue;
 import io.micrometer.common.KeyValues;
 
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.server.reactive.observation.ServerHttpObservationDocumentation.HighCardinalityKeyNames;
@@ -55,6 +59,8 @@ public class DefaultServerRequestObservationConvention implements ServerRequestO
 
 	private static final KeyValue HTTP_URL_UNKNOWN = KeyValue.of(HighCardinalityKeyNames.HTTP_URL, "UNKNOWN");
 
+	private static final Set<HttpMethod> HTTP_METHODS = Set.of(HttpMethod.values());
+
 
 	private final String name;
 
@@ -82,7 +88,7 @@ public class DefaultServerRequestObservationConvention implements ServerRequestO
 
 	@Override
 	public String getContextualName(ServerRequestObservationContext context) {
-		String httpMethod = context.getCarrier().getMethod().name().toLowerCase();
+		String httpMethod = context.getCarrier().getMethod().name().toLowerCase(Locale.ROOT);
 		if (context.getPathPattern() != null) {
 			return "http " + httpMethod + " " + context.getPathPattern();
 		}
@@ -102,13 +108,17 @@ public class DefaultServerRequestObservationConvention implements ServerRequestO
 	}
 
 	protected KeyValue method(ServerRequestObservationContext context) {
-		return (context.getCarrier() != null) ?
-				KeyValue.of(LowCardinalityKeyNames.METHOD, context.getCarrier().getMethod().name()) :
-				METHOD_UNKNOWN;
+		if (context.getCarrier() != null) {
+			HttpMethod method = context.getCarrier().getMethod();
+			if (HTTP_METHODS.contains(method)) {
+				return KeyValue.of(LowCardinalityKeyNames.METHOD, method.name());
+			}
+		}
+		return METHOD_UNKNOWN;
 	}
 
 	protected KeyValue status(ServerRequestObservationContext context) {
-		if (context.isConnectionAborted()) {
+		if (context.isConnectionAborted() && (context.getResponse() == null || !context.getResponse().isCommitted())) {
 			return STATUS_UNKNOWN;
 		}
 		return (context.getResponse() != null && context.getResponse().getStatusCode() != null) ?

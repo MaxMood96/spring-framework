@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.util.Enumeration;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
@@ -39,13 +40,13 @@ import javax.xml.transform.stream.StreamSource;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContextException;
 import org.springframework.core.io.Resource;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
@@ -76,29 +77,23 @@ import org.springframework.web.util.WebUtils;
  */
 public class XsltView extends AbstractUrlBasedView {
 
-	@Nullable
-	private Class<? extends TransformerFactory> transformerFactoryClass;
+	private @Nullable Class<? extends TransformerFactory> transformerFactoryClass;
 
-	@Nullable
-	private String sourceKey;
+	private @Nullable String sourceKey;
 
-	@Nullable
-	private URIResolver uriResolver;
+	private @Nullable URIResolver uriResolver;
 
 	private ErrorListener errorListener = new SimpleTransformErrorListener(logger);
 
 	private boolean indent = true;
 
-	@Nullable
-	private Properties outputProperties;
+	private @Nullable Properties outputProperties;
 
 	private boolean cacheTemplates = true;
 
-	@Nullable
-	private TransformerFactory transformerFactory;
+	private @Nullable TransformerFactory transformerFactory;
 
-	@Nullable
-	private Templates cachedTemplates;
+	private @Nullable Templates cachedTemplates;
 
 
 	/**
@@ -215,6 +210,9 @@ public class XsltView extends AbstractUrlBasedView {
 			}
 		}
 		else {
+			// This transformer is used for local XSLT views only.
+			// As a result, attackers would need complete write access to application configuration
+			// to leverage XXE attacks. This does not qualify as privilege escalation.
 			return TransformerFactory.newInstance();
 		}
 	}
@@ -279,8 +277,7 @@ public class XsltView extends AbstractUrlBasedView {
 	 * @see #setSourceKey
 	 * @see #convertSource
 	 */
-	@Nullable
-	protected Source locateSource(Map<String, Object> model) throws Exception {
+	protected @Nullable Source locateSource(Map<String, Object> model) throws Exception {
 		if (this.sourceKey != null) {
 			return convertSource(model.get(this.sourceKey));
 		}
@@ -306,7 +303,7 @@ public class XsltView extends AbstractUrlBasedView {
 	 * @return the adapted XSLT Source
 	 * @throws IllegalArgumentException if the given Object is not of a supported type
 	 */
-	protected Source convertSource(Object sourceObject) throws Exception {
+	protected Source convertSource(@Nullable Object sourceObject) throws Exception {
 		if (sourceObject instanceof Source source) {
 			return source;
 		}
@@ -414,7 +411,7 @@ public class XsltView extends AbstractUrlBasedView {
 		}
 		if (StringUtils.hasText(encoding)) {
 			// Only apply encoding if content type is specified but does not contain charset clause already.
-			if (contentType != null && !contentType.toLowerCase().contains(WebUtils.CONTENT_TYPE_CHARSET_PREFIX)) {
+			if (contentType != null && !contentType.toLowerCase(Locale.ROOT).contains(WebUtils.CONTENT_TYPE_CHARSET_PREFIX)) {
 				contentType = contentType + WebUtils.CONTENT_TYPE_CHARSET_PREFIX + encoding;
 			}
 		}

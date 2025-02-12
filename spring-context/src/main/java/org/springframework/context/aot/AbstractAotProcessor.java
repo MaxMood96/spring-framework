@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,12 @@ package org.springframework.context.aot;
 import java.io.IOException;
 import java.nio.file.Path;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aot.generate.FileSystemGeneratedFiles;
 import org.springframework.aot.generate.GeneratedFiles.Kind;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.nativex.FileNativeConfigurationWriter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.FileSystemUtils;
 
@@ -47,11 +48,11 @@ import org.springframework.util.FileSystemUtils;
 public abstract class AbstractAotProcessor<T> {
 
 	/**
-	 * The name of a system property that is made available when the processor
-	 * runs.
+	 * The name of a system property that is made available when the processor runs.
+	 * @since 6.2
 	 * @see #doProcess()
 	 */
-	private static final String AOT_PROCESSING = "spring.aot.processing";
+	public static final String AOT_PROCESSING = "spring.aot.processing";
 
 	private final Settings settings;
 
@@ -125,6 +126,7 @@ public abstract class AbstractAotProcessor<T> {
 		writer.write(hints);
 	}
 
+
 	/**
 	 * Common settings for AOT processors.
 	 */
@@ -140,7 +142,6 @@ public abstract class AbstractAotProcessor<T> {
 
 		private final String artifactId;
 
-
 		private Settings(Path sourceOutput, Path resourceOutput, Path classOutput, String groupId, String artifactId) {
 			this.sourceOutput = sourceOutput;
 			this.resourceOutput = resourceOutput;
@@ -149,14 +150,12 @@ public abstract class AbstractAotProcessor<T> {
 			this.artifactId = artifactId;
 		}
 
-
 		/**
 		 * Create a new {@link Builder} for {@link Settings}.
 		 */
 		public static Builder builder() {
 			return new Builder();
 		}
-
 
 		/**
 		 * Get the output directory for generated sources.
@@ -199,26 +198,19 @@ public abstract class AbstractAotProcessor<T> {
 		 */
 		public static final class Builder {
 
-			@Nullable
-			private Path sourceOutput;
+			private @Nullable Path sourceOutput;
 
-			@Nullable
-			private Path resourceOutput;
+			private @Nullable Path resourceOutput;
 
-			@Nullable
-			private Path classOutput;
+			private @Nullable Path classOutput;
 
-			@Nullable
-			private String groupId;
+			private @Nullable String groupId;
 
-			@Nullable
-			private String artifactId;
-
+			private @Nullable String artifactId;
 
 			private Builder() {
 				// internal constructor
 			}
-
 
 			/**
 			 * Set the output directory for generated sources.
@@ -257,6 +249,7 @@ public abstract class AbstractAotProcessor<T> {
 			 * @return this builder for method chaining
 			 */
 			public Builder groupId(String groupId) {
+				Assert.hasText(groupId, "'groupId' must not be empty");
 				this.groupId = groupId;
 				return this;
 			}
@@ -268,6 +261,7 @@ public abstract class AbstractAotProcessor<T> {
 			 * @return this builder for method chaining
 			 */
 			public Builder artifactId(String artifactId) {
+				Assert.hasText(artifactId, "'artifactId' must not be empty");
 				this.artifactId = artifactId;
 				return this;
 			}
@@ -279,14 +273,12 @@ public abstract class AbstractAotProcessor<T> {
 				Assert.notNull(this.sourceOutput, "'sourceOutput' must not be null");
 				Assert.notNull(this.resourceOutput, "'resourceOutput' must not be null");
 				Assert.notNull(this.classOutput, "'classOutput' must not be null");
-				Assert.hasText(this.groupId, "'groupId' must not be null or empty");
-				Assert.hasText(this.artifactId, "'artifactId' must not be null or empty");
+				Assert.notNull(this.groupId, "'groupId' must not be null");
+				Assert.notNull(this.artifactId, "'artifactId' must not be null");
 				return new Settings(this.sourceOutput, this.resourceOutput, this.classOutput,
 						this.groupId, this.artifactId);
 			}
-
 		}
-
 	}
 
 }

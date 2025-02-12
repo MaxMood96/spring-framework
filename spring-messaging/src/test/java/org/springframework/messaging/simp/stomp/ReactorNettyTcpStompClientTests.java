@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,15 +29,14 @@ import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.TransportConnector;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.converter.StringMessageConverter;
 import org.springframework.messaging.simp.stomp.StompSession.Subscription;
-import org.springframework.messaging.tcp.reactor.ReactorNetty2TcpClient;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.util.Assert;
 
@@ -49,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author Rossen Stoyanchev
  * @author Sam Brannen
  */
-public class ReactorNettyTcpStompClientTests {
+class ReactorNettyTcpStompClientTests {
 
 	private static final Log logger = LogFactory.getLog(ReactorNettyTcpStompClientTests.class);
 
@@ -58,11 +57,9 @@ public class ReactorNettyTcpStompClientTests {
 
 	private ReactorNettyTcpStompClient client;
 
-	private ReactorNettyTcpStompClient client2;
-
 
 	@BeforeEach
-	public void setup(TestInfo testInfo) throws Exception {
+	void setup(TestInfo testInfo) throws Exception {
 		logger.debug("Setting up before '" + testInfo.getTestMethod().get().getName() + "'");
 
 		TransportConnector stompConnector = createStompConnector();
@@ -84,10 +81,6 @@ public class ReactorNettyTcpStompClientTests {
 		this.client = new ReactorNettyTcpStompClient(host, port);
 		this.client.setMessageConverter(new StringMessageConverter());
 		this.client.setTaskScheduler(taskScheduler);
-
-		this.client2 = new ReactorNettyTcpStompClient(new ReactorNetty2TcpClient<>(host, port, new StompTcpMessageCodec()));
-		this.client2.setMessageConverter(new StringMessageConverter());
-		this.client2.setTaskScheduler(taskScheduler);
 	}
 
 	private TransportConnector createStompConnector() throws Exception {
@@ -97,10 +90,9 @@ public class ReactorNettyTcpStompClientTests {
 	}
 
 	@AfterEach
-	public void shutdown() throws Exception {
+	void shutdown() throws Exception {
 		try {
 			this.client.shutdown();
-			this.client2.shutdown();
 		}
 		catch (Throwable ex) {
 			logger.error("Failed to shut client", ex);
@@ -116,13 +108,8 @@ public class ReactorNettyTcpStompClientTests {
 
 
 	@Test
-	public void publishSubscribeOnReactorNetty() throws Exception {
+	void publishSubscribeOnReactorNetty() throws Exception {
 		testPublishSubscribe(this.client);
-	}
-
-	@Test
-	public void publishSubscribeOnReactorNetty2() throws Exception {
-		testPublishSubscribe(this.client2);
 	}
 
 	private void testPublishSubscribe(ReactorNettyTcpStompClient clientToUse) throws Exception {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,6 +49,7 @@ import com.fasterxml.jackson.databind.SerializationConfig;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.exc.InvalidDefinitionException;
 import com.fasterxml.jackson.databind.ser.FilterProvider;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.GenericTypeResolver;
 import org.springframework.http.HttpInputMessage;
@@ -60,7 +61,6 @@ import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.converter.HttpMessageNotWritableException;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StreamUtils;
@@ -94,14 +94,11 @@ public abstract class AbstractJackson2HttpMessageConverter extends AbstractGener
 
 	protected ObjectMapper defaultObjectMapper;
 
-	@Nullable
-	private Map<Class<?>, Map<MediaType, ObjectMapper>> objectMapperRegistrations;
+	private @Nullable Map<Class<?>, Map<MediaType, ObjectMapper>> objectMapperRegistrations;
 
-	@Nullable
-	private Boolean prettyPrint;
+	private @Nullable Boolean prettyPrint;
 
-	@Nullable
-	private final PrettyPrinter ssePrettyPrinter;
+	private final @Nullable PrettyPrinter ssePrettyPrinter;
 
 
 	protected AbstractJackson2HttpMessageConverter(ObjectMapper objectMapper) {
@@ -184,8 +181,7 @@ public abstract class AbstractJackson2HttpMessageConverter extends AbstractGener
 	 * or empty if in case of no registrations for the given class.
 	 * @since 5.3.4
 	 */
-	@Nullable
-	public Map<MediaType, ObjectMapper> getObjectMappersForType(Class<?> clazz) {
+	public @Nullable Map<MediaType, ObjectMapper> getObjectMappersForType(Class<?> clazz) {
 		for (Map.Entry<Class<?>, Map<MediaType, ObjectMapper>> entry : getObjectMapperRegistrations().entrySet()) {
 			if (entry.getKey().isAssignableFrom(clazz)) {
 				return entry.getValue();
@@ -249,6 +245,7 @@ public abstract class AbstractJackson2HttpMessageConverter extends AbstractGener
 		return canRead(clazz, null, mediaType);
 	}
 
+	@SuppressWarnings("deprecation")  // as of Jackson 2.18: can(De)Serialize
 	@Override
 	public boolean canRead(Type type, @Nullable Class<?> contextClass, @Nullable MediaType mediaType) {
 		if (!canRead(mediaType)) {
@@ -267,6 +264,7 @@ public abstract class AbstractJackson2HttpMessageConverter extends AbstractGener
 		return false;
 	}
 
+	@SuppressWarnings("deprecation")  // as of Jackson 2.18: can(De)Serialize
 	@Override
 	public boolean canWrite(Class<?> clazz, @Nullable MediaType mediaType) {
 		if (!canWrite(mediaType)) {
@@ -295,8 +293,7 @@ public abstract class AbstractJackson2HttpMessageConverter extends AbstractGener
 	 * if the handling for the given Class has been customized through
 	 * {@link #registerObjectMappersForType(Class, Consumer)}.
 	 */
-	@Nullable
-	private ObjectMapper selectObjectMapper(Class<?> targetType, @Nullable MediaType targetMediaType) {
+	private @Nullable ObjectMapper selectObjectMapper(Class<?> targetType, @Nullable MediaType targetMediaType) {
 		if (targetMediaType == null || CollectionUtils.isEmpty(this.objectMapperRegistrations)) {
 			return this.defaultObjectMapper;
 		}
@@ -329,7 +326,8 @@ public abstract class AbstractJackson2HttpMessageConverter extends AbstractGener
 		}
 
 		// Do not log warning for serializer not found (note: different message wording on Jackson 2.9)
-		boolean debugLevel = (cause instanceof JsonMappingException && cause.getMessage().startsWith("Cannot find"));
+		boolean debugLevel = (cause instanceof JsonMappingException && cause.getMessage() != null &&
+				cause.getMessage().startsWith("Cannot find"));
 
 		if (debugLevel ? logger.isDebugEnabled() : logger.isWarnEnabled()) {
 			String msg = "Failed to evaluate Jackson " + (type instanceof JavaType ? "de" : "") +
@@ -552,8 +550,7 @@ public abstract class AbstractJackson2HttpMessageConverter extends AbstractGener
 	}
 
 	@Override
-	@Nullable
-	protected MediaType getDefaultContentType(Object object) throws IOException {
+	protected @Nullable MediaType getDefaultContentType(Object object) throws IOException {
 		if (object instanceof MappingJacksonValue mappingJacksonValue) {
 			object = mappingJacksonValue.getValue();
 		}
@@ -561,11 +558,15 @@ public abstract class AbstractJackson2HttpMessageConverter extends AbstractGener
 	}
 
 	@Override
-	protected Long getContentLength(Object object, @Nullable MediaType contentType) throws IOException {
+	protected @Nullable Long getContentLength(Object object, @Nullable MediaType contentType) throws IOException {
 		if (object instanceof MappingJacksonValue mappingJacksonValue) {
 			object = mappingJacksonValue.getValue();
 		}
 		return super.getContentLength(object, contentType);
 	}
 
+	@Override
+	protected boolean supportsRepeatableWrites(Object o) {
+		return true;
+	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
 
@@ -28,13 +30,14 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.annotation.SubscribeMapping;
+import org.springframework.messaging.simp.annotation.support.SimpAnnotationMethodMessageHandler;
+import org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry;
 import org.springframework.messaging.simp.broker.SimpleBrokerMessageHandler;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -44,6 +47,7 @@ import org.springframework.messaging.support.AbstractSubscribableChannel;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.ExecutorSubscribableChannel;
 import org.springframework.messaging.support.ImmutableMessageChannelInterceptor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.servlet.handler.SimpleUrlHandlerMapping;
@@ -56,10 +60,12 @@ import org.springframework.web.socket.messaging.StompSubProtocolHandler;
 import org.springframework.web.socket.messaging.StompTextMessageBuilder;
 import org.springframework.web.socket.messaging.SubProtocolHandler;
 import org.springframework.web.socket.messaging.SubProtocolWebSocketHandler;
+import org.springframework.web.socket.server.support.WebSocketHandlerMapping;
 import org.springframework.web.socket.server.support.WebSocketHttpRequestHandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.BOOLEAN;
+import static org.assertj.core.api.InstanceOfAssertFactories.type;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -67,6 +73,7 @@ import static org.mockito.Mockito.mock;
  *
  * @author Rossen Stoyanchev
  * @author Sebastien Deleuze
+ * @author Sam Brannen
  */
 class WebSocketMessageBrokerConfigurationSupportTests {
 
@@ -162,6 +169,32 @@ class WebSocketMessageBrokerConfigurationSupportTests {
 	}
 
 	@Test
+	void selectorHeaderEnabled() {
+		ApplicationContext context = createContext(TestChannelConfig.class, SelectorHeaderConfigurer.class);
+		SimpleBrokerMessageHandler simpleBrokerMessageHandler = simpleBrokerMessageHandler(context);
+
+		assertThat(simpleBrokerMessageHandler.getSubscriptionRegistry())
+				.asInstanceOf(type(DefaultSubscriptionRegistry.class))
+				.extracting(DefaultSubscriptionRegistry::getSelectorHeaderName)
+				.isEqualTo("selector");
+	}
+
+	@Test
+	void selectorHeaderDisabledByDefault() {
+		ApplicationContext context = createContext(TestChannelConfig.class, TestConfigurer.class);
+		SimpleBrokerMessageHandler simpleBrokerMessageHandler = simpleBrokerMessageHandler(context);
+
+		assertThat(simpleBrokerMessageHandler.getSubscriptionRegistry())
+				.asInstanceOf(type(DefaultSubscriptionRegistry.class))
+				.extracting(DefaultSubscriptionRegistry::getSelectorHeaderName)
+				.isNull();
+	}
+
+	private static SimpleBrokerMessageHandler simpleBrokerMessageHandler(ApplicationContext context) {
+		return context.getBean("simpleBrokerMessageHandler", SimpleBrokerMessageHandler.class);
+	}
+
+	@Test
 	void webSocketMessageBrokerStats() {
 		ApplicationContext context = createContext(TestChannelConfig.class, TestConfigurer.class);
 		String name = "webSocketMessageBrokerStats";
@@ -176,6 +209,35 @@ class WebSocketMessageBrokerConfigurationSupportTests {
 				"sockJsScheduler\\[pool size = \\d, active threads = \\d, queued tasks = \\d, completed tasks = \\d]";
 
 		assertThat(actual).matches(expected);
+	}
+
+	@Test
+	void lifecyclePhaseDefault() {
+		ApplicationContext context = createContext(TestChannelConfig.class, TestConfigurer.class);
+		assertPhase(context, 0);
+	}
+
+	@Test
+	void lifecyclePhaseExplicitlySet() {
+		ApplicationContext context = createContext(LifecyclePhaseConfig.class);
+		assertPhase(context, 99);
+	}
+
+	private static void assertPhase(ApplicationContext context, int phase) {
+		Consumer<String> executorTester = beanName ->
+				assertThat(context.getBean(beanName, ThreadPoolTaskExecutor.class).getPhase()).isEqualTo(phase);
+
+		executorTester.accept("clientInboundChannelExecutor");
+		executorTester.accept("clientOutboundChannelExecutor");
+		executorTester.accept("brokerChannelExecutor");
+
+		assertThat(context.getBean(SimpAnnotationMethodMessageHandler.class).getPhase()).isEqualTo(phase);
+		assertThat(context.getBean(UserDestinationMessageHandler.class).getPhase()).isEqualTo(phase);
+		assertThat(context.getBean(ThreadPoolTaskScheduler.class).getPhase()).isEqualTo(phase);
+		assertThat(context.getBean(WebSocketHandlerMapping.class).getPhase()).isEqualTo(phase);
+
+		assertThat(context.getBean(SubProtocolWebSocketHandler.class).getPhase()).isEqualTo(phase);
+		assertThat(context.getBean(SimpleBrokerMessageHandler.class).getPhase()).isEqualTo(phase);
 	}
 
 	@Test
@@ -244,11 +306,27 @@ class WebSocketMessageBrokerConfigurationSupportTests {
 	}
 
 	@Configuration
+	static class SelectorHeaderConfigurer implements WebSocketMessageBrokerConfigurer {
+
+		@Override
+		public void registerStompEndpoints(StompEndpointRegistry registry) {
+			registry.addEndpoint("/simpleBroker");
+		}
+
+		@Override
+		public void configureMessageBroker(MessageBrokerRegistry registry) {
+			// Explicitly enable selector header support
+			registry.enableSimpleBroker().setSelectorHeaderName("selector");
+		}
+
+	}
+
+	@Configuration
 	static class TestChannelConfig extends DelegatingWebSocketMessageBrokerConfiguration {
 
 		@Override
 		@Bean
-		public AbstractSubscribableChannel clientInboundChannel(TaskExecutor clientInboundChannelExecutor) {
+		public AbstractSubscribableChannel clientInboundChannel(Executor clientInboundChannelExecutor) {
 			TestChannel channel = new TestChannel();
 			channel.setInterceptors(super.clientInboundChannel(clientInboundChannelExecutor).getInterceptors());
 			return channel;
@@ -256,7 +334,7 @@ class WebSocketMessageBrokerConfigurationSupportTests {
 
 		@Override
 		@Bean
-		public AbstractSubscribableChannel clientOutboundChannel(TaskExecutor clientOutboundChannelExecutor) {
+		public AbstractSubscribableChannel clientOutboundChannel(Executor clientOutboundChannelExecutor) {
 			TestChannel channel = new TestChannel();
 			channel.setInterceptors(super.clientOutboundChannel(clientOutboundChannelExecutor).getInterceptors());
 			return channel;
@@ -264,7 +342,7 @@ class WebSocketMessageBrokerConfigurationSupportTests {
 
 		@Override
 		public AbstractSubscribableChannel brokerChannel(AbstractSubscribableChannel clientInboundChannel,
-				AbstractSubscribableChannel clientOutboundChannel, TaskExecutor brokerChannelExecutor) {
+				AbstractSubscribableChannel clientOutboundChannel, Executor brokerChannelExecutor) {
 			TestChannel channel = new TestChannel();
 			channel.setInterceptors(super.brokerChannel(clientInboundChannel, clientOutboundChannel, brokerChannelExecutor).getInterceptors());
 			return channel;
@@ -299,6 +377,32 @@ class WebSocketMessageBrokerConfigurationSupportTests {
 		public boolean sendInternal(Message<?> message, long timeout) {
 			this.messages.add(message);
 			return true;
+		}
+	}
+
+
+	@Configuration
+	static class LifecyclePhaseConfig extends DelegatingWebSocketMessageBrokerConfiguration {
+
+		@Bean
+		public WebSocketMessageBrokerConfigurer getConfigurer() {
+			return new WebSocketMessageBrokerConfigurer() {
+
+				@Override
+				public void registerStompEndpoints(StompEndpointRegistry registry) {
+					registry.addEndpoint("/broker");
+				}
+
+				@Override
+				public void configureMessageBroker(MessageBrokerRegistry registry) {
+					registry.enableSimpleBroker();
+				}
+
+				@Override
+				public Integer getPhase() {
+					return 99;
+				}
+			};
 		}
 	}
 

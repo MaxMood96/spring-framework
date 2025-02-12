@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Simple utility class for working with the reflection API and handling
@@ -137,7 +137,7 @@ public abstract class ReflectionUtils {
 	 * @param ex the exception to rethrow
 	 * @throws RuntimeException the rethrown exception
 	 */
-	public static void rethrowRuntimeException(Throwable ex) {
+	public static void rethrowRuntimeException(@Nullable Throwable ex) {
 		if (ex instanceof RuntimeException runtimeException) {
 			throw runtimeException;
 		}
@@ -158,7 +158,7 @@ public abstract class ReflectionUtils {
 	 * @param throwable the exception to rethrow
 	 * @throws Exception the rethrown exception (in case of a checked exception)
 	 */
-	public static void rethrowException(Throwable throwable) throws Exception {
+	public static void rethrowException(@Nullable Throwable throwable) throws Exception {
 		if (throwable instanceof Exception exception) {
 			throw exception;
 		}
@@ -213,8 +213,7 @@ public abstract class ReflectionUtils {
 	 * @param name the name of the method
 	 * @return the Method object, or {@code null} if none found
 	 */
-	@Nullable
-	public static Method findMethod(Class<?> clazz, String name) {
+	public static @Nullable Method findMethod(Class<?> clazz, String name) {
 		return findMethod(clazz, name, EMPTY_CLASS_ARRAY);
 	}
 
@@ -228,8 +227,7 @@ public abstract class ReflectionUtils {
 	 * (may be {@code null} to indicate any signature)
 	 * @return the Method object, or {@code null} if none found
 	 */
-	@Nullable
-	public static Method findMethod(Class<?> clazz, String name, @Nullable Class<?>... paramTypes) {
+	public static @Nullable Method findMethod(Class<?> clazz, String name, Class<?> @Nullable ... paramTypes) {
 		Assert.notNull(clazz, "Class must not be null");
 		Assert.notNull(name, "Method name must not be null");
 		Class<?> searchType = clazz;
@@ -260,8 +258,7 @@ public abstract class ReflectionUtils {
 	 * @return the invocation result, if any
 	 * @see #invokeMethod(java.lang.reflect.Method, Object, Object[])
 	 */
-	@Nullable
-	public static Object invokeMethod(Method method, @Nullable Object target) {
+	public static @Nullable Object invokeMethod(Method method, @Nullable Object target) {
 		return invokeMethod(method, target, EMPTY_OBJECT_ARRAY);
 	}
 
@@ -275,8 +272,7 @@ public abstract class ReflectionUtils {
 	 * @param args the invocation arguments (may be {@code null})
 	 * @return the invocation result, if any
 	 */
-	@Nullable
-	public static Object invokeMethod(Method method, @Nullable Object target, @Nullable Object... args) {
+	public static @Nullable Object invokeMethod(Method method, @Nullable Object target, @Nullable Object... args) {
 		try {
 			return method.invoke(target, args);
 		}
@@ -463,7 +459,7 @@ public abstract class ReflectionUtils {
 		if (result == null) {
 			try {
 				Method[] declaredMethods = clazz.getDeclaredMethods();
-				List<Method> defaultMethods = findConcreteMethodsOnInterfaces(clazz);
+				List<Method> defaultMethods = findDefaultMethodsOnInterfaces(clazz);
 				if (defaultMethods != null) {
 					result = new Method[declaredMethods.length + defaultMethods.size()];
 					System.arraycopy(declaredMethods, 0, result, 0, declaredMethods.length);
@@ -486,16 +482,15 @@ public abstract class ReflectionUtils {
 		return (result.length == 0 || !defensive) ? result : result.clone();
 	}
 
-	@Nullable
-	private static List<Method> findConcreteMethodsOnInterfaces(Class<?> clazz) {
+	private static @Nullable List<Method> findDefaultMethodsOnInterfaces(Class<?> clazz) {
 		List<Method> result = null;
 		for (Class<?> ifc : clazz.getInterfaces()) {
-			for (Method ifcMethod : ifc.getMethods()) {
-				if (!Modifier.isAbstract(ifcMethod.getModifiers())) {
+			for (Method method : ifc.getMethods()) {
+				if (method.isDefault()) {
 					if (result == null) {
 						result = new ArrayList<>();
 					}
-					result.add(ifcMethod);
+					result.add(method);
 				}
 			}
 		}
@@ -507,16 +502,8 @@ public abstract class ReflectionUtils {
 	 * @see java.lang.Object#equals(Object)
 	 */
 	public static boolean isEqualsMethod(@Nullable Method method) {
-		if (method == null) {
-			return false;
-		}
-		if (method.getParameterCount() != 1) {
-			return false;
-		}
-		if (!method.getName().equals("equals")) {
-			return false;
-		}
-		return method.getParameterTypes()[0] == Object.class;
+		return (method != null && method.getParameterCount() == 1 && method.getName().equals("equals") &&
+				method.getParameterTypes()[0] == Object.class);
 	}
 
 	/**
@@ -524,7 +511,7 @@ public abstract class ReflectionUtils {
 	 * @see java.lang.Object#hashCode()
 	 */
 	public static boolean isHashCodeMethod(@Nullable Method method) {
-		return method != null && method.getParameterCount() == 0 && method.getName().equals("hashCode");
+		return (method != null && method.getParameterCount() == 0 && method.getName().equals("hashCode"));
 	}
 
 	/**
@@ -585,8 +572,7 @@ public abstract class ReflectionUtils {
 	 * @param name the name of the field
 	 * @return the corresponding Field object, or {@code null} if not found
 	 */
-	@Nullable
-	public static Field findField(Class<?> clazz, String name) {
+	public static @Nullable Field findField(Class<?> clazz, String name) {
 		return findField(clazz, name, null);
 	}
 
@@ -599,8 +585,7 @@ public abstract class ReflectionUtils {
 	 * @param type the type of the field (may be {@code null} if name is specified)
 	 * @return the corresponding Field object, or {@code null} if not found
 	 */
-	@Nullable
-	public static Field findField(Class<?> clazz, @Nullable String name, @Nullable Class<?> type) {
+	public static @Nullable Field findField(Class<?> clazz, @Nullable String name, @Nullable Class<?> type) {
 		Assert.notNull(clazz, "Class must not be null");
 		Assert.isTrue(name != null || type != null, "Either name or type of the field must be specified");
 		Class<?> searchType = clazz;
@@ -609,6 +594,30 @@ public abstract class ReflectionUtils {
 			for (Field field : fields) {
 				if ((name == null || name.equals(field.getName())) &&
 						(type == null || type.equals(field.getType()))) {
+					return field;
+				}
+			}
+			searchType = searchType.getSuperclass();
+		}
+		return null;
+	}
+
+	/**
+	 * Attempt to find a {@link Field field} on the supplied {@link Class} with the
+	 * supplied {@code name}. Searches all superclasses up to {@link Object}.
+	 * @param clazz the class to introspect
+	 * @param name the name of the field (with upper/lower case to be ignored)
+	 * @return the corresponding Field object, or {@code null} if not found
+	 * @since 6.1
+	 */
+	public static @Nullable Field findFieldIgnoreCase(Class<?> clazz, String name) {
+		Assert.notNull(clazz, "Class must not be null");
+		Assert.notNull(name, "Name must not be null");
+		Class<?> searchType = clazz;
+		while (Object.class != searchType && searchType != null) {
+			Field[] fields = getDeclaredFields(searchType);
+			for (Field field : fields) {
+				if (name.equalsIgnoreCase(field.getName())) {
 					return field;
 				}
 			}
@@ -649,8 +658,7 @@ public abstract class ReflectionUtils {
 	 * (or {@code null} for a static field)
 	 * @return the field's current value
 	 */
-	@Nullable
-	public static Object getField(Field field, @Nullable Object target) {
+	public static @Nullable Object getField(Field field, @Nullable Object target) {
 		try {
 			return field.get(target);
 		}
@@ -702,8 +710,7 @@ public abstract class ReflectionUtils {
 		// Keep backing up the inheritance hierarchy.
 		Class<?> targetClass = clazz;
 		do {
-			Field[] fields = getDeclaredFields(targetClass);
-			for (Field field : fields) {
+			for (Field field : getDeclaredFields(targetClass)) {
 				if (ff != null && !ff.matches(field)) {
 					continue;
 				}

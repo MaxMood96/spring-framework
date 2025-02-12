@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,14 +29,10 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.reactivestreams.Publisher;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.core.ReactiveAdapter;
-import org.springframework.core.ReactiveAdapterRegistry;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
-import org.springframework.lang.Nullable;
-import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.context.request.async.AsyncWebRequest;
@@ -58,14 +54,14 @@ final class DefaultAsyncServerResponse extends ErrorHandlingServerResponse imple
 
 	private final CompletableFuture<ServerResponse> futureResponse;
 
-	@Nullable
-	private final Duration timeout;
+	private final @Nullable Duration timeout;
 
 
-	private DefaultAsyncServerResponse(CompletableFuture<ServerResponse> futureResponse, @Nullable Duration timeout) {
+	DefaultAsyncServerResponse(CompletableFuture<ServerResponse> futureResponse, @Nullable Duration timeout) {
 		this.futureResponse = futureResponse;
 		this.timeout = timeout;
 	}
+
 
 	@Override
 	public ServerResponse block() {
@@ -88,12 +84,6 @@ final class DefaultAsyncServerResponse extends ErrorHandlingServerResponse imple
 	}
 
 	@Override
-	@Deprecated
-	public int rawStatusCode() {
-		return delegate(ServerResponse::rawStatusCode);
-	}
-
-	@Override
 	public HttpHeaders headers() {
 		return delegate(ServerResponse::headers);
 	}
@@ -113,9 +103,8 @@ final class DefaultAsyncServerResponse extends ErrorHandlingServerResponse imple
 		}
 	}
 
-	@Nullable
 	@Override
-	public ModelAndView writeTo(HttpServletRequest request, HttpServletResponse response, Context context)
+	public @Nullable ModelAndView writeTo(HttpServletRequest request, HttpServletResponse response, Context context)
 			throws ServletException, IOException {
 
 		writeAsync(request, response, createDeferredResult(request));
@@ -167,29 +156,5 @@ final class DefaultAsyncServerResponse extends ErrorHandlingServerResponse imple
 		});
 		return result;
 	}
-
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	public static AsyncServerResponse create(Object obj, @Nullable Duration timeout) {
-		Assert.notNull(obj, "Argument to async must not be null");
-
-		if (obj instanceof CompletableFuture futureResponse) {
-			return new DefaultAsyncServerResponse(futureResponse, timeout);
-		}
-		else if (reactiveStreamsPresent) {
-			ReactiveAdapterRegistry registry = ReactiveAdapterRegistry.getSharedInstance();
-			ReactiveAdapter publisherAdapter = registry.getAdapter(obj.getClass());
-			if (publisherAdapter != null) {
-				Publisher<ServerResponse> publisher = publisherAdapter.toPublisher(obj);
-				ReactiveAdapter futureAdapter = registry.getAdapter(CompletableFuture.class);
-				if (futureAdapter != null) {
-					CompletableFuture<ServerResponse> futureResponse =
-							(CompletableFuture<ServerResponse>) futureAdapter.fromPublisher(publisher);
-					return new DefaultAsyncServerResponse(futureResponse, timeout);
-				}
-			}
-		}
-		throw new IllegalArgumentException("Asynchronous type not supported: " + obj.getClass());
-	}
-
 
 }

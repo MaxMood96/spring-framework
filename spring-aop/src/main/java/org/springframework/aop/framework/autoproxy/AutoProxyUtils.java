@@ -16,11 +16,12 @@
 
 package org.springframework.aop.framework.autoproxy;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.core.Conventions;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 
 /**
@@ -47,7 +48,7 @@ public abstract class AutoProxyUtils {
 
 	/**
 	 * Bean definition attribute that indicates the original target class of an
-	 * auto-proxied bean, e.g. to be used for the introspection of annotations
+	 * auto-proxied bean, for example, to be used for the introspection of annotations
 	 * on the target class behind an interface-based proxy.
 	 * @since 4.2.3
 	 * @see #determineTargetClass
@@ -84,8 +85,7 @@ public abstract class AutoProxyUtils {
 	 * @since 4.2.3
 	 * @see org.springframework.beans.factory.BeanFactory#getType(String)
 	 */
-	@Nullable
-	public static Class<?> determineTargetClass(
+	public static @Nullable Class<?> determineTargetClass(
 			ConfigurableListableBeanFactory beanFactory, @Nullable String beanName) {
 
 		if (beanName == null) {

@@ -19,16 +19,16 @@ This section describes the HTTP caching-related options that are available in Sp
 == `CacheControl`
 [.small]#xref:web/webflux/caching.adoc#webflux-caching-cachecontrol[See equivalent in the Reactive stack]#
 
-{api-spring-framework}/http/CacheControl.html[`CacheControl`] provides support for
+{spring-framework-api}/http/CacheControl.html[`CacheControl`] provides support for
 configuring settings related to the `Cache-Control` header and is accepted as an argument
 in a number of places:
 
-* {api-spring-framework}/web/servlet/mvc/WebContentInterceptor.html[`WebContentInterceptor`]
-* {api-spring-framework}/web/servlet/support/WebContentGenerator.html[`WebContentGenerator`]
+* {spring-framework-api}/web/servlet/mvc/WebContentInterceptor.html[`WebContentInterceptor`]
+* {spring-framework-api}/web/servlet/support/WebContentGenerator.html[`WebContentGenerator`]
 * xref:web/webmvc/mvc-caching.adoc#mvc-caching-etag-lastmodified[Controllers]
 * xref:web/webmvc/mvc-caching.adoc#mvc-caching-static-resources[Static Resources]
 
-While https://tools.ietf.org/html/rfc7234#section-5.2.2[RFC 7234] describes all possible
+While {rfc-site}/rfc7234#section-5.2.2[RFC 7234] describes all possible
 directives for the `Cache-Control` response header, the `CacheControl` type takes a
 use case-oriented approach that focuses on the common scenarios:
 
@@ -36,7 +36,7 @@ use case-oriented approach that focuses on the common scenarios:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	// Cache for an hour - "Cache-Control: max-age=3600"
 	CacheControl ccCacheOneHour = CacheControl.maxAge(1, TimeUnit.HOURS);
@@ -52,7 +52,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	// Cache for an hour - "Cache-Control: max-age=3600"
 	val ccCacheOneHour = CacheControl.maxAge(1, TimeUnit.HOURS)
@@ -91,7 +91,7 @@ settings to a `ResponseEntity`, as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@GetMapping("/book/{id}")
 	public ResponseEntity<Book> showBook(@PathVariable Long id) {
@@ -109,7 +109,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@GetMapping("/book/{id}")
 	fun showBook(@PathVariable id: Long): ResponseEntity<Book> {
@@ -139,7 +139,7 @@ as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@RequestMapping
 	public String myHandleMethod(WebRequest request, Model model) {
@@ -160,7 +160,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@RequestMapping
 	fun myHandleMethod(request: WebRequest, model: Model): String? {

@@ -47,6 +47,7 @@ import org.hibernate.exception.DataException;
 import org.hibernate.exception.JDBCConnectionException;
 import org.hibernate.exception.LockAcquisitionException;
 import org.hibernate.exception.SQLGrammarException;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataAccessException;
@@ -59,8 +60,8 @@ import org.springframework.dao.InvalidDataAccessResourceUsageException;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.jdbc.datasource.ConnectionHandle;
 import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.jdbc.support.SQLExceptionSubclassTranslator;
 import org.springframework.jdbc.support.SQLExceptionTranslator;
-import org.springframework.lang.Nullable;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.orm.ObjectRetrievalFailureException;
 import org.springframework.orm.jpa.DefaultJpaDialect;
@@ -74,7 +75,7 @@ import org.springframework.util.ReflectionUtils;
 
 /**
  * {@link org.springframework.orm.jpa.JpaDialect} implementation for Hibernate.
- * Compatible with Hibernate ORM 5.5/5.6 as well as 6.0/6.1/6.2.
+ * Compatible with Hibernate ORM 5.5/5.6 as well as 6.0/6.1/6.2/6.3.
  *
  * @author Juergen Hoeller
  * @author Costin Leau
@@ -88,8 +89,9 @@ public class HibernateJpaDialect extends DefaultJpaDialect {
 
 	boolean prepareConnection = true;
 
-	@Nullable
-	private SQLExceptionTranslator jdbcExceptionTranslator;
+	private @Nullable SQLExceptionTranslator jdbcExceptionTranslator;
+
+	private @Nullable SQLExceptionTranslator transactionExceptionTranslator = new SQLExceptionSubclassTranslator();
 
 
 	/**
@@ -121,14 +123,22 @@ public class HibernateJpaDialect extends DefaultJpaDialect {
 	 * <p>Applied to any detected {@link java.sql.SQLException} root cause of a Hibernate
 	 * {@link JDBCException}, overriding Hibernate's own {@code SQLException} translation
 	 * (which is based on a Hibernate Dialect for a specific target database).
+	 * <p>As of 6.1, also applied to {@link org.hibernate.TransactionException} translation
+	 * with a {@link SQLException} root cause (where Hibernate does not translate itself
+	 * at all), overriding Spring's default {@link SQLExceptionSubclassTranslator} there.
+	 * @param exceptionTranslator the {@link SQLExceptionTranslator} to delegate to, or
+	 * {@code null} for none. By default, a {@link SQLExceptionSubclassTranslator} will
+	 * be used for {@link org.hibernate.TransactionException} translation as of 6.1;
+	 * this can be reverted to pre-6.1 behavior through setting {@code null} here.
 	 * @since 5.1
 	 * @see java.sql.SQLException
 	 * @see org.hibernate.JDBCException
+	 * @see org.springframework.jdbc.support.SQLExceptionSubclassTranslator
 	 * @see org.springframework.jdbc.support.SQLErrorCodeSQLExceptionTranslator
-	 * @see org.springframework.jdbc.support.SQLStateSQLExceptionTranslator
 	 */
-	public void setJdbcExceptionTranslator(SQLExceptionTranslator jdbcExceptionTranslator) {
-		this.jdbcExceptionTranslator = jdbcExceptionTranslator;
+	public void setJdbcExceptionTranslator(@Nullable SQLExceptionTranslator exceptionTranslator) {
+		this.jdbcExceptionTranslator = exceptionTranslator;
+		this.transactionExceptionTranslator = exceptionTranslator;
 	}
 
 
@@ -186,8 +196,7 @@ public class HibernateJpaDialect extends DefaultJpaDialect {
 		return new SessionTransactionData(session, previousFlushMode, false, null, readOnly);
 	}
 
-	@Nullable
-	protected FlushMode prepareFlushMode(Session session, boolean readOnly) throws PersistenceException {
+	protected @Nullable FlushMode prepareFlushMode(Session session, boolean readOnly) throws PersistenceException {
 		FlushMode flushMode = session.getHibernateFlushMode();
 		if (readOnly) {
 			// We should suppress flushing for a read-only transaction.
@@ -223,8 +232,7 @@ public class HibernateJpaDialect extends DefaultJpaDialect {
 	}
 
 	@Override
-	@Nullable
-	public DataAccessException translateExceptionIfPossible(RuntimeException ex) {
+	public @Nullable DataAccessException translateExceptionIfPossible(RuntimeException ex) {
 		if (ex instanceof HibernateException hibernateEx) {
 			return convertHibernateAccessException(hibernateEx);
 		}
@@ -245,31 +253,40 @@ public class HibernateJpaDialect extends DefaultJpaDialect {
 			DataAccessException dae = this.jdbcExceptionTranslator.translate(
 					"Hibernate operation: " + jdbcEx.getMessage(), jdbcEx.getSQL(), jdbcEx.getSQLException());
 			if (dae != null) {
-				throw dae;
+				return dae;
+			}
+		}
+		if (this.transactionExceptionTranslator != null && ex instanceof org.hibernate.TransactionException) {
+			if (ex.getCause() instanceof SQLException sqlEx) {
+				DataAccessException dae = this.transactionExceptionTranslator.translate(
+						"Hibernate transaction: " + ex.getMessage(), null, sqlEx);
+				if (dae != null) {
+					return dae;
+				}
 			}
 		}
 
 		if (ex instanceof JDBCConnectionException) {
 			return new DataAccessResourceFailureException(ex.getMessage(), ex);
 		}
-		if (ex instanceof SQLGrammarException hibJdbcEx) {
-			return new InvalidDataAccessResourceUsageException(ex.getMessage() + "; SQL [" + hibJdbcEx.getSQL() + "]", ex);
+		if (ex instanceof SQLGrammarException hibEx) {
+			return new InvalidDataAccessResourceUsageException(ex.getMessage() + "; SQL [" + hibEx.getSQL() + "]", ex);
 		}
-		if (ex instanceof QueryTimeoutException hibJdbcEx) {
-			return new org.springframework.dao.QueryTimeoutException(ex.getMessage() + "; SQL [" + hibJdbcEx.getSQL() + "]", ex);
+		if (ex instanceof QueryTimeoutException hibEx) {
+			return new org.springframework.dao.QueryTimeoutException(ex.getMessage() + "; SQL [" + hibEx.getSQL() + "]", ex);
 		}
-		if (ex instanceof LockAcquisitionException hibJdbcEx) {
-			return new CannotAcquireLockException(ex.getMessage() + "; SQL [" + hibJdbcEx.getSQL() + "]", ex);
+		if (ex instanceof LockAcquisitionException hibEx) {
+			return new CannotAcquireLockException(ex.getMessage() + "; SQL [" + hibEx.getSQL() + "]", ex);
 		}
-		if (ex instanceof PessimisticLockException hibJdbcEx) {
-			return new PessimisticLockingFailureException(ex.getMessage() + "; SQL [" + hibJdbcEx.getSQL() + "]", ex);
+		if (ex instanceof PessimisticLockException hibEx) {
+			return new PessimisticLockingFailureException(ex.getMessage() + "; SQL [" + hibEx.getSQL() + "]", ex);
 		}
-		if (ex instanceof ConstraintViolationException hibJdbcEx) {
-			return new DataIntegrityViolationException(ex.getMessage()  + "; SQL [" + hibJdbcEx.getSQL() +
-					"]; constraint [" + hibJdbcEx.getConstraintName() + "]", ex);
+		if (ex instanceof ConstraintViolationException hibEx) {
+			return new DataIntegrityViolationException(ex.getMessage() + "; SQL [" + hibEx.getSQL() +
+					"]; constraint [" + hibEx.getConstraintName() + "]", ex);
 		}
-		if (ex instanceof DataException hibJdbcEx) {
-			return new DataIntegrityViolationException(ex.getMessage() + "; SQL [" + hibJdbcEx.getSQL() + "]", ex);
+		if (ex instanceof DataException hibEx) {
+			return new DataIntegrityViolationException(ex.getMessage() + "; SQL [" + hibEx.getSQL() + "]", ex);
 		}
 		// end of JDBCException subclass handling
 
@@ -324,8 +341,7 @@ public class HibernateJpaDialect extends DefaultJpaDialect {
 		return entityManager.unwrap(SessionImplementor.class);
 	}
 
-	@Nullable
-	protected Object getIdentifier(HibernateException hibEx) {
+	protected @Nullable Object getIdentifier(HibernateException hibEx) {
 		try {
 			// getIdentifier declares Serializable return value on 5.x but Object on 6.x
 			// -> not binary compatible, let's invoke it reflectively for the time being
@@ -341,13 +357,11 @@ public class HibernateJpaDialect extends DefaultJpaDialect {
 
 		private final SessionImplementor session;
 
-		@Nullable
-		private final FlushMode previousFlushMode;
+		private final @Nullable FlushMode previousFlushMode;
 
 		private final boolean needsConnectionReset;
 
-		@Nullable
-		private final Integer previousIsolationLevel;
+		private final @Nullable Integer previousIsolationLevel;
 
 		private final boolean readOnly;
 

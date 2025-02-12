@@ -1,7 +1,7 @@
 [[introduction-to-websocket]]
 = Introduction to WebSocket
 
-The WebSocket protocol, https://tools.ietf.org/html/rfc6455[RFC 6455], provides a standardized
+The WebSocket protocol, {rfc-site}/rfc6455[RFC 6455], provides a standardized
 way to establish a full-duplex, two-way communication channel between client and server
 over a single TCP connection. It is a different TCP protocol from HTTP but is designed to
 work over HTTP, using ports 80 and 443 and allowing re-use of existing firewall rules.
@@ -46,7 +46,7 @@ A complete introduction of how WebSockets work is beyond the scope of this docum
 See RFC 6455, the WebSocket chapter of HTML5, or any of the many introductions and
 tutorials on the Web.
 
-Note that, if a WebSocket server is running behind a web server (e.g. nginx), you
+Note that, if a WebSocket server is running behind a web server (for example, nginx), you
 likely need to configure it to pass WebSocket upgrade requests on to the WebSocket
 server. Likewise, if the application runs in a cloud environment, check the
 instructions of the cloud provider related to WebSocket support.

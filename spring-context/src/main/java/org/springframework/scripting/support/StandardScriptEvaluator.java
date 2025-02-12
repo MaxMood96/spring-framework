@@ -24,9 +24,10 @@ import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.core.io.Resource;
-import org.springframework.lang.Nullable;
 import org.springframework.scripting.ScriptCompilationException;
 import org.springframework.scripting.ScriptEvaluator;
 import org.springframework.scripting.ScriptSource;
@@ -44,14 +45,11 @@ import org.springframework.util.StringUtils;
  */
 public class StandardScriptEvaluator implements ScriptEvaluator, BeanClassLoaderAware {
 
-	@Nullable
-	private String engineName;
+	private @Nullable String engineName;
 
-	@Nullable
-	private volatile Bindings globalBindings;
+	private volatile @Nullable Bindings globalBindings;
 
-	@Nullable
-	private volatile ScriptEngineManager scriptEngineManager;
+	private volatile @Nullable ScriptEngineManager scriptEngineManager;
 
 
 	/**
@@ -80,7 +78,7 @@ public class StandardScriptEvaluator implements ScriptEvaluator, BeanClassLoader
 
 
 	/**
-	 * Set the name of the language meant for evaluating the scripts (e.g. "Groovy").
+	 * Set the name of the language meant for evaluating the scripts (for example, "Groovy").
 	 * <p>This is effectively an alias for {@link #setEngineName "engineName"},
 	 * potentially (but not yet) providing common abbreviations for certain languages
 	 * beyond what the JSR-223 script engine factory exposes.
@@ -91,7 +89,7 @@ public class StandardScriptEvaluator implements ScriptEvaluator, BeanClassLoader
 	}
 
 	/**
-	 * Set the name of the script engine for evaluating the scripts (e.g. "Groovy"),
+	 * Set the name of the script engine for evaluating the scripts (for example, "Groovy"),
 	 * as exposed by the JSR-223 script engine factory.
 	 * @since 4.2.2
 	 * @see #setLanguage
@@ -132,14 +130,12 @@ public class StandardScriptEvaluator implements ScriptEvaluator, BeanClassLoader
 
 
 	@Override
-	@Nullable
-	public Object evaluate(ScriptSource script) {
+	public @Nullable Object evaluate(ScriptSource script) {
 		return evaluate(script, null);
 	}
 
 	@Override
-	@Nullable
-	public Object evaluate(ScriptSource script, @Nullable Map<String, Object> argumentBindings) {
+	public @Nullable Object evaluate(ScriptSource script, @Nullable Map<String, Object> argumentBindings) {
 		ScriptEngine engine = getScriptEngine(script);
 		try {
 			if (CollectionUtils.isEmpty(argumentBindings)) {

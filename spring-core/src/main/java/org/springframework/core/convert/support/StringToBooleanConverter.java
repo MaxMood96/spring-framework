@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,12 @@
 
 package org.springframework.core.convert.support;
 
+import java.util.Locale;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.convert.converter.Converter;
-import org.springframework.lang.Nullable;
 
 /**
  * Converts a String to a Boolean.
@@ -37,13 +39,12 @@ final class StringToBooleanConverter implements Converter<String, Boolean> {
 
 
 	@Override
-	@Nullable
-	public Boolean convert(String source) {
+	public @Nullable Boolean convert(String source) {
 		String value = source.trim();
 		if (value.isEmpty()) {
 			return null;
 		}
-		value = value.toLowerCase();
+		value = value.toLowerCase(Locale.ROOT);
 		if (trueValues.contains(value)) {
 			return Boolean.TRUE;
 		}

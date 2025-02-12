@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@ package org.springframework.http;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.StringUtils;
 
 /**
@@ -51,8 +52,7 @@ import org.springframework.util.StringUtils;
  */
 public class CacheControl {
 
-	@Nullable
-	private Duration maxAge;
+	private @Nullable Duration maxAge;
 
 	private boolean noCache = false;
 
@@ -68,14 +68,11 @@ public class CacheControl {
 
 	private boolean proxyRevalidate = false;
 
-	@Nullable
-	private Duration staleWhileRevalidate;
+	private @Nullable Duration staleWhileRevalidate;
 
-	@Nullable
-	private Duration staleIfError;
+	private @Nullable Duration staleIfError;
 
-	@Nullable
-	private Duration sMaxAge;
+	private @Nullable Duration sMaxAge;
 
 	private boolean immutable = false;
 
@@ -341,8 +338,7 @@ public class CacheControl {
 	 * Return the "Cache-Control" header value, if any.
 	 * @return the header value, or {@code null} if no directive was added
 	 */
-	@Nullable
-	public String getHeaderValue() {
+	public @Nullable String getHeaderValue() {
 		String headerValue = toHeaderValue();
 		return (StringUtils.hasText(headerValue) ? headerValue : null);
 	}
@@ -393,7 +389,7 @@ public class CacheControl {
 	}
 
 	private void appendDirective(StringBuilder builder, String value) {
-		if (builder.length() > 0) {
+		if (!builder.isEmpty()) {
 			builder.append(", ");
 		}
 		builder.append(value);

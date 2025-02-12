@@ -20,10 +20,10 @@ import java.util.Collections;
 import java.util.Map;
 
 import org.apache.commons.logging.Log;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
@@ -44,7 +44,7 @@ public abstract class Hints {
 	/**
 	 * Name of boolean hint whether to avoid logging data either because it's
 	 * potentially sensitive, or because it has been logged by a composite
-	 * encoder, e.g. for multipart requests.
+	 * encoder, for example, for multipart requests.
 	 */
 	public static final String SUPPRESS_LOGGING_HINT = Log.class.getName() + ".SUPPRESS_LOGGING";
 

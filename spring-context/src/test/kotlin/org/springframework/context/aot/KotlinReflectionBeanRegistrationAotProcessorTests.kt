@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,22 +48,27 @@ class KotlinReflectionBeanRegistrationAotProcessorTests {
 	@Test
 	fun shouldProcessKotlinBean() {
 		process(SampleKotlinBean::class.java)
+		assertThat(RuntimeHintsPredicates.reflection().onType(SampleKotlinBean::class.java))
+			.accepts(generationContext.runtimeHints)
 		assertThat(
-			RuntimeHintsPredicates.reflection()
-				.onType(SampleKotlinBean::class.java)
-				.withMemberCategory(MemberCategory.INTROSPECT_DECLARED_METHODS)
-		).accepts(generationContext.runtimeHints)
-		assertThat(
-			RuntimeHintsPredicates.reflection()
-				.onType(BaseKotlinBean::class.java)
-				.withMemberCategory(MemberCategory.INTROSPECT_DECLARED_METHODS)
-		).accepts(generationContext.runtimeHints)
+			RuntimeHintsPredicates.reflection().onType(BaseKotlinBean::class.java))
+			.accepts(generationContext.runtimeHints)
 	}
 
 	@Test
 	fun shouldNotProcessJavaBean() {
 		process(SampleJavaBean::class.java)
 		assertThat(generationContext.runtimeHints.reflection().typeHints()).isEmpty()
+	}
+
+	@Test
+	fun shouldGenerateOuterClassHints() {
+		process(OuterBean.NestedBean::class.java)
+		assertThat(
+			RuntimeHintsPredicates.reflection()
+				.onType(OuterBean.NestedBean::class.java)
+				.and(RuntimeHintsPredicates.reflection().onType(OuterBean::class.java))
+		).accepts(generationContext.runtimeHints)
 	}
 
 	private fun process(beanClass: Class<*>) {
@@ -85,6 +90,10 @@ class KotlinReflectionBeanRegistrationAotProcessorTests {
 	open class BaseKotlinBean {
 		fun base() {
 		}
+	}
+
+	class OuterBean {
+		class NestedBean
 	}
 
 }

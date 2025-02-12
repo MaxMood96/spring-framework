@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
 
 import javax.annotation.processing.Processor;
 import javax.tools.Diagnostic;
@@ -34,20 +35,20 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Utility that can be used to dynamically compile and test Java source code.
  *
  * @author Phillip Webb
  * @author Scott Frederick
+ * @author Stephane Nicoll
  * @since 6.0
  * @see #forSystem()
  */
 public final class TestCompiler {
 
-	@Nullable
-	private final ClassLoader classLoader;
+	private final @Nullable ClassLoader classLoader;
 
 	private final JavaCompiler compiler;
 
@@ -59,10 +60,12 @@ public final class TestCompiler {
 
 	private final List<Processor> processors;
 
+	private final List<String> compilerOptions;
+
 
 	private TestCompiler(@Nullable ClassLoader classLoader, JavaCompiler compiler,
 			SourceFiles sourceFiles, ResourceFiles resourceFiles, ClassFiles classFiles,
-			List<Processor> processors) {
+			List<Processor> processors, List<String> compilerOptions) {
 
 		this.classLoader = classLoader;
 		this.compiler = compiler;
@@ -70,6 +73,7 @@ public final class TestCompiler {
 		this.resourceFiles = resourceFiles;
 		this.classFiles = classFiles;
 		this.processors = processors;
+		this.compilerOptions = compilerOptions;
 	}
 
 
@@ -88,7 +92,7 @@ public final class TestCompiler {
 	 */
 	public static TestCompiler forCompiler(JavaCompiler javaCompiler) {
 		return new TestCompiler(null, javaCompiler, SourceFiles.none(),
-				ResourceFiles.none(), ClassFiles.none(), Collections.emptyList());
+				ResourceFiles.none(), ClassFiles.none(), Collections.emptyList(), Collections.emptyList());
 	}
 
 	/**
@@ -108,7 +112,7 @@ public final class TestCompiler {
 	public TestCompiler withSources(SourceFile... sourceFiles) {
 		return new TestCompiler(this.classLoader, this.compiler,
 				this.sourceFiles.and(sourceFiles), this.resourceFiles,
-				this.classFiles, this.processors);
+				this.classFiles, this.processors, this.compilerOptions);
 	}
 
 	/**
@@ -119,7 +123,7 @@ public final class TestCompiler {
 	public TestCompiler withSources(Iterable<SourceFile> sourceFiles) {
 		return new TestCompiler(this.classLoader, this.compiler,
 				this.sourceFiles.and(sourceFiles), this.resourceFiles,
-				this.classFiles, this.processors);
+				this.classFiles, this.processors, this.compilerOptions);
 	}
 
 	/**
@@ -130,7 +134,7 @@ public final class TestCompiler {
 	public TestCompiler withSources(SourceFiles sourceFiles) {
 		return new TestCompiler(this.classLoader, this.compiler,
 				this.sourceFiles.and(sourceFiles), this.resourceFiles,
-				this.classFiles, this.processors);
+				this.classFiles, this.processors, this.compilerOptions);
 	}
 
 	/**
@@ -140,7 +144,8 @@ public final class TestCompiler {
 	 */
 	public TestCompiler withResources(ResourceFile... resourceFiles) {
 		return new TestCompiler(this.classLoader, this.compiler, this.sourceFiles,
-				this.resourceFiles.and(resourceFiles), this.classFiles, this.processors);
+				this.resourceFiles.and(resourceFiles), this.classFiles, this.processors,
+				this.compilerOptions);
 	}
 
 	/**
@@ -150,7 +155,8 @@ public final class TestCompiler {
 	 */
 	public TestCompiler withResources(Iterable<ResourceFile> resourceFiles) {
 		return new TestCompiler(this.classLoader, this.compiler, this.sourceFiles,
-				this.resourceFiles.and(resourceFiles), this.classFiles, this.processors);
+				this.resourceFiles.and(resourceFiles), this.classFiles, this.processors,
+				this.compilerOptions);
 	}
 
 	/**
@@ -160,7 +166,8 @@ public final class TestCompiler {
 	 */
 	public TestCompiler withResources(ResourceFiles resourceFiles) {
 		return new TestCompiler(this.classLoader, this.compiler, this.sourceFiles,
-				this.resourceFiles.and(resourceFiles), this.classFiles, this.processors);
+				this.resourceFiles.and(resourceFiles), this.classFiles, this.processors,
+				this.compilerOptions);
 	}
 
 	/**
@@ -170,7 +177,8 @@ public final class TestCompiler {
 	 */
 	public TestCompiler withClasses(Iterable<ClassFile> classFiles) {
 		return new TestCompiler(this.classLoader, this.compiler, this.sourceFiles,
-				this.resourceFiles, this.classFiles.and(classFiles), this.processors);
+				this.resourceFiles, this.classFiles.and(classFiles), this.processors,
+				this.compilerOptions);
 	}
 
 	/**
@@ -182,7 +190,7 @@ public final class TestCompiler {
 		List<Processor> mergedProcessors = new ArrayList<>(this.processors);
 		mergedProcessors.addAll(Arrays.asList(processors));
 		return new TestCompiler(this.classLoader, this.compiler, this.sourceFiles,
-				this.resourceFiles, this.classFiles, mergedProcessors);
+				this.resourceFiles, this.classFiles, mergedProcessors, this.compilerOptions);
 	}
 
 	/**
@@ -194,7 +202,32 @@ public final class TestCompiler {
 		List<Processor> mergedProcessors = new ArrayList<>(this.processors);
 		processors.forEach(mergedProcessors::add);
 		return new TestCompiler(this.classLoader, this.compiler, this.sourceFiles,
-				this.resourceFiles, this.classFiles, mergedProcessors);
+				this.resourceFiles, this.classFiles, mergedProcessors, this.compilerOptions);
+	}
+
+	/**
+	 * Create a new {@link TestCompiler} instance with the additional compiler options.
+	 * @param options the additional compiler options
+	 * @return a new {@code TestCompiler} instance
+	 * @since 6.1
+	 */
+	public TestCompiler withCompilerOptions(String... options) {
+		List<String> mergedCompilerOptions = Stream.concat(this.compilerOptions.stream(),
+				Arrays.stream(options)).distinct().toList();
+		return new TestCompiler(this.classLoader, this.compiler, this.sourceFiles,
+				this.resourceFiles, this.classFiles, this.processors, mergedCompilerOptions);
+	}
+
+	/**
+	 * Create a new {@link TestCompiler} instance that fails if any warning is
+	 * encountered. This sets the {@code -Xlint:all} and {@code -Werror} compiler
+	 * options.
+	 * @return a new {@code TestCompiler} instance
+	 * @since 6.1
+	 * @see #withCompilerOptions(String...)
+	 */
+	public TestCompiler failOnWarning() {
+		return withCompilerOptions("-Xlint:all", "-Werror");
 	}
 
 	/**
@@ -265,8 +298,8 @@ public final class TestCompiler {
 	}
 
 	private DynamicClassLoader compile() {
-		ClassLoader classLoaderToUse = (this.classLoader != null) ? this.classLoader
-				: Thread.currentThread().getContextClassLoader();
+		ClassLoader classLoaderToUse = (this.classLoader != null ? this.classLoader
+				: Thread.currentThread().getContextClassLoader());
 		List<DynamicJavaFileObject> compilationUnits = this.sourceFiles.stream().map(
 				DynamicJavaFileObject::new).toList();
 		StandardJavaFileManager standardFileManager = this.compiler.getStandardFileManager(
@@ -275,11 +308,9 @@ public final class TestCompiler {
 				standardFileManager, classLoaderToUse, this.classFiles, this.resourceFiles);
 		if (!this.sourceFiles.isEmpty()) {
 			Errors errors = new Errors();
-			CompilationTask task = this.compiler.getTask(null, fileManager, errors, null,
-					null, compilationUnits);
-			if (!this.processors.isEmpty()) {
-				task.setProcessors(this.processors);
-			}
+			CompilationTask task = this.compiler.getTask(null, fileManager, errors,
+					this.compilerOptions, null, compilationUnits);
+			task.setProcessors(this.processors);
 			boolean result = task.call();
 			if (!result || errors.hasReportedErrors()) {
 				throw new CompilationException(errors.toString(), this.sourceFiles, this.resourceFiles);
@@ -333,7 +364,7 @@ public final class TestCompiler {
 		}
 
 		boolean hasReportedErrors() {
-			return this.message.length() > 0;
+			return !this.message.isEmpty();
 		}
 
 		@Override

@@ -24,10 +24,10 @@ import java.util.Properties;
 
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.BeanFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionManager;
 
@@ -108,29 +108,14 @@ public class TransactionInterceptor extends TransactionAspectSupport implements 
 
 
 	@Override
-	@Nullable
-	public Object invoke(MethodInvocation invocation) throws Throwable {
+	public @Nullable Object invoke(MethodInvocation invocation) throws Throwable {
 		// Work out the target class: may be {@code null}.
 		// The TransactionAttributeSource should be passed the target class
 		// as well as the method, which may be from an interface.
 		Class<?> targetClass = (invocation.getThis() != null ? AopUtils.getTargetClass(invocation.getThis()) : null);
 
 		// Adapt to TransactionAspectSupport's invokeWithinTransaction...
-		return invokeWithinTransaction(invocation.getMethod(), targetClass, new CoroutinesInvocationCallback() {
-			@Override
-			@Nullable
-			public Object proceedWithInvocation() throws Throwable {
-				return invocation.proceed();
-			}
-			@Override
-			public Object getTarget() {
-				return invocation.getThis();
-			}
-			@Override
-			public Object[] getArguments() {
-				return invocation.getArguments();
-			}
-		});
+		return invokeWithinTransaction(invocation.getMethod(), targetClass, invocation::proceed);
 	}
 
 

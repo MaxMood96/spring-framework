@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,13 @@
 package org.springframework.beans.factory.support;
 
 import java.lang.reflect.Executable;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.TypeConverter;
 import org.springframework.beans.factory.BeanFactory;
@@ -29,7 +33,6 @@ import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.config.DependencyDescriptor;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.style.ToStringCreator;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
@@ -41,6 +44,8 @@ import org.springframework.util.StringUtils;
  * In the case of inner-beans, the bean name may have been generated.
  *
  * @author Phillip Webb
+ * @author Stephane Nicoll
+ * @author Juergen Hoeller
  * @since 6.0
  */
 public final class RegisteredBean {
@@ -53,8 +58,7 @@ public final class RegisteredBean {
 
 	private final Supplier<RootBeanDefinition> mergedBeanDefinition;
 
-	@Nullable
-	private final RegisteredBean parent;
+	private final @Nullable RegisteredBean parent;
 
 
 	private RegisteredBean(ConfigurableListableBeanFactory beanFactory, Supplier<String> beanName,
@@ -198,25 +202,54 @@ public final class RegisteredBean {
 	 * Return the parent of this instance or {@code null} if not an inner-bean.
 	 * @return the parent
 	 */
-	@Nullable
-	public RegisteredBean getParent() {
+	public @Nullable RegisteredBean getParent() {
 		return this.parent;
 	}
 
 	/**
 	 * Resolve the constructor or factory method to use for this bean.
 	 * @return the {@link java.lang.reflect.Constructor} or {@link java.lang.reflect.Method}
+	 * @deprecated in favor of {@link #resolveInstantiationDescriptor()}
 	 */
+	@Deprecated(since = "6.1.7")
 	public Executable resolveConstructorOrFactoryMethod() {
 		return new ConstructorResolver((AbstractAutowireCapableBeanFactory) getBeanFactory())
 				.resolveConstructorOrFactoryMethod(getBeanName(), getMergedBeanDefinition());
 	}
 
-	@Nullable
-	public Object resolveAutowiredArgument(DependencyDescriptor descriptor, TypeConverter typeConverter,
-			Set<String> autowiredBeans) {
+	/**
+	 * Resolve the {@linkplain InstantiationDescriptor descriptor} to use to
+	 * instantiate this bean. It defines the {@link java.lang.reflect.Constructor}
+	 * or {@link java.lang.reflect.Method} to use as well as additional metadata.
+	 * @since 6.1.7
+	 */
+	public InstantiationDescriptor resolveInstantiationDescriptor() {
+		Executable executable = resolveConstructorOrFactoryMethod();
+		if (executable instanceof Method method && !Modifier.isStatic(method.getModifiers())) {
+			String factoryBeanName = getMergedBeanDefinition().getFactoryBeanName();
+			if (factoryBeanName != null && this.beanFactory.containsBean(factoryBeanName)) {
+				return new InstantiationDescriptor(executable,
+						this.beanFactory.getMergedBeanDefinition(factoryBeanName).getResolvableType().toClass());
+			}
+		}
+		return new InstantiationDescriptor(executable, executable.getDeclaringClass());
+	}
+
+	/**
+	 * Resolve an autowired argument.
+	 * @param descriptor the descriptor for the dependency (field/method/constructor)
+	 * @param typeConverter the TypeConverter to use for populating arrays and collections
+	 * @param autowiredBeanNames a Set that all names of autowired beans (used for
+	 * resolving the given dependency) are supposed to be added to
+	 * @return the resolved object, or {@code null} if none found
+	 * @since 6.0.9
+	 */
+	public @Nullable Object resolveAutowiredArgument(
+			DependencyDescriptor descriptor, TypeConverter typeConverter, Set<String> autowiredBeanNames) {
+
 		return new ConstructorResolver((AbstractAutowireCapableBeanFactory) getBeanFactory())
-				.resolveAutowiredArgument(descriptor, getBeanName(), autowiredBeans, typeConverter, true);
+				.resolveAutowiredArgument(descriptor, descriptor.getDependencyType(),
+						getBeanName(), autowiredBeanNames, typeConverter, true);
 	}
 
 
@@ -228,19 +261,35 @@ public final class RegisteredBean {
 
 
 	/**
+	 * Descriptor for how a bean should be instantiated. While the {@code targetClass}
+	 * is usually the declaring class of the {@code executable} (in case of a constructor
+	 * or a locally declared factory method), there are cases where retaining the actual
+	 * concrete class is necessary (for example, for an inherited factory method).
+	 * @since 6.1.7
+	 * @param executable the {@link Executable} ({@link java.lang.reflect.Constructor}
+	 * or {@link java.lang.reflect.Method}) to invoke
+	 * @param targetClass the target {@link Class} of the executable
+	 */
+	public record InstantiationDescriptor(Executable executable, Class<?> targetClass) {
+
+		public InstantiationDescriptor(Executable executable) {
+			this(executable, executable.getDeclaringClass());
+		}
+	}
+
+
+	/**
 	 * Resolver used to obtain inner-bean details.
 	 */
 	private static class InnerBeanResolver {
 
 		private final RegisteredBean parent;
 
-		@Nullable
-		private final String innerBeanName;
+		private final @Nullable String innerBeanName;
 
 		private final BeanDefinition innerBeanDefinition;
 
-		@Nullable
-		private volatile String resolvedBeanName;
+		private volatile @Nullable String resolvedBeanName;
 
 		InnerBeanResolver(RegisteredBean parent, @Nullable String innerBeanName, BeanDefinition innerBeanDefinition) {
 			Assert.isInstanceOf(AbstractAutowireCapableBeanFactory.class, parent.getBeanFactory());

@@ -17,12 +17,12 @@
 package org.springframework.jms.config;
 
 import jakarta.jms.MessageListener;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.jms.listener.AbstractMessageListenerContainer;
 import org.springframework.jms.listener.MessageListenerContainer;
 import org.springframework.jms.listener.endpoint.JmsActivationSpecConfig;
 import org.springframework.jms.listener.endpoint.JmsMessageEndpointManager;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 
 /**
@@ -38,17 +38,13 @@ public abstract class AbstractJmsListenerEndpoint implements JmsListenerEndpoint
 
 	private String id = "";
 
-	@Nullable
-	private String destination;
+	private @Nullable String destination;
 
-	@Nullable
-	private String subscription;
+	private @Nullable String subscription;
 
-	@Nullable
-	private String selector;
+	private @Nullable String selector;
 
-	@Nullable
-	private String concurrency;
+	private @Nullable String concurrency;
 
 
 	/**
@@ -76,8 +72,7 @@ public abstract class AbstractJmsListenerEndpoint implements JmsListenerEndpoint
 	/**
 	 * Return the name of the destination for this endpoint.
 	 */
-	@Nullable
-	public String getDestination() {
+	public @Nullable String getDestination() {
 		return this.destination;
 	}
 
@@ -91,8 +86,7 @@ public abstract class AbstractJmsListenerEndpoint implements JmsListenerEndpoint
 	/**
 	 * Return the name for the durable subscription, if any.
 	 */
-	@Nullable
-	public String getSubscription() {
+	public @Nullable String getSubscription() {
 		return this.subscription;
 	}
 
@@ -107,15 +101,14 @@ public abstract class AbstractJmsListenerEndpoint implements JmsListenerEndpoint
 	/**
 	 * Return the JMS message selector expression, if any.
 	 */
-	@Nullable
-	public String getSelector() {
+	public @Nullable String getSelector() {
 		return this.selector;
 	}
 
 	/**
 	 * Set a concurrency for the listener, if any.
-	 * <p>The concurrency limits can be a "lower-upper" String, e.g. "5-10", or a simple
-	 * upper limit String, e.g. "10" (the lower limit will be 1 in this case).
+	 * <p>The concurrency limits can be a "lower-upper" String, for example, "5-10", or a simple
+	 * upper limit String, for example, "10" (the lower limit will be 1 in this case).
 	 * <p>The underlying container may or may not support all features. For instance, it
 	 * may not be able to scale: in that case only the upper value is used.
 	 */
@@ -126,8 +119,7 @@ public abstract class AbstractJmsListenerEndpoint implements JmsListenerEndpoint
 	/**
 	 * Return the concurrency for the listener, if any.
 	 */
-	@Nullable
-	public String getConcurrency() {
+	public @Nullable String getConcurrency() {
 		return this.concurrency;
 	}
 

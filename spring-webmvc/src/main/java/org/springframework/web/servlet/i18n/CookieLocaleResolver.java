@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,12 +26,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.i18n.LocaleContext;
 import org.springframework.context.i18n.TimeZoneAwareLocaleContext;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.LocaleResolver;
@@ -47,7 +47,7 @@ import org.springframework.web.util.WebUtils;
  * alternatively, you may specify a default time zone.
  *
  * <p>Custom controllers can override the user's locale and time zone by calling
- * {@code #setLocale(Context)} on the resolver, e.g. responding to a locale change
+ * {@code #setLocale(Context)} on the resolver, for example, responding to a locale change
  * request. As a more convenient alternative, consider using
  * {@link org.springframework.web.servlet.support.RequestContext#changeLocale}.
  *
@@ -102,7 +102,7 @@ public class CookieLocaleResolver extends AbstractLocaleContextResolver {
 		return (defaultLocale != null ? defaultLocale : request.getLocale());
 	};
 
-	private Function<HttpServletRequest, TimeZone> defaultTimeZoneFunction = request -> getDefaultTimeZone();
+	private Function<HttpServletRequest, @Nullable TimeZone> defaultTimeZoneFunction = request -> getDefaultTimeZone();
 
 
 	/**
@@ -123,25 +123,6 @@ public class CookieLocaleResolver extends AbstractLocaleContextResolver {
 
 
 	/**
-	 * Set the name of cookie created by this resolver.
-	 * @param cookieName the cookie name
-	 * @deprecated as of 6.0 in favor of {@link #CookieLocaleResolver(String)}
-	 */
-	@Deprecated
-	public void setCookieName(String cookieName) {
-		Assert.notNull(cookieName, "cookieName must not be null");
-		this.cookie = ResponseCookie.from(cookieName)
-				.maxAge(this.cookie.getMaxAge())
-				.domain(this.cookie.getDomain())
-				.path(this.cookie.getPath())
-				.secure(this.cookie.isSecure())
-				.httpOnly(this.cookie.isHttpOnly())
-				.sameSite(this.cookie.getSameSite())
-				.build();
-
-	}
-
-	/**
 	 * Set the cookie "Max-Age" attribute.
 	 * <p>By default, this is set to -1 in which case the cookie persists until
 	 * browser shutdown.
@@ -151,15 +132,6 @@ public class CookieLocaleResolver extends AbstractLocaleContextResolver {
 	public void setCookieMaxAge(Duration cookieMaxAge) {
 		Assert.notNull(cookieMaxAge, "'cookieMaxAge' must not be null");
 		this.cookie = this.cookie.mutate().maxAge(cookieMaxAge).build();
-	}
-
-	/**
-	 * Variant of {@link #setCookieMaxAge(Duration)} with a value in seconds.
-	 * @deprecated as of 6.0 in favor of {@link #setCookieMaxAge(Duration)}
-	 */
-	@Deprecated
-	public void setCookieMaxAge(@Nullable Integer cookieMaxAge) {
-		setCookieMaxAge(Duration.ofSeconds((cookieMaxAge != null) ? cookieMaxAge : -1));
 	}
 
 	/**
@@ -233,7 +205,7 @@ public class CookieLocaleResolver extends AbstractLocaleContextResolver {
 	}
 
 	/**
-	 * Specify whether to reject cookies with invalid content (e.g. invalid format).
+	 * Specify whether to reject cookies with invalid content (for example, invalid format).
 	 * <p>The default is {@code true}. Turn this off for lenient handling of parse
 	 * failures, falling back to the default locale and time zone in such a case.
 	 * @since 5.1.7
@@ -247,7 +219,7 @@ public class CookieLocaleResolver extends AbstractLocaleContextResolver {
 	}
 
 	/**
-	 * Return whether to reject cookies with invalid content (e.g. invalid format).
+	 * Return whether to reject cookies with invalid content (for example, invalid format).
 	 * @since 5.1.7
 	 */
 	public boolean isRejectInvalidCookies() {
@@ -280,7 +252,7 @@ public class CookieLocaleResolver extends AbstractLocaleContextResolver {
 	 * @since 6.0
 	 * @see #setDefaultTimeZone
 	 */
-	public void setDefaultTimeZoneFunction(Function<HttpServletRequest, TimeZone> defaultTimeZoneFunction) {
+	public void setDefaultTimeZoneFunction(Function<HttpServletRequest, @Nullable TimeZone> defaultTimeZoneFunction) {
 		Assert.notNull(defaultTimeZoneFunction, "defaultTimeZoneFunction must not be null");
 		this.defaultTimeZoneFunction = defaultTimeZoneFunction;
 	}
@@ -297,13 +269,11 @@ public class CookieLocaleResolver extends AbstractLocaleContextResolver {
 		parseLocaleCookieIfNecessary(request);
 		return new TimeZoneAwareLocaleContext() {
 			@Override
-			@Nullable
-			public Locale getLocale() {
+			public @Nullable Locale getLocale() {
 				return (Locale) request.getAttribute(LOCALE_REQUEST_ATTRIBUTE_NAME);
 			}
 			@Override
-			@Nullable
-			public TimeZone getTimeZone() {
+			public @Nullable TimeZone getTimeZone() {
 				return (TimeZone) request.getAttribute(TIME_ZONE_REQUEST_ATTRIBUTE_NAME);
 			}
 		};
@@ -342,7 +312,7 @@ public class CookieLocaleResolver extends AbstractLocaleContextResolver {
 								this.cookie.getName() + "': [" + value + "] due to: " + ex.getMessage());
 					}
 					else {
-						// Lenient handling (e.g. error dispatch): ignore locale/timezone parse exceptions
+						// Lenient handling (for example, error dispatch): ignore locale/timezone parse exceptions
 						if (logger.isDebugEnabled()) {
 							logger.debug("Ignoring invalid locale cookie '" + this.cookie.getName() +
 									"': [" + value + "] due to: " + ex.getMessage());
@@ -395,8 +365,7 @@ public class CookieLocaleResolver extends AbstractLocaleContextResolver {
 	 * @since 4.3
 	 * @see StringUtils#parseLocale(String)
 	 */
-	@Nullable
-	protected Locale parseLocaleValue(String localeValue) {
+	protected @Nullable Locale parseLocaleValue(String localeValue) {
 		return StringUtils.parseLocale(localeValue);
 	}
 
@@ -412,39 +381,6 @@ public class CookieLocaleResolver extends AbstractLocaleContextResolver {
 	 */
 	protected String toLocaleValue(Locale locale) {
 		return (isLanguageTagCompliant() ? locale.toLanguageTag() : locale.toString());
-	}
-
-	/**
-	 * Determine the default locale for the given request, called if no locale
-	 * cookie has been found.
-	 * <p>The default implementation returns the configured default locale, if any,
-	 * and otherwise falls back to the request's {@code Accept-Language} header
-	 * locale or the default locale for the server.
-	 * @param request the request to resolve the locale for
-	 * @return the default locale (never {@code null})
-	 * @see #setDefaultLocale
-	 * @see jakarta.servlet.http.HttpServletRequest#getLocale()
-	 * @deprecated as of 6.0, in favor of {@link #setDefaultLocaleFunction(Function)}
-	 */
-	@Deprecated(since = "6.0")
-	protected Locale determineDefaultLocale(HttpServletRequest request) {
-		return this.defaultLocaleFunction.apply(request);
-	}
-
-	/**
-	 * Determine the default time zone for the given request, called if no locale
-	 * cookie has been found.
-	 * <p>The default implementation returns the configured default time zone,
-	 * if any, or {@code null} otherwise.
-	 * @param request the request to resolve the time zone for
-	 * @return the default time zone (or {@code null} if none defined)
-	 * @see #setDefaultTimeZone
-	 * @deprecated as of 6.0, in favor of {@link #setDefaultTimeZoneFunction(Function)}
-	 */
-	@Deprecated(since = "6.0")
-	@Nullable
-	protected TimeZone determineDefaultTimeZone(HttpServletRequest request) {
-		return this.defaultTimeZoneFunction.apply(request);
 	}
 
 }

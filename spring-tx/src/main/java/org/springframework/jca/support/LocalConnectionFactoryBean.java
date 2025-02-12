@@ -19,10 +19,10 @@ package org.springframework.jca.support;
 import jakarta.resource.ResourceException;
 import jakarta.resource.spi.ConnectionManager;
 import jakarta.resource.spi.ManagedConnectionFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.lang.Nullable;
 
 /**
  * {@link org.springframework.beans.factory.FactoryBean} that creates
@@ -56,7 +56,7 @@ import org.springframework.lang.Nullable;
  * of XA enlistment. You need to specify an XA-capable ConnectionManager in
  * order to make the connector interact with an XA transaction coordinator.
  * Alternatively, simply use the native local transaction facilities of the
- * exposed API (e.g. CCI local transactions), or use a corresponding
+ * exposed API (for example, CCI local transactions), or use a corresponding
  * implementation of Spring's PlatformTransactionManager SPI to drive local
  * transactions.
  *
@@ -69,14 +69,11 @@ import org.springframework.lang.Nullable;
  */
 public class LocalConnectionFactoryBean implements FactoryBean<Object>, InitializingBean {
 
-	@Nullable
-	private ManagedConnectionFactory managedConnectionFactory;
+	private @Nullable ManagedConnectionFactory managedConnectionFactory;
 
-	@Nullable
-	private ConnectionManager connectionManager;
+	private @Nullable ConnectionManager connectionManager;
 
-	@Nullable
-	private Object connectionFactory;
+	private @Nullable Object connectionFactory;
 
 
 	/**
@@ -126,13 +123,12 @@ public class LocalConnectionFactoryBean implements FactoryBean<Object>, Initiali
 
 
 	@Override
-	@Nullable
-	public Object getObject() {
+	public @Nullable Object getObject() {
 		return this.connectionFactory;
 	}
 
 	@Override
-	public Class<?> getObjectType() {
+	public @Nullable Class<?> getObjectType() {
 		return (this.connectionFactory != null ? this.connectionFactory.getClass() : null);
 	}
 

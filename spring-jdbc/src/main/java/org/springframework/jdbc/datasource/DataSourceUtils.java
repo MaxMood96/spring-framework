@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,18 +24,18 @@ import javax.sql.DataSource;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.jdbc.CannotGetJdbcConnectionException;
-import org.springframework.lang.Nullable;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.Assert;
 
 /**
- * Helper class that provides static methods for obtaining JDBC Connections from
- * a {@link javax.sql.DataSource}. Includes special support for Spring-managed
- * transactional Connections, e.g. managed by {@link DataSourceTransactionManager}
+ * Helper class that provides static methods for obtaining JDBC {@code Connection}s
+ * from a {@link javax.sql.DataSource}. Includes special support for Spring-managed
+ * transactional {@code Connection}s, for example, managed by {@link DataSourceTransactionManager}
  * or {@link org.springframework.transaction.jta.JtaTransactionManager}.
  *
  * <p>Used internally by Spring's {@link org.springframework.jdbc.core.JdbcTemplate},
@@ -46,7 +46,8 @@ import org.springframework.util.Assert;
  * @author Juergen Hoeller
  * @see #getConnection
  * @see #releaseConnection
- * @see DataSourceTransactionManager
+ * @see org.springframework.jdbc.core.JdbcTemplate
+ * @see org.springframework.jdbc.support.JdbcTransactionManager
  * @see org.springframework.transaction.jta.JtaTransactionManager
  * @see org.springframework.transaction.support.TransactionSynchronizationManager
  */
@@ -66,7 +67,7 @@ public abstract class DataSourceUtils {
 	 * calling code and making any exception that is thrown more meaningful.
 	 * <p>Is aware of a corresponding Connection bound to the current thread, for example
 	 * when using {@link DataSourceTransactionManager}. Will bind a Connection to the
-	 * thread if transaction synchronization is active, e.g. when running within a
+	 * thread if transaction synchronization is active, for example, when running within a
 	 * {@link org.springframework.transaction.jta.JtaTransactionManager JTA} transaction).
 	 * @param dataSource the DataSource to obtain Connections from
 	 * @return a JDBC Connection from the given DataSource
@@ -92,7 +93,7 @@ public abstract class DataSourceUtils {
 	 * Same as {@link #getConnection}, but throwing the original SQLException.
 	 * <p>Is aware of a corresponding Connection bound to the current thread, for example
 	 * when using {@link DataSourceTransactionManager}. Will bind a Connection to the thread
-	 * if transaction synchronization is active (e.g. if in a JTA transaction).
+	 * if transaction synchronization is active (for example, if in a JTA transaction).
 	 * <p>Directly accessed by {@link TransactionAwareDataSourceProxy}.
 	 * @param dataSource the DataSource to obtain Connections from
 	 * @return a JDBC Connection from the given DataSource
@@ -173,8 +174,7 @@ public abstract class DataSourceUtils {
 	 * @see Connection#setTransactionIsolation
 	 * @see Connection#setReadOnly
 	 */
-	@Nullable
-	public static Integer prepareConnectionForTransaction(Connection con, @Nullable TransactionDefinition definition)
+	public static @Nullable Integer prepareConnectionForTransaction(Connection con, @Nullable TransactionDefinition definition)
 			throws SQLException {
 
 		Assert.notNull(con, "No Connection specified");
@@ -192,7 +192,7 @@ public abstract class DataSourceUtils {
 				Throwable exToCheck = ex;
 				while (exToCheck != null) {
 					if (exToCheck.getClass().getSimpleName().contains("Timeout")) {
-						// Assume it's a connection timeout that would otherwise get lost: e.g. from JDBC 4.0
+						// Assume it's a connection timeout that would otherwise get lost: for example, from JDBC 4.0
 						throw ex;
 					}
 					exToCheck = exToCheck.getCause();
@@ -310,8 +310,7 @@ public abstract class DataSourceUtils {
 	}
 
 	/**
-	 * Apply the current transaction timeout, if any,
-	 * to the given JDBC Statement object.
+	 * Apply the current transaction timeout, if any, to the given JDBC Statement object.
 	 * @param stmt the JDBC Statement object
 	 * @param dataSource the DataSource that the Connection was obtained from
 	 * @throws SQLException if thrown by JDBC methods
@@ -465,7 +464,7 @@ public abstract class DataSourceUtils {
 
 	/**
 	 * Callback for resource cleanup at the end of a non-native JDBC transaction
-	 * (e.g. when participating in a JtaTransactionManager transaction).
+	 * (for example, when participating in a JtaTransactionManager transaction).
 	 * @see org.springframework.transaction.jta.JtaTransactionManager
 	 */
 	private static class ConnectionSynchronization implements TransactionSynchronization {

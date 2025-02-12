@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,6 +62,7 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import org.springframework.web.socket.server.HandshakeHandler;
 import org.springframework.web.socket.server.RequestUpgradeStrategy;
+import org.springframework.web.socket.server.standard.StandardWebSocketUpgradeStrategy;
 import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -113,8 +114,9 @@ abstract class AbstractSockJsIntegrationTests {
 		this.baseUrl = "http://localhost:" + this.server.getPort();
 	}
 
+
 	@AfterEach
-	void teardown() throws Exception {
+	void teardown() {
 		try {
 			this.sockJsClient.stop();
 		}
@@ -141,7 +143,10 @@ abstract class AbstractSockJsIntegrationTests {
 		}
 	}
 
-	protected abstract Class<?> upgradeStrategyConfigClass();
+
+	protected Class<?> upgradeStrategyConfigClass() {
+		return StandardWebSocketUpgradeStrategy.class;
+	}
 
 	protected abstract WebSocketTestServer createWebSocketTestServer();
 
@@ -153,6 +158,7 @@ abstract class AbstractSockJsIntegrationTests {
 		this.sockJsClient = new SockJsClient(Arrays.asList(transports));
 		this.sockJsClient.start();
 	}
+
 
 	@Test
 	void echoWebSocket() throws Exception {
@@ -206,24 +212,16 @@ abstract class AbstractSockJsIntegrationTests {
 	}
 
 	@Test
-	@SuppressWarnings("deprecation")
 	void infoRequestFailure() throws Exception {
 		TestClientHandler handler = new TestClientHandler();
 		this.testFilter.sendErrorMap.put("/info", 500);
 		CountDownLatch latch = new CountDownLatch(1);
 		initSockJsClient(createWebSocketTransport());
-		this.sockJsClient.doHandshake(handler, this.baseUrl + "/echo").addCallback(
-				new org.springframework.util.concurrent.ListenableFutureCallback<WebSocketSession>() {
-					@Override
-					public void onSuccess(WebSocketSession result) {
-					}
-
-					@Override
-					public void onFailure(Throwable ex) {
-						latch.countDown();
-					}
-				}
-		);
+		this.sockJsClient.execute(handler, this.baseUrl + "/echo").whenComplete((result, ex) -> {
+			if (ex != null) {
+				latch.countDown();
+			}
+		});
 		assertThat(latch.await(5000, TimeUnit.MILLISECONDS)).isTrue();
 	}
 
@@ -242,14 +240,13 @@ abstract class AbstractSockJsIntegrationTests {
 
 	@Test
 	@Timeout(5)
-	@SuppressWarnings("deprecation")
 	void fallbackAfterConnectTimeout() throws Exception {
 		TestClientHandler clientHandler = new TestClientHandler();
 		this.testFilter.sleepDelayMap.put("/xhr_streaming", 10000L);
 		this.testFilter.sendErrorMap.put("/xhr_streaming", 503);
 		initSockJsClient(createXhrTransport());
 		// this.sockJsClient.setConnectTimeoutScheduler(this.wac.getBean(ThreadPoolTaskScheduler.class));
-		WebSocketSession clientSession = sockJsClient.doHandshake(clientHandler, this.baseUrl + "/echo").get();
+		WebSocketSession clientSession = sockJsClient.execute(clientHandler, this.baseUrl + "/echo").get();
 		assertThat(clientSession.getClass()).as("Fallback didn't occur").isEqualTo(XhrClientSockJsSession.class);
 		TextMessage message = new TextMessage("message1");
 		clientSession.sendMessage(message);
@@ -258,7 +255,6 @@ abstract class AbstractSockJsIntegrationTests {
 	}
 
 
-	@SuppressWarnings("deprecation")
 	private void testEcho(int messageCount, Transport transport, WebSocketHttpHeaders headers) throws Exception {
 		List<TextMessage> messages = new ArrayList<>();
 		for (int i = 0; i < messageCount; i++) {
@@ -267,7 +263,7 @@ abstract class AbstractSockJsIntegrationTests {
 		TestClientHandler handler = new TestClientHandler();
 		initSockJsClient(transport);
 		URI url = URI.create(this.baseUrl + "/echo");
-		WebSocketSession session = this.sockJsClient.doHandshake(handler, headers, url).get();
+		WebSocketSession session = this.sockJsClient.execute(handler, headers, url).get();
 		for (TextMessage message : messages) {
 			session.sendMessage(message);
 		}
@@ -279,13 +275,10 @@ abstract class AbstractSockJsIntegrationTests {
 		session.close();
 	}
 
-	@SuppressWarnings("deprecation")
-	private void testReceiveOneMessage(Transport transport, WebSocketHttpHeaders headers)
-			throws Exception {
-
+	private void testReceiveOneMessage(Transport transport, WebSocketHttpHeaders headers) throws Exception {
 		TestClientHandler clientHandler = new TestClientHandler();
 		initSockJsClient(transport);
-		this.sockJsClient.doHandshake(clientHandler, headers, URI.create(this.baseUrl + "/test")).get();
+		this.sockJsClient.execute(clientHandler, headers, URI.create(this.baseUrl + "/test")).get();
 		TestServerHandler serverHandler = this.wac.getBean(TestServerHandler.class);
 
 		assertThat(clientHandler.session).as("afterConnectionEstablished should have been called").isNotNull();
@@ -305,8 +298,8 @@ abstract class AbstractSockJsIntegrationTests {
 			try {
 				Thread.sleep(timeToSleep);
 			}
-			catch (InterruptedException e) {
-				throw new IllegalStateException("Interrupted while waiting for " + description, e);
+			catch (InterruptedException ex) {
+				throw new IllegalStateException("Interrupted while waiting for " + description, ex);
 			}
 		}
 		throw new IllegalStateException("Timed out waiting for " + description);
@@ -333,6 +326,7 @@ abstract class AbstractSockJsIntegrationTests {
 		}
 	}
 
+
 	private static class TestClientHandler extends TextWebSocketHandler {
 
 		private final BlockingQueue<TextMessage> receivedMessages = new LinkedBlockingQueue<>();
@@ -340,7 +334,6 @@ abstract class AbstractSockJsIntegrationTests {
 		private volatile WebSocketSession session;
 
 		private volatile Throwable transportError;
-
 
 		@Override
 		public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -376,6 +369,7 @@ abstract class AbstractSockJsIntegrationTests {
 		}
 	}
 
+
 	private static class EchoHandler extends TextWebSocketHandler {
 
 		@Override
@@ -384,20 +378,22 @@ abstract class AbstractSockJsIntegrationTests {
 		}
 	}
 
+
 	private static class TestServerHandler extends TextWebSocketHandler {
 
 		private WebSocketSession session;
 
 		@Override
-		public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+		public void afterConnectionEstablished(WebSocketSession session) {
 			this.session = session;
 		}
 
-		public WebSocketSession awaitSession(long timeToWait) throws InterruptedException {
+		public WebSocketSession awaitSession(long timeToWait) {
 			awaitEvent(() -> this.session != null, timeToWait, " session");
 			return this.session;
 		}
 	}
+
 
 	private static class TestFilter implements Filter {
 
@@ -406,7 +402,6 @@ abstract class AbstractSockJsIntegrationTests {
 		private final Map<String, Long> sleepDelayMap = new HashMap<>();
 
 		private final Map<String, Integer> sendErrorMap = new HashMap<>();
-
 
 		@Override
 		public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -418,18 +413,18 @@ abstract class AbstractSockJsIntegrationTests {
 			this.requests.put(uri, headers);
 
 			for (String suffix : this.sleepDelayMap.keySet()) {
-				if ((httpRequest).getRequestURI().endsWith(suffix)) {
+				if (httpRequest.getRequestURI().endsWith(suffix)) {
 					try {
 						Thread.sleep(this.sleepDelayMap.get(suffix));
 						break;
 					}
-					catch (InterruptedException e) {
-						e.printStackTrace();
+					catch (InterruptedException ex) {
+						ex.printStackTrace();
 					}
 				}
 			}
 			for (String suffix : this.sendErrorMap.keySet()) {
-				if ((httpRequest).getRequestURI().endsWith(suffix)) {
+				if (httpRequest.getRequestURI().endsWith(suffix)) {
 					((HttpServletResponse) response).sendError(this.sendErrorMap.get(suffix));
 					return;
 				}

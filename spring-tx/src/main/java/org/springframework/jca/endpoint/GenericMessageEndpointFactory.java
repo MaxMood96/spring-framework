@@ -23,10 +23,10 @@ import jakarta.resource.spi.UnavailableException;
 import jakarta.resource.spi.endpoint.MessageEndpoint;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.aop.support.DelegatingIntroductionInterceptor;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ReflectionUtils;
 
@@ -34,7 +34,7 @@ import org.springframework.util.ReflectionUtils;
  * Generic implementation of the JCA 1.7
  * {@link jakarta.resource.spi.endpoint.MessageEndpointFactory} interface,
  * providing transaction management capabilities for any kind of message
- * listener object (e.g. {@link jakarta.jms.MessageListener} objects or
+ * listener object (for example, {@link jakarta.jms.MessageListener} objects or
  * {@link jakarta.resource.cci.MessageListener} objects).
  *
  * <p>Uses AOP proxies for concrete endpoint instances, simply wrapping
@@ -54,13 +54,12 @@ import org.springframework.util.ReflectionUtils;
  */
 public class GenericMessageEndpointFactory extends AbstractMessageEndpointFactory {
 
-	@Nullable
-	private Object messageListener;
+	private @Nullable Object messageListener;
 
 
 	/**
 	 * Specify the message listener object that the endpoint should expose
-	 * (e.g. a {@link jakarta.jms.MessageListener} objects or
+	 * (for example, a {@link jakarta.jms.MessageListener} objects or
 	 * {@link jakarta.resource.cci.MessageListener} implementation).
 	 */
 	public void setMessageListener(Object messageListener) {
@@ -108,8 +107,7 @@ public class GenericMessageEndpointFactory extends AbstractMessageEndpointFactor
 	private class GenericMessageEndpoint extends AbstractMessageEndpoint implements MethodInterceptor {
 
 		@Override
-		@Nullable
-		public Object invoke(MethodInvocation methodInvocation) throws Throwable {
+		public @Nullable Object invoke(MethodInvocation methodInvocation) throws Throwable {
 			Throwable endpointEx = null;
 			boolean applyDeliveryCalls = !hasBeforeDeliveryBeenCalled();
 			if (applyDeliveryCalls) {

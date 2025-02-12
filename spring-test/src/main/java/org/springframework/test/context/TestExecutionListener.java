@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,16 +66,24 @@ package org.springframework.test.context;
  * DirtiesContextBeforeModesTestExecutionListener}</li>
  * <li>{@link org.springframework.test.context.event.ApplicationEventsTestExecutionListener
  * ApplicationEventsTestExecutionListener}</li>
+ * <li>{@link org.springframework.test.context.bean.override.BeanOverrideTestExecutionListener
+ * BeanOverrideTestExecutionListener}</li>
  * <li>{@link org.springframework.test.context.support.DependencyInjectionTestExecutionListener
  * DependencyInjectionTestExecutionListener}</li>
+ * <li>{@link org.springframework.test.context.observation.MicrometerObservationRegistryTestExecutionListener
+ * MicrometerObservationRegistryTestExecutionListener}</li>
  * <li>{@link org.springframework.test.context.support.DirtiesContextTestExecutionListener
  * DirtiesContextTestExecutionListener}</li>
+ * <li>{@link org.springframework.test.context.support.CommonCachesTestExecutionListener
+ * CommonCachesTestExecutionListener}</li>
  * <li>{@link org.springframework.test.context.transaction.TransactionalTestExecutionListener
  * TransactionalTestExecutionListener}</li>
  * <li>{@link org.springframework.test.context.jdbc.SqlScriptsTestExecutionListener
  * SqlScriptsTestExecutionListener}</li>
  * <li>{@link org.springframework.test.context.event.EventPublishingTestExecutionListener
  * EventPublishingTestExecutionListener}</li>
+ * <li>{@link org.springframework.test.context.bean.override.mockito.MockitoResetTestExecutionListener
+ * MockitoResetTestExecutionListener}</li>
  * </ul>
  *
  * @author Sam Brannen

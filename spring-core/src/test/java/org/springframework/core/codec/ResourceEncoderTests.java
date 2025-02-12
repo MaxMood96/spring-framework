@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.springframework.core.codec;
 
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
@@ -29,7 +30,6 @@ import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.testfixture.codec.AbstractEncoderTests;
-import org.springframework.lang.Nullable;
 import org.springframework.util.MimeType;
 import org.springframework.util.MimeTypeUtils;
 
@@ -50,7 +50,7 @@ class ResourceEncoderTests extends AbstractEncoderTests<ResourceEncoder> {
 
 	@Override
 	@Test
-	public void canEncode() {
+	protected void canEncode() {
 		assertThat(this.encoder.canEncode(ResolvableType.forClass(InputStreamResource.class),
 				MimeTypeUtils.TEXT_PLAIN)).isTrue();
 		assertThat(this.encoder.canEncode(ResolvableType.forClass(ByteArrayResource.class),
@@ -66,7 +66,7 @@ class ResourceEncoderTests extends AbstractEncoderTests<ResourceEncoder> {
 
 	@Override
 	@Test
-	public void encode() {
+	protected void encode() {
 		Flux<Resource> input = Flux.just(new ByteArrayResource(this.bytes));
 
 		testEncodeAll(input, Resource.class, step -> step
@@ -80,7 +80,7 @@ class ResourceEncoderTests extends AbstractEncoderTests<ResourceEncoder> {
 
 		Flux<Resource> i = Flux.error(new InputException());
 
-		Flux<DataBuffer> result = ((Encoder<Resource>) this.encoder).encode(i,
+		Flux<DataBuffer> result = this.encoder.encode(i,
 				this.bufferFactory, outputType,
 				mimeType, hints);
 

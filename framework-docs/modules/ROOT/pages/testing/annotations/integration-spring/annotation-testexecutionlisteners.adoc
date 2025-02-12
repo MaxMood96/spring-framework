@@ -1,7 +1,7 @@
 [[spring-testing-annotation-testexecutionlisteners]]
 = `@TestExecutionListeners`
 
-`@TestExecutionListeners` is used to register listeners for a particular test class, its
+`@TestExecutionListeners` is used to register listeners for the annotated test class, its
 subclasses, and its nested classes. If you wish to register a listener globally, you
 should register it via the automatic discovery mechanism described in
 xref:testing/testcontext-framework/tel-config.adoc[`TestExecutionListener` Configuration].
@@ -12,7 +12,7 @@ The following example shows how to register two `TestExecutionListener` implemen
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@ContextConfiguration
 	@TestExecutionListeners({CustomTestExecutionListener.class, AnotherTestExecutionListener.class}) // <1>
@@ -24,7 +24,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@ContextConfiguration
 	@TestExecutionListeners(CustomTestExecutionListener::class, AnotherTestExecutionListener::class) // <1>
@@ -39,7 +39,7 @@ Kotlin::
 By default, `@TestExecutionListeners` provides support for inheriting listeners from
 superclasses or enclosing classes. See
 xref:testing/testcontext-framework/support-classes.adoc#testcontext-junit-jupiter-nested-test-configuration[`@Nested` test class configuration] and the
-{api-spring-framework}/test/context/TestExecutionListeners.html[`@TestExecutionListeners`
+{spring-framework-api}/test/context/TestExecutionListeners.html[`@TestExecutionListeners`
 javadoc] for an example and further details. If you discover that you need to switch
 back to using the default `TestExecutionListener` implementations, see the note
 in xref:testing/testcontext-framework/tel-config.adoc#testcontext-tel-config-registering-tels[Registering `TestExecutionListener` Implementations].

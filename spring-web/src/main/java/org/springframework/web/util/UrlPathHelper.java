@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.springframework.web.util;
 
 import java.net.URLDecoder;
 import java.nio.charset.UnsupportedCharsetException;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
@@ -28,8 +29,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.MappingMatch;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
@@ -69,8 +70,7 @@ public class UrlPathHelper {
 
 	private static final Log logger = LogFactory.getLog(UrlPathHelper.class);
 
-	@Nullable
-	static volatile Boolean websphereComplianceFlag;
+	static @Nullable volatile Boolean websphereComplianceFlag;
 
 
 	private boolean alwaysUseFullPath = false;
@@ -210,27 +210,6 @@ public class UrlPathHelper {
 	}
 
 	/**
-	 * Variant of {@link #getLookupPathForRequest(HttpServletRequest)} that
-	 * automates checking for a previously computed lookupPath saved as a
-	 * request attribute. The attribute is only used for lookup purposes.
-	 * @param request current HTTP request
-	 * @param name the request attribute that holds the lookupPath
-	 * @return the lookup path
-	 * @since 5.2
-	 * @deprecated as of 5.3 in favor of using
-	 * {@link #resolveAndCacheLookupPath(HttpServletRequest)} and
-	 * {@link #getResolvedLookupPath(ServletRequest)}.
-	 */
-	@Deprecated
-	public String getLookupPathForRequest(HttpServletRequest request, @Nullable String name) {
-		String result = null;
-		if (name != null) {
-			result = (String) request.getAttribute(name);
-		}
-		return (result != null ? result : getLookupPathForRequest(request));
-	}
-
-	/**
 	 * Return the mapping lookup path for the given request, within the current
 	 * servlet mapping if applicable, else within the web application.
 	 * <p>Detects include request URL if called within a RequestDispatcher include.
@@ -284,11 +263,11 @@ public class UrlPathHelper {
 	 * i.e. the part of the request's URL beyond the part that called the servlet,
 	 * or "" if the whole URL has been used to identify the servlet.
 	 * <p>Detects include request URL if called within a RequestDispatcher include.
-	 * <p>E.g.: servlet mapping = "/*"; request URI = "/test/a" &rarr; "/test/a".
-	 * <p>E.g.: servlet mapping = "/"; request URI = "/test/a" &rarr; "/test/a".
-	 * <p>E.g.: servlet mapping = "/test/*"; request URI = "/test/a" &rarr; "/a".
-	 * <p>E.g.: servlet mapping = "/test"; request URI = "/test" &rarr; "".
-	 * <p>E.g.: servlet mapping = "/*.test"; request URI = "/a.test" &rarr; "".
+	 * <p>For example: servlet mapping = "/*"; request URI = "/test/a" &rarr; "/test/a".
+	 * <p>For example: servlet mapping = "/"; request URI = "/test/a" &rarr; "/test/a".
+	 * <p>For example: servlet mapping = "/test/*"; request URI = "/test/a" &rarr; "/a".
+	 * <p>For example: servlet mapping = "/test"; request URI = "/test" &rarr; "".
+	 * <p>For example: servlet mapping = "/*.test"; request URI = "/a.test" &rarr; "".
 	 * @param request current HTTP request
 	 * @param pathWithinApp a precomputed path within the application
 	 * @return the path within the servlet mapping, or ""
@@ -317,7 +296,7 @@ public class UrlPathHelper {
 			String pathInfo = request.getPathInfo();
 			if (pathInfo != null) {
 				// Use path info if available. Indicates index page within a servlet mapping?
-				// e.g. with index page: URI="/", servletPath="/index.html"
+				// for example, with index page: URI="/", servletPath="/index.html"
 				return pathInfo;
 			}
 			if (!this.urlDecode) {
@@ -361,8 +340,7 @@ public class UrlPathHelper {
 	 * context path and the servlet path returned by the HttpServletRequest are
 	 * stripped of semicolon content unlike the requestUri.
 	 */
-	@Nullable
-	private String getRemainingPath(String requestUri, String mapping, boolean ignoreCase) {
+	private @Nullable String getRemainingPath(String requestUri, String mapping, boolean ignoreCase) {
 		int index1 = 0;
 		int index2 = 0;
 		for (; (index1 < requestUri.length()) && (index2 < mapping.length()); index1++, index2++) {
@@ -629,7 +607,7 @@ public class UrlPathHelper {
 
 	private String removeJsessionid(String requestUri) {
 		String key = ";jsessionid=";
-		int index = requestUri.toLowerCase().indexOf(key);
+		int index = requestUri.toLowerCase(Locale.ROOT).indexOf(key);
 		if (index == -1) {
 			return requestUri;
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,14 @@ package org.springframework.web.servlet.resource;
 
 import java.io.IOException;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.web.HttpRequestHandler;
@@ -35,7 +36,7 @@ import org.springframework.web.context.ServletContextAware;
  *
  * <p>This handler is intended to be used with a "/*" mapping when the
  * {@link org.springframework.web.servlet.DispatcherServlet DispatcherServlet}
- * is mapped to "/", thus  overriding the Servlet container's default handling of static resources.
+ * is mapped to "/", thus overriding the Servlet container's default handling of static resources.
  * The mapping to this handler should generally be ordered as the last in the chain so that it will
  * only execute when no other more specific mappings (i.e., to controllers) can be matched.
  *
@@ -43,9 +44,9 @@ import org.springframework.web.context.ServletContextAware;
  * name specified through the {@link #setDefaultServletName "defaultServletName" property}.
  * In most cases, the {@code defaultServletName} does not need to be set explicitly, as the
  * handler checks at initialization time for the presence of the default Servlet of well-known
- * containers such as Tomcat, Jetty, Resin, WebLogic and WebSphere. However, when running in a
+ * containers such as Tomcat, Jetty, WebLogic and WebSphere. However, when running in a
  * container where the default Servlet's name is not known, or where it has been customized
- * via server configuration, the  {@code defaultServletName} will need to be set explicitly.
+ * via server configuration, the {@code defaultServletName} will need to be set explicitly.
  *
  * @author Jeremy Grelle
  * @author Juergen Hoeller
@@ -59,9 +60,6 @@ public class DefaultServletHttpRequestHandler implements HttpRequestHandler, Ser
 	/** Default Servlet name used by Google App Engine. */
 	private static final String GAE_DEFAULT_SERVLET_NAME = "_ah_default";
 
-	/** Default Servlet name used by Resin. */
-	private static final String RESIN_DEFAULT_SERVLET_NAME = "resin-file";
-
 	/** Default Servlet name used by WebLogic. */
 	private static final String WEBLOGIC_DEFAULT_SERVLET_NAME = "FileServlet";
 
@@ -69,11 +67,9 @@ public class DefaultServletHttpRequestHandler implements HttpRequestHandler, Ser
 	private static final String WEBSPHERE_DEFAULT_SERVLET_NAME = "SimpleFileServlet";
 
 
-	@Nullable
-	private String defaultServletName;
+	private @Nullable String defaultServletName;
 
-	@Nullable
-	private ServletContext servletContext;
+	private @Nullable ServletContext servletContext;
 
 
 	/**
@@ -97,9 +93,6 @@ public class DefaultServletHttpRequestHandler implements HttpRequestHandler, Ser
 			}
 			else if (this.servletContext.getNamedDispatcher(GAE_DEFAULT_SERVLET_NAME) != null) {
 				this.defaultServletName = GAE_DEFAULT_SERVLET_NAME;
-			}
-			else if (this.servletContext.getNamedDispatcher(RESIN_DEFAULT_SERVLET_NAME) != null) {
-				this.defaultServletName = RESIN_DEFAULT_SERVLET_NAME;
 			}
 			else if (this.servletContext.getNamedDispatcher(WEBLOGIC_DEFAULT_SERVLET_NAME) != null) {
 				this.defaultServletName = WEBLOGIC_DEFAULT_SERVLET_NAME;
@@ -125,7 +118,12 @@ public class DefaultServletHttpRequestHandler implements HttpRequestHandler, Ser
 			throw new IllegalStateException("A RequestDispatcher could not be located for the default servlet '" +
 					this.defaultServletName + "'");
 		}
-		rd.forward(request, response);
+		if (request.getDispatcherType() != DispatcherType.INCLUDE) {
+			rd.forward(request, response);
+		}
+		else {
+			rd.include(request, response);
+		}
 	}
 
 }

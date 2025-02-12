@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,13 @@ package org.springframework.cache.jcache.interceptor;
 
 import javax.cache.annotation.CacheResult;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.cache.Cache;
 import org.springframework.cache.interceptor.CacheErrorHandler;
 import org.springframework.cache.interceptor.CacheOperationInvocationContext;
 import org.springframework.cache.interceptor.CacheOperationInvoker;
 import org.springframework.cache.interceptor.CacheResolver;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ExceptionTypeFilter;
 import org.springframework.util.SerializationUtils;
@@ -43,8 +44,7 @@ class CacheResultInterceptor extends AbstractKeyCacheInterceptor<CacheResultOper
 
 
 	@Override
-	@Nullable
-	protected Object invoke(
+	protected @Nullable Object invoke(
 			CacheOperationInvocationContext<CacheResultOperation> context, CacheOperationInvoker invoker) {
 
 		CacheResultOperation operation = context.getOperation();
@@ -97,11 +97,10 @@ class CacheResultInterceptor extends AbstractKeyCacheInterceptor<CacheResultOper
 		}
 	}
 
-	@Nullable
-	private Cache resolveExceptionCache(CacheOperationInvocationContext<CacheResultOperation> context) {
+	private @Nullable Cache resolveExceptionCache(CacheOperationInvocationContext<CacheResultOperation> context) {
 		CacheResolver exceptionCacheResolver = context.getOperation().getExceptionCacheResolver();
 		if (exceptionCacheResolver != null) {
-			return extractFrom(context.getOperation().getExceptionCacheResolver().resolveCaches(context));
+			return extractFrom(exceptionCacheResolver.resolveCaches(context));
 		}
 		return null;
 	}
@@ -146,9 +145,7 @@ class CacheResultInterceptor extends AbstractKeyCacheInterceptor<CacheResultOper
 		return new CacheOperationInvoker.ThrowableWrapper(clone);
 	}
 
-	@SuppressWarnings("unchecked")
-	@Nullable
-	private static <T extends Throwable> T cloneException(T exception) {
+	private static <T extends Throwable> @Nullable T cloneException(T exception) {
 		try {
 			return SerializationUtils.clone(exception);
 		}

@@ -16,9 +16,9 @@ First off, thank you for taking the time to contribute! :+1: :tada:
 
 ### Code of Conduct
 
-This project is governed by the [Spring Code of Conduct](CODE_OF_CONDUCT.adoc).
+This project is governed by the [Spring Code of Conduct](https://github.com/spring-projects/spring-framework#coc-ov-file).
 By participating you are expected to uphold this code.
-Please report unacceptable behavior to spring-code-of-conduct@pivotal.io.
+Please report unacceptable behavior to spring-code-of-conduct@spring.io.
 
 ### How to Contribute
 
@@ -65,10 +65,6 @@ follow-up reports will need to be created as new issues with a fresh description
 
 #### Submit a Pull Request
 
-1. If you have not previously done so, please sign the
-[Contributor License Agreement](https://cla.spring.io/sign/spring). You will be reminded
-automatically when you submit the PR.
-
 1. Should you create an issue first? No, just create the pull request and use the
 description to provide context and motivation, as you would for an issue. If you want
 to start a discussion first or have already created an issue, once a pull request is
@@ -85,8 +81,13 @@ multiple edits or corrections of the same logical change. See
 [Rewriting History section of Pro Git](https://git-scm.com/book/en/Git-Tools-Rewriting-History)
 for an overview of streamlining the commit history.
 
+1. All commits must include a _Signed-off-by_ trailer at the end of each commit message
+to indicate that the contributor agrees to the Developer Certificate of Origin.
+For additional details, please refer to the blog post
+[Hello DCO, Goodbye CLA: Simplifying Contributions to Spring](https://spring.io/blog/2025/01/06/hello-dco-goodbye-cla-simplifying-contributions-to-spring).
+
 1. Format commit messages using 55 characters for the subject line, 72 characters per line
-for the description, followed by the issue fixed, e.g. `Closes gh-22276`. See the
+for the description, followed by the issue fixed, for example, `Closes gh-22276`. See the
 [Commit Guidelines section of Pro Git](https://git-scm.com/book/en/Distributed-Git-Contributing-to-a-Project#Commit-Guidelines)
 for best practices around commit messages, and use `git log` to see some examples.
 
@@ -123,13 +124,13 @@ define the source file coding standards we use along with some IDEA editor setti
 
 ### Reference Docs
 
-The reference documentation is in the [framework-docs/src/docs/asciidoc](framework-docs/src/docs/asciidoc) directory, in
-[Asciidoctor](https://asciidoctor.org/) format. For trivial changes, you may be able to browse,
-edit source files, and submit directly from GitHub.
+The reference documentation is authored in [Asciidoctor](https://asciidoctor.org/) format
+using [Antora](https://docs.antora.org/antora/latest/). The source files for the documentation
+reside in the [framework-docs/modules/ROOT](framework-docs/modules/ROOT) directory. For
+trivial changes, you may be able to browse, edit source files, and submit directly from GitHub.
 
-When making changes locally, execute `./gradlew :framework-docs:asciidoctor` and then browse the result under
-`framework-docs/build/docs/ref-docs/html5/index.html`.
+When making changes locally, execute `./gradlew antora` and then browse the results under
+`framework-docs/build/site/index.html`.
 
 Asciidoctor also supports live editing. For more details see
 [AsciiDoc Tooling](https://docs.asciidoctor.org/asciidoctor/latest/tooling/).
-

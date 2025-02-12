@@ -20,6 +20,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -32,7 +33,6 @@ import org.springframework.http.codec.HttpMessageReader;
 import org.springframework.http.codec.multipart.Part;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
-import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -44,7 +44,7 @@ import org.springframework.web.server.ServerWebExchange;
  * Resolver for {@code @RequestPart} arguments where the named part is decoded
  * much like an {@code @RequestBody} argument but based on the content of an
  * individual part instead. The arguments may be wrapped with a reactive type
- * for a single value (e.g. Reactor {@code Mono}, RxJava {@code Single}).
+ * for a single value (for example, Reactor {@code Mono}, RxJava {@code Single}).
  *
  * <p>This resolver also supports arguments of type {@link Part} which may be
  * wrapped with a reactive type for a single value or multiple values.

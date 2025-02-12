@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,11 +39,12 @@ import javax.imageio.stream.ImageOutputStream;
 import javax.imageio.stream.MemoryCacheImageInputStream;
 import javax.imageio.stream.MemoryCacheImageOutputStream;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpOutputMessage;
 import org.springframework.http.MediaType;
 import org.springframework.http.StreamingHttpOutputMessage;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StreamUtils;
 import org.springframework.util.StringUtils;
@@ -72,11 +73,9 @@ public class BufferedImageHttpMessageConverter implements HttpMessageConverter<B
 
 	private final List<MediaType> readableMediaTypes = new ArrayList<>();
 
-	@Nullable
-	private MediaType defaultContentType;
+	private @Nullable MediaType defaultContentType;
 
-	@Nullable
-	private File cacheDir;
+	private @Nullable File cacheDir;
 
 
 	public BufferedImageHttpMessageConverter() {
@@ -117,8 +116,7 @@ public class BufferedImageHttpMessageConverter implements HttpMessageConverter<B
 	 * Returns the default {@code Content-Type} to be used for writing.
 	 * Called when {@link #write} is invoked without a specified content type parameter.
 	 */
-	@Nullable
-	public MediaType getDefaultContentType() {
+	public @Nullable MediaType getDefaultContentType() {
 		return this.defaultContentType;
 	}
 
@@ -218,7 +216,7 @@ public class BufferedImageHttpMessageConverter implements HttpMessageConverter<B
 	}
 
 	@Override
-	public void write(final BufferedImage image, @Nullable final MediaType contentType,
+	public void write(final BufferedImage image, final @Nullable MediaType contentType,
 			final HttpOutputMessage outputMessage)
 			throws IOException, HttpMessageNotWritableException {
 
@@ -226,7 +224,17 @@ public class BufferedImageHttpMessageConverter implements HttpMessageConverter<B
 		outputMessage.getHeaders().setContentType(selectedContentType);
 
 		if (outputMessage instanceof StreamingHttpOutputMessage streamingOutputMessage) {
-			streamingOutputMessage.setBody(outputStream -> writeInternal(image, selectedContentType, outputStream));
+			streamingOutputMessage.setBody(new StreamingHttpOutputMessage.Body() {
+				@Override
+				public void writeTo(OutputStream outputStream) throws IOException {
+					BufferedImageHttpMessageConverter.this.writeInternal(image, selectedContentType, outputStream);
+				}
+
+				@Override
+				public boolean repeatable() {
+					return true;
+				}
+			});
 		}
 		else {
 			writeInternal(image, selectedContentType, outputMessage.getBody());

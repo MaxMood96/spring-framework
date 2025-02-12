@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,18 +21,19 @@ import java.lang.reflect.AnnotatedElement;
 
 import jakarta.ejb.ApplicationException;
 import jakarta.ejb.TransactionAttributeType;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.annotation.AnnotationUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.transaction.interceptor.DefaultTransactionAttribute;
 import org.springframework.transaction.interceptor.TransactionAttribute;
 
 /**
- * Strategy implementation for parsing EJB3's {@link jakarta.ejb.TransactionAttribute}
- * annotation.
+ * Strategy implementation for parsing EJB3's {@link jakarta.ejb.TransactionAttribute} annotation.
  *
  * @author Juergen Hoeller
  * @since 2.5
+ * @see SpringTransactionAnnotationParser
+ * @see JtaTransactionAnnotationParser
  */
 @SuppressWarnings("serial")
 public class Ejb3TransactionAnnotationParser implements TransactionAnnotationParser, Serializable {
@@ -43,8 +44,7 @@ public class Ejb3TransactionAnnotationParser implements TransactionAnnotationPar
 	}
 
 	@Override
-	@Nullable
-	public TransactionAttribute parseTransactionAnnotation(AnnotatedElement element) {
+	public @Nullable TransactionAttribute parseTransactionAnnotation(AnnotatedElement element) {
 		jakarta.ejb.TransactionAttribute ann = element.getAnnotation(jakarta.ejb.TransactionAttribute.class);
 		if (ann != null) {
 			return parseTransactionAnnotation(ann);

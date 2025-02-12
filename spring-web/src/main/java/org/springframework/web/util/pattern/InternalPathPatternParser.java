@@ -20,7 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.PatternSyntaxException;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.web.util.pattern.PatternParseException.PatternMessage;
 
@@ -67,16 +68,13 @@ class InternalPathPatternParser {
 	private int variableCaptureStart;
 
 	// Variables captures in this path pattern
-	@Nullable
-	private List<String> capturedVariableNames;
+	private @Nullable List<String> capturedVariableNames;
 
 	// The head of the path element chain currently being built
-	@Nullable
-	private PathElement headPE;
+	private @Nullable PathElement headPE;
 
 	// The most recently constructed path element in the chain
-	@Nullable
-	private PathElement currentPE;
+	private @Nullable PathElement currentPE;
 
 
 	/**
@@ -380,7 +378,7 @@ class InternalPathPatternParser {
 	/**
 	 * For a path element representing a captured variable, locate the constraint pattern.
 	 * Assumes there is a constraint pattern.
-	 * @param data a complete path expression, e.g. /aaa/bbb/{ccc:...}
+	 * @param data a complete path expression, for example, /aaa/bbb/{ccc:...}
 	 * @param offset the start of the capture pattern of interest
 	 * @return the index of the character after the ':' within
 	 * the pattern expression relative to the start of the whole expression

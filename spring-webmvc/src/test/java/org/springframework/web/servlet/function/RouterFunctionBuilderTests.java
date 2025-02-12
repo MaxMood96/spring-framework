@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,31 +17,35 @@
 package org.springframework.web.servlet.function;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
 import org.springframework.web.servlet.handler.PathPatternsTestUtils;
 import org.springframework.web.testfixture.servlet.MockHttpServletRequest;
 
 import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.web.servlet.function.RequestPredicates.HEAD;
+import static org.springframework.web.servlet.function.RequestPredicates.path;
 
 /**
- * Unit tests for {@link RouterFunctionBuilder}.
+ * Tests for {@link RouterFunctionBuilder}.
  *
  * @author Arjen Poutsma
+ * @author Sebastien Deleuze
  */
 class RouterFunctionBuilderTests {
 
@@ -95,6 +99,23 @@ class RouterFunctionBuilderTests {
 	}
 
 	@Test
+	void resource() {
+		Resource resource = new ClassPathResource("/org/springframework/web/servlet/function/response.txt");
+		assertThat(resource.exists()).isTrue();
+
+		RouterFunction<ServerResponse> route = RouterFunctions.route()
+				.resource(path("/test"), resource)
+				.build();
+
+		ServerRequest resourceRequest = initRequest("GET", "/test");
+
+		Optional<HttpStatusCode> responseStatus = route.route(resourceRequest)
+				.map(handlerFunction -> handle(handlerFunction, resourceRequest))
+				.map(ServerResponse::statusCode);
+		assertThat(responseStatus).contains(HttpStatus.OK);
+	}
+
+	@Test
 	void resources() {
 		Resource resource = new ClassPathResource("/org/springframework/web/servlet/function/");
 		assertThat(resource.exists()).isTrue();
@@ -116,6 +137,23 @@ class RouterFunctionBuilderTests {
 				.map(handlerFunction -> handle(handlerFunction, invalidRequest))
 				.map(ServerResponse::statusCode);
 		assertThat(responseStatus).isEmpty();
+	}
+
+	@Test
+	void resourcesCaching() {
+		Resource resource = new ClassPathResource("/org/springframework/web/servlet/function/");
+		assertThat(resource.exists()).isTrue();
+
+		RouterFunction<ServerResponse> route = RouterFunctions.route()
+				.resources("/resources/**", resource, (r, headers) -> headers.setCacheControl(CacheControl.maxAge(Duration.ofSeconds(60))))
+						.build();
+
+		ServerRequest resourceRequest = initRequest("GET", "/resources/response.txt");
+
+		Optional<String> responseCacheControl = route.route(resourceRequest)
+				.map(handlerFunction -> handle(handlerFunction, resourceRequest))
+				.map(response -> response.headers().getCacheControl());
+		assertThat(responseCacheControl).contains("max-age=60");
 	}
 
 	@Test
@@ -185,7 +223,7 @@ class RouterFunctionBuilderTests {
 	}
 
 	@Test
-	public void multipleOnErrors() {
+	void multipleOnErrors() {
 		RouterFunction<ServerResponse> route = RouterFunctions.route()
 				.GET("/error", request -> {
 					throw new IOException();
@@ -218,7 +256,7 @@ class RouterFunctionBuilderTests {
 	}
 
 	@Test
-	public void attributes() {
+	void attributes() {
 		RouterFunction<ServerResponse> route = RouterFunctions.route()
 				.GET("/atts/1", request -> ServerResponse.ok().build())
 				.withAttribute("foo", "bar")

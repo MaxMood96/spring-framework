@@ -36,7 +36,8 @@ import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -181,7 +182,7 @@ public final class CollectionFactory {
 	@SuppressWarnings("unchecked")
 	public static <E> Collection<E> createCollection(Class<?> collectionType, @Nullable Class<?> elementType, int capacity) {
 		Assert.notNull(collectionType, "Collection type must not be null");
-		if (LinkedHashSet.class == collectionType || HashSet.class == collectionType ||
+		if (LinkedHashSet.class == collectionType ||
 				Set.class == collectionType || Collection.class == collectionType ||
 				collectionType.getName().equals("java.util.SequencedSet") ||
 				collectionType.getName().equals("java.util.SequencedCollection")) {
@@ -200,6 +201,9 @@ public final class CollectionFactory {
 		else if (EnumSet.class.isAssignableFrom(collectionType)) {
 			Assert.notNull(elementType, "Cannot create EnumSet for unknown element type");
 			return EnumSet.noneOf(asEnumType(elementType));
+		}
+		else if (HashSet.class == collectionType) {
+			return new HashSet<>(capacity);
 		}
 		else {
 			if (collectionType.isInterface() || !Collection.class.isAssignableFrom(collectionType)) {
@@ -302,7 +306,7 @@ public final class CollectionFactory {
 	@SuppressWarnings({"rawtypes", "unchecked"})
 	public static <K, V> Map<K, V> createMap(Class<?> mapType, @Nullable Class<?> keyType, int capacity) {
 		Assert.notNull(mapType, "Map type must not be null");
-		if (LinkedHashMap.class == mapType || HashMap.class == mapType || Map.class == mapType ||
+		if (LinkedHashMap.class == mapType || Map.class == mapType ||
 				mapType.getName().equals("java.util.SequencedMap")) {
 			return new LinkedHashMap<>(capacity);
 		}
@@ -315,6 +319,9 @@ public final class CollectionFactory {
 		else if (EnumMap.class == mapType) {
 			Assert.notNull(keyType, "Cannot create EnumMap for unknown key type");
 			return new EnumMap(asEnumType(keyType));
+		}
+		else if (HashMap.class == mapType) {
+			return new HashMap<>(capacity);
 		}
 		else {
 			if (mapType.isInterface() || !Map.class.isAssignableFrom(mapType)) {
@@ -343,8 +350,7 @@ public final class CollectionFactory {
 	public static Properties createStringAdaptingProperties() {
 		return new SortedProperties(false) {
 			@Override
-			@Nullable
-			public String getProperty(String key) {
+			public @Nullable String getProperty(String key) {
 				Object value = get(key);
 				return (value != null ? value.toString() : null);
 			}

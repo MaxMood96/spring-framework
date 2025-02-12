@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,9 +34,9 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.MethodParameter;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.util.Assert;
@@ -59,51 +59,70 @@ import org.springframework.util.MimeType;
  */
 public class MappingJackson2MessageConverter extends AbstractMessageConverter {
 
+	private static final MimeType[] DEFAULT_MIME_TYPES = new MimeType[] {
+			new MimeType("application", "json"), new MimeType("application", "*+json")};
+
 	private ObjectMapper objectMapper;
 
-	@Nullable
-	private Boolean prettyPrint;
+	private @Nullable Boolean prettyPrint;
 
 
 	/**
-	 * Construct a {@code MappingJackson2MessageConverter} supporting
-	 * the {@code application/json} MIME type with {@code UTF-8} character set.
+	 * Construct a {@code MappingJackson2MessageConverter} with a default {@link ObjectMapper},
+	 * supporting the {@code application/json} MIME type with {@code UTF-8} character set.
 	 */
 	public MappingJackson2MessageConverter() {
-		super(new MimeType("application", "json"), new MimeType("application", "*+json"));
-		this.objectMapper = initObjectMapper();
+		this(DEFAULT_MIME_TYPES);
 	}
 
 	/**
-	 * Construct a {@code MappingJackson2MessageConverter} supporting
-	 * one or more custom MIME types.
+	 * Construct a {@code MappingJackson2MessageConverter} with a default {@link ObjectMapper},
+	 * supporting one or more custom MIME types.
 	 * @param supportedMimeTypes the supported MIME types
 	 * @since 4.1.5
 	 */
+	@SuppressWarnings("deprecation")  // on Jackson 2.13: configure(MapperFeature, boolean)
 	public MappingJackson2MessageConverter(MimeType... supportedMimeTypes) {
 		super(supportedMimeTypes);
-		this.objectMapper = initObjectMapper();
-	}
-
-
-	@SuppressWarnings("deprecation")  // on Jackson 2.13: configure(MapperFeature, boolean)
-	private ObjectMapper initObjectMapper() {
-		ObjectMapper objectMapper = new ObjectMapper();
-		objectMapper.configure(MapperFeature.DEFAULT_VIEW_INCLUSION, false);
-		objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-		return objectMapper;
+		this.objectMapper = new ObjectMapper();
+		this.objectMapper.configure(MapperFeature.DEFAULT_VIEW_INCLUSION, false);
+		this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 	}
 
 	/**
+	 * Construct a {@code MappingJackson2MessageConverter} with a custom {@link ObjectMapper},
+	 * supporting the {@code application/json} MIME type with {@code UTF-8} character set.
+	 * @param objectMapper the {@code ObjectMapper} to use
+	 * @since 6.1
+	 */
+	public MappingJackson2MessageConverter(ObjectMapper objectMapper) {
+		this(objectMapper, DEFAULT_MIME_TYPES);
+	}
+
+	/**
+	 * Construct a {@code MappingJackson2MessageConverter} with a custom {@link ObjectMapper},
+	 * supporting one or more custom MIME types.
+	 * @param objectMapper the {@code ObjectMapper} to use
+	 * @param supportedMimeTypes the supported MIME types
+	 * @since 6.1
+	 */
+	public MappingJackson2MessageConverter(ObjectMapper objectMapper, MimeType... supportedMimeTypes) {
+		super(supportedMimeTypes);
+		Assert.notNull(objectMapper, "ObjectMapper must not be null");
+		this.objectMapper = objectMapper;
+	}
+
+
+	/**
 	 * Set the {@code ObjectMapper} for this converter.
-	 * If not set, a default {@link ObjectMapper#ObjectMapper() ObjectMapper} is used.
+	 * <p>If not set, a default {@link ObjectMapper#ObjectMapper() ObjectMapper} is used.
 	 * <p>Setting a custom-configured {@code ObjectMapper} is one way to take further
 	 * control of the JSON serialization process. For example, an extended
 	 * {@link com.fasterxml.jackson.databind.ser.SerializerFactory} can be
 	 * configured that provides custom serializers for specific types. The other
 	 * option for refining the serialization process is to use Jackson's provided
 	 * annotations on the types to be serialized, in which case a custom-configured
-	 * ObjectMapper is unnecessary.
+	 * {@code ObjectMapper} is unnecessary.
 	 */
 	public void setObjectMapper(ObjectMapper objectMapper) {
 		Assert.notNull(objectMapper, "ObjectMapper must not be null");
@@ -120,7 +139,7 @@ public class MappingJackson2MessageConverter extends AbstractMessageConverter {
 
 	/**
 	 * Whether to use the {@link DefaultPrettyPrinter} when writing JSON.
-	 * This is a shortcut for setting up an {@code ObjectMapper} as follows:
+	 * <p>This is a shortcut for setting up an {@code ObjectMapper} as follows:
 	 * <pre class="code">
 	 * ObjectMapper mapper = new ObjectMapper();
 	 * mapper.configure(SerializationFeature.INDENT_OUTPUT, true);
@@ -139,6 +158,7 @@ public class MappingJackson2MessageConverter extends AbstractMessageConverter {
 	}
 
 
+	@SuppressWarnings("deprecation")  // as of Jackson 2.18: can(De)Serialize
 	@Override
 	protected boolean canConvertFrom(Message<?> message, @Nullable Class<?> targetClass) {
 		if (targetClass == null || !supportsMimeType(message.getHeaders())) {
@@ -153,6 +173,7 @@ public class MappingJackson2MessageConverter extends AbstractMessageConverter {
 		return false;
 	}
 
+	@SuppressWarnings("deprecation")  // as of Jackson 2.18: can(De)Serialize
 	@Override
 	protected boolean canConvertTo(Object payload, @Nullable MessageHeaders headers) {
 		if (!supportsMimeType(headers)) {
@@ -180,7 +201,8 @@ public class MappingJackson2MessageConverter extends AbstractMessageConverter {
 		}
 
 		// Do not log warning for serializer not found (note: different message wording on Jackson 2.9)
-		boolean debugLevel = (cause instanceof JsonMappingException && cause.getMessage().startsWith("Cannot find"));
+		boolean debugLevel = (cause instanceof JsonMappingException && cause.getMessage() != null
+				&& cause.getMessage().startsWith("Cannot find"));
 
 		if (debugLevel ? logger.isDebugEnabled() : logger.isWarnEnabled()) {
 			String msg = "Failed to evaluate Jackson " + (type instanceof JavaType ? "de" : "") +
@@ -204,8 +226,7 @@ public class MappingJackson2MessageConverter extends AbstractMessageConverter {
 	}
 
 	@Override
-	@Nullable
-	protected Object convertFromInternal(Message<?> message, Class<?> targetClass, @Nullable Object conversionHint) {
+	protected @Nullable Object convertFromInternal(Message<?> message, Class<?> targetClass, @Nullable Object conversionHint) {
 		JavaType javaType = this.objectMapper.constructType(getResolvedType(targetClass, conversionHint));
 		Object payload = message.getPayload();
 		Class<?> view = getSerializationView(conversionHint);
@@ -237,8 +258,7 @@ public class MappingJackson2MessageConverter extends AbstractMessageConverter {
 	}
 
 	@Override
-	@Nullable
-	protected Object convertToInternal(Object payload, @Nullable MessageHeaders headers,
+	protected @Nullable Object convertToInternal(Object payload, @Nullable MessageHeaders headers,
 			@Nullable Object conversionHint) {
 
 		try {
@@ -281,8 +301,7 @@ public class MappingJackson2MessageConverter extends AbstractMessageConverter {
 	 * @return the serialization view class, or {@code null} if none
 	 * @since 4.2
 	 */
-	@Nullable
-	protected Class<?> getSerializationView(@Nullable Object conversionHint) {
+	protected @Nullable Class<?> getSerializationView(@Nullable Object conversionHint) {
 		if (conversionHint instanceof MethodParameter param) {
 			JsonView annotation = (param.getParameterIndex() >= 0 ?
 					param.getParameterAnnotation(JsonView.class) : param.getMethodAnnotation(JsonView.class));

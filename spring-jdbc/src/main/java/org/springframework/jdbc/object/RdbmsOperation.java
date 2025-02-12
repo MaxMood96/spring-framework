@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,12 +28,12 @@ import javax.sql.DataSource;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SqlParameter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -73,11 +73,9 @@ public abstract class RdbmsOperation implements InitializingBean {
 
 	private boolean returnGeneratedKeys = false;
 
-	@Nullable
-	private String[] generatedKeysColumnNames;
+	private String @Nullable [] generatedKeysColumnNames;
 
-	@Nullable
-	private String sql;
+	private @Nullable String sql;
 
 	private final List<SqlParameter> declaredParameters = new ArrayList<>();
 
@@ -128,8 +126,8 @@ public abstract class RdbmsOperation implements InitializingBean {
 
 	/**
 	 * Set the maximum number of rows for this RDBMS operation. This is important
-	 * for processing subsets of large result sets, avoiding to read and hold
-	 * the entire result set in the database or in the JDBC driver.
+	 * for processing subsets of large result sets, in order to avoid reading and
+	 * holding the entire result set in the database or in the JDBC driver.
 	 * <p>Default is -1, indicating to use the driver's default.
 	 * @see org.springframework.jdbc.core.JdbcTemplate#setMaxRows
 	 */
@@ -175,7 +173,7 @@ public abstract class RdbmsOperation implements InitializingBean {
 	public void setUpdatableResults(boolean updatableResults) {
 		if (isCompiled()) {
 			throw new InvalidDataAccessApiUsageException(
-					"The updateableResults flag must be set before the operation is compiled");
+					"The updatableResults flag must be set before the operation is compiled");
 		}
 		this.updatableResults = updatableResults;
 	}
@@ -212,7 +210,7 @@ public abstract class RdbmsOperation implements InitializingBean {
 	 * Set the column names of the auto-generated keys.
 	 * @see java.sql.Connection#prepareStatement(String, String[])
 	 */
-	public void setGeneratedKeysColumnNames(@Nullable String... names) {
+	public void setGeneratedKeysColumnNames(String @Nullable ... names) {
 		if (isCompiled()) {
 			throw new InvalidDataAccessApiUsageException(
 					"The column names for the generated keys must be set before the operation is compiled");
@@ -223,8 +221,7 @@ public abstract class RdbmsOperation implements InitializingBean {
 	/**
 	 * Return the column names of the auto generated keys.
 	 */
-	@Nullable
-	public String[] getGeneratedKeysColumnNames() {
+	public String @Nullable [] getGeneratedKeysColumnNames() {
 		return this.generatedKeysColumnNames;
 	}
 
@@ -239,8 +236,7 @@ public abstract class RdbmsOperation implements InitializingBean {
 	 * Subclasses can override this to supply dynamic SQL if they wish, but SQL is
 	 * normally set by calling the {@link #setSql} method or in a subclass constructor.
 	 */
-	@Nullable
-	public String getSql() {
+	public @Nullable String getSql() {
 		return this.sql;
 	}
 
@@ -264,7 +260,7 @@ public abstract class RdbmsOperation implements InitializingBean {
 	 * {@code java.sql.Types} class
 	 * @throws InvalidDataAccessApiUsageException if the operation is already compiled
 	 */
-	public void setTypes(@Nullable int[] types) throws InvalidDataAccessApiUsageException {
+	public void setTypes(int @Nullable [] types) throws InvalidDataAccessApiUsageException {
 		if (isCompiled()) {
 			throw new InvalidDataAccessApiUsageException("Cannot add parameters once query is compiled");
 		}
@@ -390,7 +386,7 @@ public abstract class RdbmsOperation implements InitializingBean {
 	 * @param parameters the parameters supplied (may be {@code null})
 	 * @throws InvalidDataAccessApiUsageException if the parameters are invalid
 	 */
-	protected void validateParameters(@Nullable Object[] parameters) throws InvalidDataAccessApiUsageException {
+	protected void validateParameters(Object @Nullable [] parameters) throws InvalidDataAccessApiUsageException {
 		checkCompiled();
 		int declaredInParameters = 0;
 		for (SqlParameter param : this.declaredParameters) {

@@ -27,10 +27,11 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.BeanNameAware;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 
 /**
@@ -466,18 +467,13 @@ public class TestBean implements BeanNameAware, BeanFactoryAware, ITestBean, IOt
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof TestBean tb2)) {
-			return false;
-		}
-		return (ObjectUtils.nullSafeEquals(this.name, tb2.name) && this.age == tb2.age);
+		return (this == other || (other instanceof TestBean that &&
+				ObjectUtils.nullSafeEquals(this.name, that.name) && this.age == that.age));
 	}
 
 	@Override
 	public int hashCode() {
-		return this.age;
+		return TestBean.class.hashCode();
 	}
 
 	@Override

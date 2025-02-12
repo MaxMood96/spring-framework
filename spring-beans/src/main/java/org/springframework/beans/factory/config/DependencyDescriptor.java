@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import java.util.Optional;
 
 import kotlin.reflect.KProperty;
 import kotlin.reflect.jvm.ReflectJvmMapping;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
@@ -36,7 +37,6 @@ import org.springframework.core.MethodParameter;
 import org.springframework.core.ParameterNameDiscoverer;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.convert.TypeDescriptor;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 
 /**
@@ -52,16 +52,13 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 
 	private final Class<?> declaringClass;
 
-	@Nullable
-	private String methodName;
+	private @Nullable String methodName;
 
-	@Nullable
-	private Class<?>[] parameterTypes;
+	private Class<?> @Nullable [] parameterTypes;
 
 	private int parameterIndex;
 
-	@Nullable
-	private String fieldName;
+	private @Nullable String fieldName;
 
 	private final boolean required;
 
@@ -69,14 +66,11 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 
 	private int nestingLevel = 1;
 
-	@Nullable
-	private Class<?> containingClass;
+	private @Nullable Class<?> containingClass;
 
-	@Nullable
-	private transient volatile ResolvableType resolvableType;
+	private transient volatile @Nullable ResolvableType resolvableType;
 
-	@Nullable
-	private transient volatile TypeDescriptor typeDescriptor;
+	private transient volatile @Nullable TypeDescriptor typeDescriptor;
 
 
 	/**
@@ -148,10 +142,10 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 		this.parameterTypes = original.parameterTypes;
 		this.parameterIndex = original.parameterIndex;
 		this.fieldName = original.fieldName;
-		this.containingClass = original.containingClass;
 		this.required = original.required;
 		this.eager = original.eager;
 		this.nestingLevel = original.nestingLevel;
+		this.containingClass = original.containingClass;
 	}
 
 
@@ -169,9 +163,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 
 		if (this.field != null) {
 			return !(this.field.getType() == Optional.class || hasNullableAnnotation() ||
-					(KotlinDetector.isKotlinReflectPresent() &&
-							KotlinDetector.isKotlinType(this.field.getDeclaringClass()) &&
-							KotlinDelegate.isNullable(this.field)));
+					(KotlinDetector.isKotlinType(this.field.getDeclaringClass()) && KotlinDelegate.isNullable(this.field)));
 		}
 		else {
 			return !obtainMethodParameter().isOptional();
@@ -180,7 +172,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 
 	/**
 	 * Check whether the underlying field is annotated with any variant of a
-	 * {@code Nullable} annotation, e.g. {@code jakarta.annotation.Nullable} or
+	 * {@code Nullable} annotation, for example, {@code jakarta.annotation.Nullable} or
 	 * {@code edu.umd.cs.findbugs.annotations.Nullable}.
 	 */
 	private boolean hasNullableAnnotation() {
@@ -213,8 +205,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * @throws BeansException in case of the not-unique scenario being fatal
 	 * @since 5.1
 	 */
-	@Nullable
-	public Object resolveNotUnique(ResolvableType type, Map<String, Object> matchingBeans) throws BeansException {
+	public @Nullable Object resolveNotUnique(ResolvableType type, Map<String, Object> matchingBeans) throws BeansException {
 		throw new NoUniqueBeanDefinitionException(type, matchingBeans.keySet());
 	}
 
@@ -230,8 +221,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * @throws BeansException if the shortcut could not be obtained
 	 * @since 4.3.1
 	 */
-	@Nullable
-	public Object resolveShortcut(BeanFactory beanFactory) throws BeansException {
+	public @Nullable Object resolveShortcut(BeanFactory beanFactory) throws BeansException {
 		return null;
 	}
 
@@ -332,6 +322,10 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 			public boolean fallbackMatchAllowed() {
 				return true;
 			}
+			@Override
+			public boolean usesStandardBeanLookup() {
+				return true;
+			}
 		};
 	}
 
@@ -351,8 +345,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * Determine the name of the wrapped parameter/field.
 	 * @return the declared name (may be {@code null} if unresolvable)
 	 */
-	@Nullable
-	public String getDependencyName() {
+	public @Nullable String getDependencyName() {
 		return (this.field != null ? this.field.getName() : obtainMethodParameter().getParameterName());
 	}
 
@@ -375,6 +368,31 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 		}
 	}
 
+	/**
+	 * Determine whether this dependency supports lazy resolution,
+	 * for example, through extra proxying. The default is {@code true}.
+	 * @since 6.1.2
+	 * @see org.springframework.beans.factory.support.AutowireCandidateResolver#getLazyResolutionProxyIfNecessary
+	 */
+	public boolean supportsLazyResolution() {
+		return true;
+	}
+
+	/**
+	 * Determine whether this descriptor uses a standard bean lookup
+	 * in {@link #resolveCandidate(String, Class, BeanFactory)} and
+	 * therefore qualifies for factory-level shortcut resolution.
+	 * <p>By default, the {@code DependencyDescriptor} class itself
+	 * uses a standard bean lookup but subclasses may override this.
+	 * If a subclass overrides other methods but preserves a standard
+	 * bean lookup, it may override this method to return {@code true}.
+	 * @since 6.2
+	 * @see #resolveCandidate(String, Class, BeanFactory)
+	 */
+	public boolean usesStandardBeanLookup() {
+		return (getClass() == DependencyDescriptor.class);
+	}
+
 
 	@Override
 	public boolean equals(@Nullable Object other) {
@@ -384,9 +402,9 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 		if (!super.equals(other)) {
 			return false;
 		}
-		DependencyDescriptor otherDesc = (DependencyDescriptor) other;
-		return (this.required == otherDesc.required && this.eager == otherDesc.eager &&
-				this.nestingLevel == otherDesc.nestingLevel && this.containingClass == otherDesc.containingClass);
+		return (other instanceof DependencyDescriptor otherDesc && this.required == otherDesc.required &&
+				this.eager == otherDesc.eager && this.nestingLevel == otherDesc.nestingLevel &&
+				this.containingClass == otherDesc.containingClass);
 	}
 
 	@Override

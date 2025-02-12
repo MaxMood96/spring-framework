@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,10 +21,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.core.convert.converter.ConditionalGenericConverter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 
 /**
@@ -34,6 +35,7 @@ import org.springframework.util.ObjectUtils;
  *
  * @author Keith Donald
  * @author Phillip Webb
+ * @author Sam Brannen
  * @since 3.0
  */
 final class ArrayToArrayConverter implements ConditionalGenericConverter {
@@ -60,12 +62,11 @@ final class ArrayToArrayConverter implements ConditionalGenericConverter {
 	}
 
 	@Override
-	@Nullable
-	public Object convert(@Nullable Object source, TypeDescriptor sourceType, TypeDescriptor targetType) {
+	public @Nullable Object convert(@Nullable Object source, TypeDescriptor sourceType, TypeDescriptor targetType) {
 		if (this.conversionService instanceof GenericConversionService genericConversionService) {
 			TypeDescriptor targetElement = targetType.getElementTypeDescriptor();
-			if (targetElement != null && genericConversionService.canBypassConvert(
-					sourceType.getElementTypeDescriptor(), targetElement)) {
+			if (targetElement != null && targetType.getType().isInstance(source) &&
+					genericConversionService.canBypassConvert(sourceType.getElementTypeDescriptor(), targetElement)) {
 				return source;
 			}
 		}

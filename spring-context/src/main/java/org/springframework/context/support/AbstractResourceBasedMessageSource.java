@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,8 @@ import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Set;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
@@ -39,13 +40,11 @@ public abstract class AbstractResourceBasedMessageSource extends AbstractMessage
 
 	private final Set<String> basenameSet = new LinkedHashSet<>(4);
 
-	@Nullable
-	private String defaultEncoding;
+	private @Nullable String defaultEncoding;
 
 	private boolean fallbackToSystemLocale = true;
 
-	@Nullable
-	private Locale defaultLocale;
+	private @Nullable Locale defaultLocale;
 
 	private long cacheMillis = -1;
 
@@ -54,7 +53,7 @@ public abstract class AbstractResourceBasedMessageSource extends AbstractMessage
 	 * Set a single basename, following the basic ResourceBundle convention
 	 * of not specifying file extension or language codes. The resource location
 	 * format is up to the specific {@code MessageSource} implementation.
-	 * <p>Regular and XMl properties files are supported: e.g. "messages" will find
+	 * <p>Regular and XMl properties files are supported: for example, "messages" will find
 	 * a "messages.properties", "messages_en.properties" etc arrangement as well
 	 * as "messages.xml", "messages_en.xml" etc.
 	 * @param basename the single basename
@@ -70,7 +69,7 @@ public abstract class AbstractResourceBasedMessageSource extends AbstractMessage
 	 * Set an array of basenames, each following the basic ResourceBundle convention
 	 * of not specifying file extension or language codes. The resource location
 	 * format is up to the specific {@code MessageSource} implementation.
-	 * <p>Regular and XMl properties files are supported: e.g. "messages" will find
+	 * <p>Regular and XMl properties files are supported: for example, "messages" will find
 	 * a "messages.properties", "messages_en.properties" etc arrangement as well
 	 * as "messages.xml", "messages_en.xml" etc.
 	 * <p>The associated resource bundles will be checked sequentially when resolving
@@ -110,6 +109,7 @@ public abstract class AbstractResourceBasedMessageSource extends AbstractMessage
 	 * in the order of registration.
 	 * <p>Calling code may introspect this set as well as add or remove entries.
 	 * @since 4.3
+	 * @see #setBasenames
 	 * @see #addBasenames
 	 */
 	public Set<String> getBasenameSet() {
@@ -133,15 +133,14 @@ public abstract class AbstractResourceBasedMessageSource extends AbstractMessage
 	 * Return the default charset to use for parsing properties files, if any.
 	 * @since 4.3
 	 */
-	@Nullable
-	protected String getDefaultEncoding() {
+	protected @Nullable String getDefaultEncoding() {
 		return this.defaultEncoding;
 	}
 
 	/**
 	 * Set whether to fall back to the system Locale if no files for a specific
 	 * Locale have been found. Default is "true"; if this is turned off, the only
-	 * fallback will be the default file (e.g. "messages.properties" for
+	 * fallback will be the default file (for example, "messages.properties" for
 	 * basename "messages").
 	 * <p>Falling back to the system Locale is the default behavior of
 	 * {@code java.util.ResourceBundle}. However, this is often not desirable
@@ -186,8 +185,7 @@ public abstract class AbstractResourceBasedMessageSource extends AbstractMessage
 	 * @see #setFallbackToSystemLocale
 	 * @see Locale#getDefault()
 	 */
-	@Nullable
-	protected Locale getDefaultLocale() {
+	protected @Nullable Locale getDefaultLocale() {
 		if (this.defaultLocale != null) {
 			return this.defaultLocale;
 		}

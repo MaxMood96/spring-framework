@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,9 @@ package org.springframework.core.annotation;
 import java.lang.reflect.AnnotatedElement;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.annotation.MergedAnnotations.SearchStrategy;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ConcurrentReferenceHashMap;
 
 /**
@@ -38,10 +39,10 @@ public abstract class OrderUtils {
 	/** Cache marker for a non-annotated Class. */
 	private static final Object NOT_ANNOTATED = new Object();
 
-	private static final String JAVAX_PRIORITY_ANNOTATION = "jakarta.annotation.Priority";
+	private static final String JAKARTA_PRIORITY_ANNOTATION = "jakarta.annotation.Priority";
 
 	/** Cache for @Order value (or NOT_ANNOTATED marker) per Class. */
-	private static final Map<AnnotatedElement, Object> orderCache = new ConcurrentReferenceHashMap<>(64);
+	static final Map<AnnotatedElement, Object> orderCache = new ConcurrentReferenceHashMap<>(64);
 
 
 	/**
@@ -66,8 +67,7 @@ public abstract class OrderUtils {
 	 * @return the priority value, or the specified default order if none can be found
 	 * @see #getPriority(Class)
 	 */
-	@Nullable
-	public static Integer getOrder(Class<?> type, @Nullable Integer defaultOrder) {
+	public static @Nullable Integer getOrder(Class<?> type, @Nullable Integer defaultOrder) {
 		Integer order = getOrder(type);
 		return (order != null ? order : defaultOrder);
 	}
@@ -79,20 +79,18 @@ public abstract class OrderUtils {
 	 * @return the order value, or {@code null} if none can be found
 	 * @see #getPriority(Class)
 	 */
-	@Nullable
-	public static Integer getOrder(Class<?> type) {
+	public static @Nullable Integer getOrder(Class<?> type) {
 		return getOrder((AnnotatedElement) type);
 	}
 
 	/**
 	 * Return the order declared on the specified {@code element}.
 	 * <p>Takes care of {@link Order @Order} and {@code @jakarta.annotation.Priority}.
-	 * @param element the annotated element (e.g. type or method)
+	 * @param element the annotated element (for example, type or method)
 	 * @return the order value, or {@code null} if none can be found
 	 * @since 5.3
 	 */
-	@Nullable
-	public static Integer getOrder(AnnotatedElement element) {
+	public static @Nullable Integer getOrder(AnnotatedElement element) {
 		return getOrderFromAnnotations(element, MergedAnnotations.from(element, SearchStrategy.TYPE_HIERARCHY));
 	}
 
@@ -104,8 +102,7 @@ public abstract class OrderUtils {
 	 * @param annotations the annotation to consider
 	 * @return the order value, or {@code null} if none can be found
 	 */
-	@Nullable
-	static Integer getOrderFromAnnotations(AnnotatedElement element, MergedAnnotations annotations) {
+	static @Nullable Integer getOrderFromAnnotations(AnnotatedElement element, MergedAnnotations annotations) {
 		if (!(element instanceof Class)) {
 			return findOrder(annotations);
 		}
@@ -118,13 +115,12 @@ public abstract class OrderUtils {
 		return result;
 	}
 
-	@Nullable
-	private static Integer findOrder(MergedAnnotations annotations) {
+	private static @Nullable Integer findOrder(MergedAnnotations annotations) {
 		MergedAnnotation<Order> orderAnnotation = annotations.get(Order.class);
 		if (orderAnnotation.isPresent()) {
 			return orderAnnotation.getInt(MergedAnnotation.VALUE);
 		}
-		MergedAnnotation<?> priorityAnnotation = annotations.get(JAVAX_PRIORITY_ANNOTATION);
+		MergedAnnotation<?> priorityAnnotation = annotations.get(JAKARTA_PRIORITY_ANNOTATION);
 		if (priorityAnnotation.isPresent()) {
 			return priorityAnnotation.getInt(MergedAnnotation.VALUE);
 		}
@@ -137,9 +133,8 @@ public abstract class OrderUtils {
 	 * @param type the type to handle
 	 * @return the priority value if the annotation is declared, or {@code null} if none
 	 */
-	@Nullable
-	public static Integer getPriority(Class<?> type) {
-		return MergedAnnotations.from(type, SearchStrategy.TYPE_HIERARCHY).get(JAVAX_PRIORITY_ANNOTATION)
+	public static @Nullable Integer getPriority(Class<?> type) {
+		return MergedAnnotations.from(type, SearchStrategy.TYPE_HIERARCHY).get(JAKARTA_PRIORITY_ANNOTATION)
 				.getValue(MergedAnnotation.VALUE, Integer.class).orElse(null);
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class ProblemDetailRuntimeHintsTests {
 
+	private static final List<String> METHOD_NAMES = List.of("getType", "getTitle",
+			"getStatus", "getDetail", "getInstance", "getProperties");
+
 	private final RuntimeHints hints = new RuntimeHints();
 
 	@BeforeEach
@@ -48,9 +51,17 @@ class ProblemDetailRuntimeHintsTests {
 
 	@Test
 	void getterMethodsShouldHaveReflectionHints() {
-		List<String> methodNames = List.of("getType", "getTitle", "getStatus", "getDetail", "getInstance", "getProperties");
-		for (String methodName : methodNames) {
-			assertThat(RuntimeHintsPredicates.reflection().onMethod(ProblemDetail.class, methodName)).accepts(this.hints);
+		for (String methodName : METHOD_NAMES) {
+			assertThat(RuntimeHintsPredicates.reflection()
+					.onMethodInvocation(ProblemDetail.class, methodName)).accepts(this.hints);
+		}
+	}
+
+	@Test
+	void mixinShouldHaveReflectionHints() {
+		for (String methodName : METHOD_NAMES) {
+			assertThat(RuntimeHintsPredicates.reflection()
+					.onMethodInvocation(ProblemDetailJacksonXmlMixin.class, methodName)).accepts(this.hints);
 		}
 	}
 

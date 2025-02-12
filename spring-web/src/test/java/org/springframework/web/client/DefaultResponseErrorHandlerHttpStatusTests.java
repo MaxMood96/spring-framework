@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.springframework.web.client;
 
+import java.net.URI;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DisplayName;
@@ -24,6 +25,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpResponse;
@@ -52,7 +54,7 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 import static org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY;
 
 /**
- * Unit tests for {@link DefaultResponseErrorHandler} handling of specific
+ * Tests for {@link DefaultResponseErrorHandler} handling of specific
  * HTTP status codes.
  */
 class DefaultResponseErrorHandlerHttpStatusTests {
@@ -62,7 +64,7 @@ class DefaultResponseErrorHandlerHttpStatusTests {
 	private final ClientHttpResponse response = mock();
 
 
-	@ParameterizedTest(name = "[{index}] error: [{0}]")
+	@ParameterizedTest(name = "[{index}] error: {0}")
 	@DisplayName("hasError() returns true")
 	@MethodSource("errorCodes")
 	void hasErrorTrue(HttpStatus httpStatus) throws Exception {
@@ -70,7 +72,7 @@ class DefaultResponseErrorHandlerHttpStatusTests {
 		assertThat(this.handler.hasError(this.response)).isTrue();
 	}
 
-	@ParameterizedTest(name = "[{index}] error: {0}, exception: {1}")
+	@ParameterizedTest(name = "[{index}] {0} -> {1}")
 	@DisplayName("handleError() throws an exception")
 	@MethodSource("errorCodes")
 	void handleErrorException(HttpStatus httpStatus, Class<? extends Throwable> expectedExceptionClass) throws Exception {
@@ -80,7 +82,8 @@ class DefaultResponseErrorHandlerHttpStatusTests {
 		given(this.response.getStatusCode()).willReturn(httpStatus);
 		given(this.response.getHeaders()).willReturn(headers);
 
-		assertThatExceptionOfType(expectedExceptionClass).isThrownBy(() -> this.handler.handleError(this.response));
+		assertThatExceptionOfType(expectedExceptionClass)
+				.isThrownBy(() -> this.handler.handleError(URI.create("/"), HttpMethod.GET, this.response));
 	}
 
 	static Stream<Arguments> errorCodes() {

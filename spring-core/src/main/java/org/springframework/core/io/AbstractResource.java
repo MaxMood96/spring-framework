@@ -29,8 +29,8 @@ import java.util.function.Supplier;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.ResourceUtils;
 
 /**
@@ -146,7 +146,7 @@ public abstract class AbstractResource implements Resource {
 	/**
 	 * This method reads the entire InputStream to determine the content length.
 	 * <p>For a custom subclass of {@code InputStreamResource}, we strongly
-	 * recommend overriding this method with a more optimal implementation, e.g.
+	 * recommend overriding this method with a more optimal implementation, for example,
 	 * checking File length, or possibly simply returning -1 if the stream can
 	 * only be read once.
 	 * @see #getInputStream()
@@ -215,9 +215,18 @@ public abstract class AbstractResource implements Resource {
 	 * assuming that this resource type does not have a filename.
 	 */
 	@Override
-	@Nullable
-	public String getFilename() {
+	public @Nullable String getFilename() {
 		return null;
+	}
+
+	/**
+	 * Lazily access the logger for debug logging in case of an exception.
+	 */
+	private void debug(Supplier<String> message, Throwable ex) {
+		Log logger = LogFactory.getLog(getClass());
+		if (logger.isDebugEnabled()) {
+			logger.debug(message.get(), ex);
+		}
 	}
 
 
@@ -226,8 +235,8 @@ public abstract class AbstractResource implements Resource {
 	 * @see #getDescription()
 	 */
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return (this == obj || (obj instanceof Resource that &&
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof Resource that &&
 				getDescription().equals(that.getDescription())));
 	}
 
@@ -247,13 +256,6 @@ public abstract class AbstractResource implements Resource {
 	@Override
 	public String toString() {
 		return getDescription();
-	}
-
-	private void debug(Supplier<String> message, Throwable ex) {
-		Log logger = LogFactory.getLog(getClass());
-		if (logger.isDebugEnabled()) {
-			logger.debug(message.get(), ex);
-		}
 	}
 
 }

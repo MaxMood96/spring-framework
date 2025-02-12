@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,13 @@ package org.springframework.web.reactive.result.method.annotation;
 import java.util.List;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ReactiveAdapterRegistry;
 import org.springframework.core.convert.converter.Converter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ValueConstants;
@@ -98,9 +99,12 @@ public class RequestParamMethodArgumentResolver extends AbstractNamedValueSyncAr
 	}
 
 	@Override
-	protected Object resolveNamedValue(String name, MethodParameter parameter, ServerWebExchange exchange) {
-		List<String> paramValues = exchange.getRequest().getQueryParams().get(name);
+	protected @Nullable Object resolveNamedValue(String name, MethodParameter parameter, ServerWebExchange exchange) {
 		Object result = null;
+		List<String> paramValues = exchange.getRequest().getQueryParams().get(name);
+		if (paramValues == null) {
+			paramValues = exchange.getRequest().getQueryParams().get(name + "[]");
+		}
 		if (paramValues != null) {
 			result = (paramValues.size() == 1 ? paramValues.get(0) : paramValues);
 		}

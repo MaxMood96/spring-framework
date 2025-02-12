@@ -32,7 +32,7 @@ The following example shows how to set a `MultipartConfigElement` on the Servlet
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	public class AppInitializer extends AbstractAnnotationConfigDispatcherServletInitializer {
 
@@ -50,7 +50,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	class AppInitializer : AbstractAnnotationConfigDispatcherServletInitializer() {
 
@@ -75,7 +75,7 @@ This resolver variant uses your Servlet container's multipart parser as-is,
 potentially exposing the application to container implementation differences.
 By default, it will try to parse any `multipart/` content type with any HTTP
 method but this may not be supported across all Servlet containers. See the
-{api-spring-framework}/web/multipart/support/StandardServletMultipartResolver.html[`StandardServletMultipartResolver`]
+{spring-framework-api}/web/multipart/support/StandardServletMultipartResolver.html[`StandardServletMultipartResolver`]
 javadoc for details and configuration options.
 ====
 

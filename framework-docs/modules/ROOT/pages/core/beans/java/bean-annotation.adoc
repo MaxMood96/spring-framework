@@ -25,7 +25,7 @@ the method name. The following example shows a `@Bean` method declaration:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	public class AppConfig {
@@ -39,7 +39,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	class AppConfig {
@@ -75,7 +75,7 @@ configurations by implementing interfaces with bean definitions on default metho
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	public interface BaseConfig {
 
@@ -99,7 +99,7 @@ return type, as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	public class AppConfig {
@@ -113,7 +113,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	class AppConfig {
@@ -153,7 +153,7 @@ parameter, as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	public class AppConfig {
@@ -167,7 +167,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	class AppConfig {
@@ -180,9 +180,10 @@ Kotlin::
 ----
 ======
 
-
 The resolution mechanism is pretty much identical to constructor-based dependency
-injection. See xref:core/beans/dependencies/factory-collaborators.adoc#beans-constructor-injection[the relevant section] for more details.
+injection. See
+xref:core/beans/dependencies/factory-collaborators.adoc#beans-constructor-injection[the relevant section]
+for more details.
 
 
 [[beans-java-lifecycle-callbacks]]
@@ -210,7 +211,7 @@ on the `bean` element, as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	public class BeanOne {
 
@@ -243,7 +244,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 class BeanOne {
 
@@ -290,7 +291,7 @@ The following example shows how to prevent an automatic destruction callback for
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Bean(destroyMethod = "")
 	public DataSource dataSource() throws NamingException {
@@ -300,7 +301,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Bean(destroyMethod = "")
 	fun dataSource(): DataSource {
@@ -317,14 +318,15 @@ type, making it harder to use for cross-reference calls in other `@Bean` methods
 intend to refer to the provided resource here).
 =====
 
-In the case of `BeanOne` from the example above the preceding note, it would be equally valid to call the `init()`
-method directly during construction, as the following example shows:
+In the case of `BeanOne` from the example above the preceding note, it would be
+equally valid to call the `init()` method directly during construction, as the
+following example shows:
 
 [tabs]
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	public class AppConfig {
@@ -342,7 +344,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	class AppConfig {
@@ -380,7 +382,7 @@ as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	public class MyConfiguration {
@@ -395,7 +397,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	class MyConfiguration {
@@ -429,7 +431,7 @@ it resembles the following:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	// an HTTP Session-scoped bean exposed as a proxy
 	@Bean
@@ -449,7 +451,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	// an HTTP Session-scoped bean exposed as a proxy
 	@Bean
@@ -477,7 +479,7 @@ as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	public class AppConfig {
@@ -491,7 +493,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	class AppConfig {
@@ -506,16 +508,16 @@ Kotlin::
 [[beans-java-bean-aliasing]]
 == Bean Aliasing
 
-As discussed in xref:core/beans/definition.adoc#beans-beanname[Naming Beans], it is sometimes desirable to give a single bean
-multiple names, otherwise known as bean aliasing. The `name` attribute of the `@Bean`
-annotation accepts a String array for this purpose. The following example shows how to set
-a number of aliases for a bean:
+As discussed in xref:core/beans/definition.adoc#beans-beanname[Naming Beans], it is
+sometimes desirable to give a single bean multiple names, otherwise known as bean aliasing.
+The `name` attribute of the `@Bean` annotation accepts a String array for this purpose.
+The following example shows how to set a number of aliases for a bean:
 
 [tabs]
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	public class AppConfig {
@@ -529,7 +531,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	class AppConfig {
@@ -550,14 +552,14 @@ Sometimes, it is helpful to provide a more detailed textual description of a bea
 be particularly useful when beans are exposed (perhaps through JMX) for monitoring purposes.
 
 To add a description to a `@Bean`, you can use the
-{api-spring-framework}/context/annotation/Description.html[`@Description`]
+{spring-framework-api}/context/annotation/Description.html[`@Description`]
 annotation, as the following example shows:
 
 [tabs]
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	public class AppConfig {
@@ -572,7 +574,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@Configuration
 	class AppConfig {

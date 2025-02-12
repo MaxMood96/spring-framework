@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.Properties;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Static holder for local Spring properties, i.e. defined at the Spring library level.
@@ -33,13 +33,12 @@ import org.springframework.lang.Nullable;
  *
  * <p>This is an alternative way to set Spring-related system properties such as
  * "spring.getenv.ignore" and "spring.beaninfo.ignore", in particular for scenarios
- * where JVM system properties are locked on the target platform (e.g. WebSphere).
+ * where JVM system properties are locked on the target platform (for example, WebSphere).
  * See {@link #setFlag} for a convenient way to locally set such flags to "true".
  *
  * @author Juergen Hoeller
  * @since 3.2.7
  * @see org.springframework.beans.StandardBeanInfoFactory#IGNORE_BEANINFO_PROPERTY_NAME
- * @see org.springframework.context.index.CandidateComponentsIndexLoader#IGNORE_INDEX
  * @see org.springframework.core.env.AbstractEnvironment#IGNORE_GETENV_PROPERTY_NAME
  * @see org.springframework.expression.spel.SpelParserConfiguration#SPRING_EXPRESSION_COMPILER_MODE_PROPERTY_NAME
  * @see org.springframework.jdbc.core.StatementCreatorUtils#IGNORE_GETPARAMETERTYPE_PROPERTY_NAME
@@ -98,8 +97,7 @@ public final class SpringProperties {
 	 * @param key the property key
 	 * @return the associated property value, or {@code null} if none found
 	 */
-	@Nullable
-	public static String getProperty(String key) {
+	public static @Nullable String getProperty(String key) {
 		String value = localProperties.getProperty(key);
 		if (value == null) {
 			try {
@@ -124,8 +122,8 @@ public final class SpringProperties {
 	/**
 	 * Retrieve the flag for the given property key.
 	 * @param key the property key
-	 * @return {@code true} if the property is set to "true",
-	 * {@code} false otherwise
+	 * @return {@code true} if the property is set to the string "true"
+	 * (ignoring case), {@code false} otherwise
 	 */
 	public static boolean getFlag(String key) {
 		return Boolean.parseBoolean(getProperty(key));

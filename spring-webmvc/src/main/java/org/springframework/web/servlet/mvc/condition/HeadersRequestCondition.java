@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,9 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.cors.CorsUtils;
@@ -67,7 +68,7 @@ public final class HeadersRequestCondition extends AbstractRequestCondition<Head
 				if ("Accept".equalsIgnoreCase(expr.name) || "Content-Type".equalsIgnoreCase(expr.name)) {
 					continue;
 				}
-				result = (result != null ? result : new LinkedHashSet<>(headers.length));
+				result = (result != null ? result : CollectionUtils.newLinkedHashSet(headers.length));
 				result.add(expr);
 			}
 		}
@@ -121,8 +122,7 @@ public final class HeadersRequestCondition extends AbstractRequestCondition<Head
 	 * or {@code null} otherwise.
 	 */
 	@Override
-	@Nullable
-	public HeadersRequestCondition getMatchingCondition(HttpServletRequest request) {
+	public @Nullable HeadersRequestCondition getMatchingCondition(HttpServletRequest request) {
 		if (CorsUtils.isPreFlightRequest(request)) {
 			return PRE_FLIGHT_MATCH;
 		}

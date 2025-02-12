@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,15 +20,10 @@ import java.nio.ByteBuffer;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.eclipse.jetty.websocket.api.Frame;
+import org.eclipse.jetty.util.BufferUtil;
+import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketError;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketFrame;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
-import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import org.eclipse.jetty.websocket.core.OpCode;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.util.Assert;
 import org.springframework.web.socket.BinaryMessage;
@@ -39,22 +34,20 @@ import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.handler.ExceptionWebSocketHandlerDecorator;
 
 /**
- * Adapts {@link WebSocketHandler} to the Jetty 9 WebSocket API.
+ * Adapts {@link WebSocketHandler} to the Jetty WebSocket API {@link org.eclipse.jetty.websocket.api.Session.Listener}.
  *
  * @author Rossen Stoyanchev
  * @since 4.0
  */
-@WebSocket
-public class JettyWebSocketHandlerAdapter {
-
-	private static final ByteBuffer EMPTY_PAYLOAD = ByteBuffer.wrap(new byte[0]);
+public class JettyWebSocketHandlerAdapter implements Session.Listener {
 
 	private static final Log logger = LogFactory.getLog(JettyWebSocketHandlerAdapter.class);
-
 
 	private final WebSocketHandler webSocketHandler;
 
 	private final JettyWebSocketSession wsSession;
+
+	private @Nullable Session nativeSession;
 
 
 	public JettyWebSocketHandlerAdapter(WebSocketHandler webSocketHandler, JettyWebSocketSession wsSession) {
@@ -64,55 +57,60 @@ public class JettyWebSocketHandlerAdapter {
 		this.wsSession = wsSession;
 	}
 
-
-	@OnWebSocketConnect
-	public void onWebSocketConnect(Session session) {
+	@Override
+	public void onWebSocketOpen(Session session) {
 		try {
+			this.nativeSession = session;
 			this.wsSession.initializeNativeSession(session);
 			this.webSocketHandler.afterConnectionEstablished(this.wsSession);
+			this.nativeSession.demand();
 		}
 		catch (Exception ex) {
-			ExceptionWebSocketHandlerDecorator.tryCloseWithError(this.wsSession, ex, logger);
+			tryCloseWithError(ex);
 		}
 	}
 
-	@OnWebSocketMessage
+	@Override
 	public void onWebSocketText(String payload) {
+		Assert.state(this.nativeSession != null, "No native session available");
 		TextMessage message = new TextMessage(payload);
 		try {
 			this.webSocketHandler.handleMessage(this.wsSession, message);
+			this.nativeSession.demand();
 		}
 		catch (Exception ex) {
-			ExceptionWebSocketHandlerDecorator.tryCloseWithError(this.wsSession, ex, logger);
+			tryCloseWithError(ex);
 		}
 	}
 
-	@OnWebSocketMessage
-	public void onWebSocketBinary(byte[] payload, int offset, int length) {
-		BinaryMessage message = new BinaryMessage(payload, offset, length, true);
+	@Override
+	public void onWebSocketBinary(ByteBuffer payload, Callback callback) {
+		Assert.state(this.nativeSession != null, "No native session available");
+		BinaryMessage message = new BinaryMessage(BufferUtil.copy(payload), true);
+		callback.succeed();
 		try {
 			this.webSocketHandler.handleMessage(this.wsSession, message);
+			this.nativeSession.demand();
 		}
 		catch (Exception ex) {
-			ExceptionWebSocketHandlerDecorator.tryCloseWithError(this.wsSession, ex, logger);
+			tryCloseWithError(ex);
 		}
 	}
 
-	@OnWebSocketFrame
-	public void onWebSocketFrame(Frame frame) {
-		if (OpCode.PONG == frame.getOpCode()) {
-			ByteBuffer payload = frame.getPayload() != null ? frame.getPayload() : EMPTY_PAYLOAD;
-			PongMessage message = new PongMessage(payload);
-			try {
-				this.webSocketHandler.handleMessage(this.wsSession, message);
-			}
-			catch (Exception ex) {
-				ExceptionWebSocketHandlerDecorator.tryCloseWithError(this.wsSession, ex, logger);
-			}
+	@Override
+	public void onWebSocketPong(ByteBuffer payload) {
+		Assert.state(this.nativeSession != null, "No native session available");
+		PongMessage message = new PongMessage(BufferUtil.copy(payload));
+		try {
+			this.webSocketHandler.handleMessage(this.wsSession, message);
+			this.nativeSession.demand();
+		}
+		catch (Exception ex) {
+			tryCloseWithError(ex);
 		}
 	}
 
-	@OnWebSocketClose
+	@Override
 	public void onWebSocketClose(int statusCode, String reason) {
 		CloseStatus closeStatus = new CloseStatus(statusCode, reason);
 		try {
@@ -120,19 +118,32 @@ public class JettyWebSocketHandlerAdapter {
 		}
 		catch (Exception ex) {
 			if (logger.isWarnEnabled()) {
-				logger.warn("Unhandled exception after connection closed for " + this, ex);
+				logger.warn("Unhandled exception from afterConnectionClosed for " + this, ex);
 			}
 		}
 	}
 
-	@OnWebSocketError
+	@Override
 	public void onWebSocketError(Throwable cause) {
 		try {
 			this.webSocketHandler.handleTransportError(this.wsSession, cause);
 		}
 		catch (Exception ex) {
-			ExceptionWebSocketHandlerDecorator.tryCloseWithError(this.wsSession, ex, logger);
+			if (logger.isWarnEnabled()) {
+				logger.warn("Unhandled exception from handleTransportError for " + this, ex);
+			}
 		}
 	}
 
+	private void tryCloseWithError(Throwable t) {
+		if (this.nativeSession != null) {
+			if (this.nativeSession.isOpen()) {
+				ExceptionWebSocketHandlerDecorator.tryCloseWithError(this.wsSession, t, logger);
+			}
+			else {
+				// Session might be O-SHUT waiting for response close frame, so abort to close the connection.
+				this.nativeSession.disconnect();
+			}
+		}
+	}
 }

@@ -23,8 +23,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.spi.PersistenceProvider;
 import jakarta.persistence.spi.PersistenceUnitInfo;
-
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * SPI interface that allows to plug in vendor-specific behavior
@@ -45,12 +44,11 @@ public interface JpaVendorAdapter {
 
 	/**
 	 * Return the name of the persistence provider's root package
-	 * (e.g. "oracle.toplink.essentials"). Will be used for
+	 * (for example, "oracle.toplink.essentials"). Will be used for
 	 * excluding provider classes from temporary class overriding.
 	 * @since 2.5.2
 	 */
-	@Nullable
-	default String getPersistenceProviderRootPackage() {
+	default @Nullable String getPersistenceProviderRootPackage() {
 		return null;
 	}
 
@@ -99,8 +97,7 @@ public interface JpaVendorAdapter {
 	 * Return the vendor-specific JpaDialect implementation for this
 	 * provider, or {@code null} if there is none.
 	 */
-	@Nullable
-	default JpaDialect getJpaDialect() {
+	default @Nullable JpaDialect getJpaDialect() {
 		return null;
 	}
 
@@ -140,7 +137,7 @@ public interface JpaVendorAdapter {
 	/**
 	 * Optional callback for post-processing the native EntityManager
 	 * before active use.
-	 * <p>This can be used for setting vendor-specific parameters, e.g.
+	 * <p>This can be used for setting vendor-specific parameters, for example,
 	 * Hibernate filters, on every new EntityManager.
 	 * @since 5.3
 	 */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ import java.lang.reflect.Field;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aot.hint.ExecutableMode;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.TypeConverter;
@@ -29,7 +31,6 @@ import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.beans.factory.config.DependencyDescriptor;
 import org.springframework.beans.factory.support.RegisteredBean;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.util.function.ThrowingConsumer;
@@ -57,17 +58,14 @@ public final class AutowiredFieldValueResolver extends AutowiredElementResolver 
 
 	private final boolean required;
 
-	@Nullable
-	private final String shortcut;
+	private final @Nullable String shortcutBeanName;
 
 
-	private AutowiredFieldValueResolver(String fieldName, boolean required,
-			@Nullable String shortcut) {
-
+	private AutowiredFieldValueResolver(String fieldName, boolean required, @Nullable String shortcut) {
 		Assert.hasText(fieldName, "'fieldName' must not be empty");
 		this.fieldName = fieldName;
 		this.required = required;
-		this.shortcut = shortcut;
+		this.shortcutBeanName = shortcut;
 	}
 
 
@@ -97,7 +95,7 @@ public final class AutowiredFieldValueResolver extends AutowiredElementResolver 
 	 * direct bean name injection shortcut.
 	 * @param beanName the bean name to use as a shortcut
 	 * @return a new {@link AutowiredFieldValueResolver} instance that uses the
-	 * shortcuts
+	 * given shortcut bean name
 	 */
 	public AutowiredFieldValueResolver withShortcut(String beanName) {
 		return new AutowiredFieldValueResolver(this.fieldName, this.required, beanName);
@@ -124,9 +122,8 @@ public final class AutowiredFieldValueResolver extends AutowiredElementResolver 
 	 * @param requiredType the required type
 	 * @return the resolved field value
 	 */
-	@Nullable
 	@SuppressWarnings("unchecked")
-	public <T> T resolve(RegisteredBean registeredBean, Class<T> requiredType) {
+	public <T> @Nullable T resolve(RegisteredBean registeredBean, Class<T> requiredType) {
 		Object value = resolveObject(registeredBean);
 		Assert.isInstanceOf(requiredType, value);
 		return (T) value;
@@ -137,9 +134,8 @@ public final class AutowiredFieldValueResolver extends AutowiredElementResolver 
 	 * @param registeredBean the registered bean
 	 * @return the resolved field value
 	 */
-	@Nullable
 	@SuppressWarnings("unchecked")
-	public <T> T resolve(RegisteredBean registeredBean) {
+	public <T> @Nullable T resolve(RegisteredBean registeredBean) {
 		return (T) resolveObject(registeredBean);
 	}
 
@@ -148,8 +144,7 @@ public final class AutowiredFieldValueResolver extends AutowiredElementResolver 
 	 * @param registeredBean the registered bean
 	 * @return the resolved field value
 	 */
-	@Nullable
-	public Object resolveObject(RegisteredBean registeredBean) {
+	public @Nullable Object resolveObject(RegisteredBean registeredBean) {
 		Assert.notNull(registeredBean, "'registeredBean' must not be null");
 		return resolveValue(registeredBean, getField(registeredBean));
 	}
@@ -171,16 +166,14 @@ public final class AutowiredFieldValueResolver extends AutowiredElementResolver 
 		}
 	}
 
-	@Nullable
-	private Object resolveValue(RegisteredBean registeredBean, Field field) {
+	private @Nullable Object resolveValue(RegisteredBean registeredBean, Field field) {
 		String beanName = registeredBean.getBeanName();
 		Class<?> beanClass = registeredBean.getBeanClass();
 		ConfigurableBeanFactory beanFactory = registeredBean.getBeanFactory();
 		DependencyDescriptor descriptor = new DependencyDescriptor(field, this.required);
 		descriptor.setContainingClass(beanClass);
-		if (this.shortcut != null) {
-			descriptor = new ShortcutDependencyDescriptor(descriptor, this.shortcut,
-					field.getType());
+		if (this.shortcutBeanName != null) {
+			descriptor = new ShortcutDependencyDescriptor(descriptor, this.shortcutBeanName);
 		}
 		Set<String> autowiredBeanNames = new LinkedHashSet<>(1);
 		TypeConverter typeConverter = beanFactory.getTypeConverter();
@@ -192,16 +185,14 @@ public final class AutowiredFieldValueResolver extends AutowiredElementResolver 
 			return value;
 		}
 		catch (BeansException ex) {
-			throw new UnsatisfiedDependencyException(null, beanName,
-					new InjectionPoint(field), ex);
+			throw new UnsatisfiedDependencyException(null, beanName, new InjectionPoint(field), ex);
 		}
 	}
 
 	private Field getField(RegisteredBean registeredBean) {
-		Field field = ReflectionUtils.findField(registeredBean.getBeanClass(),
-				this.fieldName);
-		Assert.notNull(field, () -> "No field '" + this.fieldName + "' found on "
-				+ registeredBean.getBeanClass().getName());
+		Field field = ReflectionUtils.findField(registeredBean.getBeanClass(), this.fieldName);
+		Assert.notNull(field, () -> "No field '" + this.fieldName + "' found on " +
+				registeredBean.getBeanClass().getName());
 		return field;
 	}
 

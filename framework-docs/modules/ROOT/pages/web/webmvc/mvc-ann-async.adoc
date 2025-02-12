@@ -25,7 +25,7 @@ return value with `DeferredResult`, as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@GetMapping("/quotes")
 	@ResponseBody
@@ -41,7 +41,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@GetMapping("/quotes")
 	@ResponseBody
@@ -71,7 +71,7 @@ as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@PostMapping
 	public Callable<String> processUpload(final MultipartFile file) {
@@ -81,7 +81,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@PostMapping
 	fun processUpload(file: MultipartFile) = Callable<String> {
@@ -92,7 +92,7 @@ Kotlin::
 ======
 
 The return value can then be obtained by running the given task through the
-xref:web/webmvc/mvc-ann-async.adoc#mvc-ann-async-configuration-spring-mvc[configured] `TaskExecutor`.
+xref:web/webmvc/mvc-ann-async.adoc#mvc-ann-async-configuration-spring-mvc[configured] `AsyncTaskExecutor`.
 
 
 
@@ -128,7 +128,7 @@ Here is a very concise overview of Servlet asynchronous request processing:
 
 * The controller returns a `Callable`.
 * Spring MVC calls `request.startAsync()` and submits the `Callable` to
-  a `TaskExecutor` for processing in a separate thread.
+  an `AsyncTaskExecutor` for processing in a separate thread.
 * Meanwhile, the `DispatcherServlet` and all filters exit the Servlet container thread,
   but the response remains open.
 * Eventually the `Callable` produces a result, and Spring MVC dispatches the request back
@@ -137,7 +137,7 @@ Here is a very concise overview of Servlet asynchronous request processing:
   asynchronously produced return value from the `Callable`.
 
 For further background and context, you can also read
-https://spring.io/blog/2012/05/07/spring-mvc-3-2-preview-introducing-servlet-3-async-support[the
+{spring-site-blog}/2012/05/07/spring-mvc-3-2-preview-introducing-servlet-3-async-support[the
 blog posts] that introduced asynchronous request processing support in Spring MVC 3.2.
 
 
@@ -165,11 +165,11 @@ processing (instead of `postHandle` and `afterCompletion`).
 `HandlerInterceptor` implementations can also register a `CallableProcessingInterceptor`
 or a `DeferredResultProcessingInterceptor`, to integrate more deeply with the
 lifecycle of an asynchronous request (for example, to handle a timeout event). See
-{api-spring-framework}/web/servlet/AsyncHandlerInterceptor.html[`AsyncHandlerInterceptor`]
+{spring-framework-api}/web/servlet/AsyncHandlerInterceptor.html[`AsyncHandlerInterceptor`]
 for more details.
 
 `DeferredResult` provides `onTimeout(Runnable)` and `onCompletion(Runnable)` callbacks.
-See the {api-spring-framework}/web/context/request/async/DeferredResult.html[javadoc of `DeferredResult`]
+See the {spring-framework-api}/web/context/request/async/DeferredResult.html[javadoc of `DeferredResult`]
 for more details. `Callable` can be substituted for `WebAsyncTask` that exposes additional
 methods for timeout and completion callbacks.
 
@@ -227,7 +227,7 @@ response, as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@GetMapping("/events")
 	public ResponseBodyEmitter handle() {
@@ -248,7 +248,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@GetMapping("/events")
 	fun handle() = ResponseBodyEmitter().apply {
@@ -289,7 +289,7 @@ stream from a controller, return `SseEmitter`, as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@GetMapping(path="/events", produces=MediaType.TEXT_EVENT_STREAM_VALUE)
 	public SseEmitter handle() {
@@ -310,7 +310,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@GetMapping("/events", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
 	fun handle() = SseEmitter().apply {
@@ -348,7 +348,7 @@ return value type to do so, as the following example shows:
 ======
 Java::
 +
-[source,java,indent=0,subs="verbatim,quotes",role="primary"]
+[source,java,indent=0,subs="verbatim,quotes"]
 ----
 	@GetMapping("/download")
 	public StreamingResponseBody handle() {
@@ -363,7 +363,7 @@ Java::
 
 Kotlin::
 +
-[source,kotlin,indent=0,subs="verbatim,quotes",role="secondary"]
+[source,kotlin,indent=0,subs="verbatim,quotes"]
 ----
 	@GetMapping("/download")
 	fun handle() = StreamingResponseBody {
@@ -399,16 +399,15 @@ Applications can also return `Flux<ServerSentEvent>` or `Observable<ServerSentEv
 to, similar to using `DeferredResult<List<?>>`.
 
 TIP: Spring MVC supports Reactor and RxJava through the
-{api-spring-framework}/core/ReactiveAdapterRegistry.html[`ReactiveAdapterRegistry`] from
+{spring-framework-api}/core/ReactiveAdapterRegistry.html[`ReactiveAdapterRegistry`] from
 `spring-core`, which lets it adapt from multiple reactive libraries.
 
 For streaming to the response, reactive back pressure is supported, but writes to the
 response are still blocking and are run on a separate thread through the
-xref:web/webmvc/mvc-ann-async.adoc#mvc-ann-async-configuration-spring-mvc[configured] `TaskExecutor`, to avoid
-blocking the upstream source (such as a `Flux` returned from `WebClient`).
-By default, `SimpleAsyncTaskExecutor` is used for the blocking writes, but that is not
-suitable under load. If you plan to stream with a reactive type, you should use the
-xref:web/webmvc/mvc-ann-async.adoc#mvc-ann-async-configuration-spring-mvc[MVC configuration] to configure a task executor.
+xref:web/webmvc/mvc-ann-async.adoc#mvc-ann-async-configuration-spring-mvc[configured]
+`AsyncTaskExecutor`, to avoid blocking the upstream source such as a `Flux` returned
+from `WebClient`.
+
 
 
 
@@ -421,7 +420,7 @@ across multiple threads. The Micrometer
 https://github.com/micrometer-metrics/context-propagation#context-propagation-library[Context Propagation]
 library simplifies context propagation across threads, and across context mechanisms such
 as `ThreadLocal` values,
-Reactor https://projectreactor.io/docs/core/release/reference/#context[context],
+Reactor {reactor-site}/docs/core/release/reference/#context[context],
 GraphQL Java https://www.graphql-java.com/documentation/concerns/#context-objects[context],
 and others.
 
@@ -446,9 +445,15 @@ directly. For example:
 	}
 ----
 
-For more details, see the
-https://micrometer.io/docs/contextPropagation[documentation] of the Micrometer Context
-Propagation library.
+The following `ThreadLocalAccessor` implementations are provided out of the box:
+
+* `LocaleContextThreadLocalAccessor` -- propagates `LocaleContext` via `LocaleContextHolder`
+* `RequestAttributesThreadLocalAccessor` -- propagates `RequestAttributes` via `RequestContextHolder`
+
+The above are not registered automatically. You need to register them via `ContextRegistry.getInstance()` on startup.
+
+For more details, see the {micrometer-context-propagation-docs}/[documentation] of the
+Micrometer Context Propagation library.
 
 
 
@@ -494,20 +499,19 @@ In `web.xml` configuration, you can add `<async-supported>true</async-supported>
 [[mvc-ann-async-configuration-spring-mvc]]
 === Spring MVC
 
-The MVC configuration exposes the following options related to asynchronous request processing:
+The MVC configuration exposes the following options for asynchronous request processing:
 
 * Java configuration: Use the `configureAsyncSupport` callback on `WebMvcConfigurer`.
 * XML namespace: Use the `<async-support>` element under `<mvc:annotation-driven>`.
 
 You can configure the following:
 
-* Default timeout value for async requests, which if not set, depends
-on the underlying Servlet container.
+* The default timeout value for async requests depends
+on the underlying Servlet container, unless it is set explicitly.
 * `AsyncTaskExecutor` to use for blocking writes when streaming with
-xref:web/webmvc/mvc-ann-async.adoc#mvc-ann-async-reactive-types[Reactive Types] and for executing `Callable` instances returned from
-controller methods. We highly recommended configuring this property if you
-stream with reactive types or have controller methods that return `Callable`, since
-by default, it is a `SimpleAsyncTaskExecutor`.
+xref:web/webmvc/mvc-ann-async.adoc#mvc-ann-async-reactive-types[Reactive Types] and for
+executing `Callable` instances returned from controller methods.
+The one used by default is not suitable for production under load.
 * `DeferredResultProcessingInterceptor` implementations and `CallableProcessingInterceptor` implementations.
 
 Note that you can also set the default timeout value on a `DeferredResult`,

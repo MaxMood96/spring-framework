@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,12 +27,14 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.jdbc.InvalidResultSetAccessException;
-import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 /**
- * The default implementation of Spring's {@link SqlRowSet} interface, wrapping a
+ * The common implementation of Spring's {@link SqlRowSet} interface, wrapping a
  * {@link java.sql.ResultSet}, catching any {@link SQLException SQLExceptions} and
  * translating them to a corresponding Spring {@link InvalidResultSetAccessException}.
  *
@@ -99,13 +101,22 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 			ResultSetMetaData rsmd = resultSet.getMetaData();
 			if (rsmd != null) {
 				int columnCount = rsmd.getColumnCount();
-				this.columnLabelMap = CollectionUtils.newHashMap(columnCount);
+				this.columnLabelMap = CollectionUtils.newHashMap(columnCount * 2);
 				for (int i = 1; i <= columnCount; i++) {
 					String key = rsmd.getColumnLabel(i);
 					// Make sure to preserve first matching column for any given name,
 					// as defined in ResultSet's type-level javadoc (lines 81 to 83).
 					if (!this.columnLabelMap.containsKey(key)) {
 						this.columnLabelMap.put(key, i);
+					}
+					// Also support column names prefixed with table name
+					// as in {table_name}.{column.name}.
+					String table = rsmd.getTableName(i);
+					if (StringUtils.hasLength(table)) {
+						key = table + "." + rsmd.getColumnName(i);
+						if (!this.columnLabelMap.containsKey(key)) {
+							this.columnLabelMap.put(key, i);
+						}
 					}
 				}
 			}
@@ -163,8 +174,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getBigDecimal(int)
 	 */
 	@Override
-	@Nullable
-	public BigDecimal getBigDecimal(int columnIndex) throws InvalidResultSetAccessException {
+	public @Nullable BigDecimal getBigDecimal(int columnIndex) throws InvalidResultSetAccessException {
 		try {
 			return this.resultSet.getBigDecimal(columnIndex);
 		}
@@ -177,8 +187,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getBigDecimal(String)
 	 */
 	@Override
-	@Nullable
-	public BigDecimal getBigDecimal(String columnLabel) throws InvalidResultSetAccessException {
+	public @Nullable BigDecimal getBigDecimal(String columnLabel) throws InvalidResultSetAccessException {
 		return getBigDecimal(findColumn(columnLabel));
 	}
 
@@ -228,8 +237,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getDate(int)
 	 */
 	@Override
-	@Nullable
-	public Date getDate(int columnIndex) throws InvalidResultSetAccessException {
+	public @Nullable Date getDate(int columnIndex) throws InvalidResultSetAccessException {
 		try {
 			return this.resultSet.getDate(columnIndex);
 		}
@@ -242,8 +250,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getDate(String)
 	 */
 	@Override
-	@Nullable
-	public Date getDate(String columnLabel) throws InvalidResultSetAccessException {
+	public @Nullable Date getDate(String columnLabel) throws InvalidResultSetAccessException {
 		return getDate(findColumn(columnLabel));
 	}
 
@@ -251,8 +258,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getDate(int, Calendar)
 	 */
 	@Override
-	@Nullable
-	public Date getDate(int columnIndex, Calendar cal) throws InvalidResultSetAccessException {
+	public @Nullable Date getDate(int columnIndex, Calendar cal) throws InvalidResultSetAccessException {
 		try {
 			return this.resultSet.getDate(columnIndex, cal);
 		}
@@ -265,8 +271,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getDate(String, Calendar)
 	 */
 	@Override
-	@Nullable
-	public Date getDate(String columnLabel, Calendar cal) throws InvalidResultSetAccessException {
+	public @Nullable Date getDate(String columnLabel, Calendar cal) throws InvalidResultSetAccessException {
 		return getDate(findColumn(columnLabel), cal);
 	}
 
@@ -358,8 +363,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getNString(int)
 	 */
 	@Override
-	@Nullable
-	public String getNString(int columnIndex) throws InvalidResultSetAccessException {
+	public @Nullable String getNString(int columnIndex) throws InvalidResultSetAccessException {
 		try {
 			return this.resultSet.getNString(columnIndex);
 		}
@@ -372,8 +376,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getNString(String)
 	 */
 	@Override
-	@Nullable
-	public String getNString(String columnLabel) throws InvalidResultSetAccessException {
+	public @Nullable String getNString(String columnLabel) throws InvalidResultSetAccessException {
 		return getNString(findColumn(columnLabel));
 	}
 
@@ -381,8 +384,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getObject(int)
 	 */
 	@Override
-	@Nullable
-	public Object getObject(int columnIndex) throws InvalidResultSetAccessException {
+	public @Nullable Object getObject(int columnIndex) throws InvalidResultSetAccessException {
 		try {
 			return this.resultSet.getObject(columnIndex);
 		}
@@ -395,8 +397,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getObject(String)
 	 */
 	@Override
-	@Nullable
-	public Object getObject(String columnLabel) throws InvalidResultSetAccessException {
+	public @Nullable Object getObject(String columnLabel) throws InvalidResultSetAccessException {
 		return getObject(findColumn(columnLabel));
 	}
 
@@ -404,8 +405,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getObject(int, Map)
 	 */
 	@Override
-	@Nullable
-	public Object getObject(int columnIndex, Map<String, Class<?>> map) throws InvalidResultSetAccessException {
+	public @Nullable Object getObject(int columnIndex, Map<String, Class<?>> map) throws InvalidResultSetAccessException {
 		try {
 			return this.resultSet.getObject(columnIndex, map);
 		}
@@ -418,8 +418,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getObject(String, Map)
 	 */
 	@Override
-	@Nullable
-	public Object getObject(String columnLabel, Map<String, Class<?>> map) throws InvalidResultSetAccessException {
+	public @Nullable Object getObject(String columnLabel, Map<String, Class<?>> map) throws InvalidResultSetAccessException {
 		return getObject(findColumn(columnLabel), map);
 	}
 
@@ -427,8 +426,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getObject(int, Class)
 	 */
 	@Override
-	@Nullable
-	public <T> T getObject(int columnIndex, Class<T> type) throws InvalidResultSetAccessException {
+	public <T> @Nullable T getObject(int columnIndex, Class<T> type) throws InvalidResultSetAccessException {
 		try {
 			return this.resultSet.getObject(columnIndex, type);
 		}
@@ -441,8 +439,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getObject(String, Class)
 	 */
 	@Override
-	@Nullable
-	public <T> T getObject(String columnLabel, Class<T> type) throws InvalidResultSetAccessException {
+	public <T> @Nullable T getObject(String columnLabel, Class<T> type) throws InvalidResultSetAccessException {
 		return getObject(findColumn(columnLabel), type);
 	}
 
@@ -471,8 +468,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getString(int)
 	 */
 	@Override
-	@Nullable
-	public String getString(int columnIndex) throws InvalidResultSetAccessException {
+	public @Nullable String getString(int columnIndex) throws InvalidResultSetAccessException {
 		try {
 			return this.resultSet.getString(columnIndex);
 		}
@@ -485,8 +481,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getString(String)
 	 */
 	@Override
-	@Nullable
-	public String getString(String columnLabel) throws InvalidResultSetAccessException {
+	public @Nullable String getString(String columnLabel) throws InvalidResultSetAccessException {
 		return getString(findColumn(columnLabel));
 	}
 
@@ -494,8 +489,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getTime(int)
 	 */
 	@Override
-	@Nullable
-	public Time getTime(int columnIndex) throws InvalidResultSetAccessException {
+	public @Nullable Time getTime(int columnIndex) throws InvalidResultSetAccessException {
 		try {
 			return this.resultSet.getTime(columnIndex);
 		}
@@ -508,8 +502,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getTime(String)
 	 */
 	@Override
-	@Nullable
-	public Time getTime(String columnLabel) throws InvalidResultSetAccessException {
+	public @Nullable Time getTime(String columnLabel) throws InvalidResultSetAccessException {
 		return getTime(findColumn(columnLabel));
 	}
 
@@ -517,8 +510,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getTime(int, Calendar)
 	 */
 	@Override
-	@Nullable
-	public Time getTime(int columnIndex, Calendar cal) throws InvalidResultSetAccessException {
+	public @Nullable Time getTime(int columnIndex, Calendar cal) throws InvalidResultSetAccessException {
 		try {
 			return this.resultSet.getTime(columnIndex, cal);
 		}
@@ -531,8 +523,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getTime(String, Calendar)
 	 */
 	@Override
-	@Nullable
-	public Time getTime(String columnLabel, Calendar cal) throws InvalidResultSetAccessException {
+	public @Nullable Time getTime(String columnLabel, Calendar cal) throws InvalidResultSetAccessException {
 		return getTime(findColumn(columnLabel), cal);
 	}
 
@@ -540,8 +531,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getTimestamp(int)
 	 */
 	@Override
-	@Nullable
-	public Timestamp getTimestamp(int columnIndex) throws InvalidResultSetAccessException {
+	public @Nullable Timestamp getTimestamp(int columnIndex) throws InvalidResultSetAccessException {
 		try {
 			return this.resultSet.getTimestamp(columnIndex);
 		}
@@ -554,8 +544,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getTimestamp(String)
 	 */
 	@Override
-	@Nullable
-	public Timestamp getTimestamp(String columnLabel) throws InvalidResultSetAccessException {
+	public @Nullable Timestamp getTimestamp(String columnLabel) throws InvalidResultSetAccessException {
 		return getTimestamp(findColumn(columnLabel));
 	}
 
@@ -563,8 +552,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getTimestamp(int, Calendar)
 	 */
 	@Override
-	@Nullable
-	public Timestamp getTimestamp(int columnIndex, Calendar cal) throws InvalidResultSetAccessException {
+	public @Nullable Timestamp getTimestamp(int columnIndex, Calendar cal) throws InvalidResultSetAccessException {
 		try {
 			return this.resultSet.getTimestamp(columnIndex, cal);
 		}
@@ -577,8 +565,7 @@ public class ResultSetWrappingSqlRowSet implements SqlRowSet {
 	 * @see java.sql.ResultSet#getTimestamp(String, Calendar)
 	 */
 	@Override
-	@Nullable
-	public Timestamp getTimestamp(String columnLabel, Calendar cal) throws InvalidResultSetAccessException {
+	public @Nullable Timestamp getTimestamp(String columnLabel, Calendar cal) throws InvalidResultSetAccessException {
 		return getTimestamp(findColumn(columnLabel), cal);
 	}
 

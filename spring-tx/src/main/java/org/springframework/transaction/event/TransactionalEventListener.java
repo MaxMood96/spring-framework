@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,12 +37,13 @@ import org.springframework.core.annotation.AliasFor;
  * method allows you to prioritize that listener amongst other listeners running before
  * or after transaction completion.
  *
- * <p><b>NOTE: Transactional event listeners only work with thread-bound transactions
- * managed by a {@link org.springframework.transaction.PlatformTransactionManager
- * PlatformTransactionManager}.</b> A reactive transaction managed by a
- * {@link org.springframework.transaction.ReactiveTransactionManager ReactiveTransactionManager}
- * uses the Reactor context instead of thread-local variables, so from the perspective of
- * an event listener, there is no compatible active transaction that it can participate in.
+ * <p>As of 6.1, transactional event listeners can work with thread-bound transactions managed
+ * by a {@link org.springframework.transaction.PlatformTransactionManager} as well as reactive
+ * transactions managed by a {@link org.springframework.transaction.ReactiveTransactionManager}.
+ * For the former, listeners are guaranteed to see the current thread-bound transaction.
+ * Since the latter uses the Reactor context instead of thread-local variables, the transaction
+ * context needs to be included in the published event instance as the event source:
+ * see {@link org.springframework.transaction.reactive.TransactionalEventPublisher}.
  *
  * <p><strong>WARNING:</strong> if the {@code TransactionPhase} is set to
  * {@link TransactionPhase#AFTER_COMMIT AFTER_COMMIT} (the default),
@@ -77,11 +78,6 @@ public @interface TransactionalEventListener {
 	TransactionPhase phase() default TransactionPhase.AFTER_COMMIT;
 
 	/**
-	 * Whether the event should be handled if no transaction is running.
-	 */
-	boolean fallbackExecution() default false;
-
-	/**
 	 * Alias for {@link #classes}.
 	 */
 	@AliasFor(annotation = EventListener.class, attribute = "classes")
@@ -107,8 +103,15 @@ public @interface TransactionalEventListener {
 	String condition() default "";
 
 	/**
+	 * Whether the event should be handled if no transaction is running.
+	 * @see EventListener#defaultExecution()
+	 */
+	@AliasFor(annotation = EventListener.class, attribute = "defaultExecution")
+	boolean fallbackExecution() default false;
+
+	/**
 	 * An optional identifier for the listener, defaulting to the fully-qualified
-	 * signature of the declaring method (e.g. "mypackage.MyClass.myMethod()").
+	 * signature of the declaring method (for example, "mypackage.MyClass.myMethod()").
 	 * @since 5.3
 	 * @see EventListener#id
 	 * @see TransactionalApplicationListener#getListenerId()

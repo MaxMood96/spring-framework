@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,13 +31,13 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Mono;
 
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.core.MethodIntrospector;
 import org.springframework.http.server.RequestPath;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.LinkedMultiValueMap;
@@ -269,8 +269,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	/**
 	 * Extract and return the CORS configuration for the mapping.
 	 */
-	@Nullable
-	protected CorsConfiguration initCorsConfiguration(Object handler, Method method, T mapping) {
+	protected @Nullable CorsConfiguration initCorsConfiguration(Object handler, Method method, T mapping) {
 		return null;
 	}
 
@@ -317,8 +316,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 * @see #handleMatch
 	 * @see #handleNoMatch
 	 */
-	@Nullable
-	protected HandlerMethod lookupHandlerMethod(ServerWebExchange exchange) throws Exception {
+	protected @Nullable HandlerMethod lookupHandlerMethod(ServerWebExchange exchange) throws Exception {
 		List<Match> matches = new ArrayList<>();
 		List<T> directPathMatches = this.mappingRegistry.getMappingsByDirectPath(exchange);
 		if (directPathMatches != null) {
@@ -361,6 +359,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 		}
 	}
 
+	@SuppressWarnings("NullAway") // Dataflow analysis limitation
 	private void addMatchingMappings(Collection<T> mappings, List<Match> matches, ServerWebExchange exchange) {
 		for (T mapping : mappings) {
 			T match = getMatchingMapping(mapping, exchange);
@@ -388,8 +387,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 * @return an alternative HandlerMethod or {@code null}
 	 * @throws Exception provides details that can be translated into an error status code
 	 */
-	@Nullable
-	protected HandlerMethod handleNoMatch(Set<T> mappings, ServerWebExchange exchange) throws Exception {
+	protected @Nullable HandlerMethod handleNoMatch(Set<T> mappings, ServerWebExchange exchange) throws Exception {
 		return null;
 	}
 
@@ -400,7 +398,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	}
 
 	@Override
-	protected CorsConfiguration getCorsConfiguration(Object handler, ServerWebExchange exchange) {
+	protected @Nullable CorsConfiguration getCorsConfiguration(Object handler, ServerWebExchange exchange) {
 		CorsConfiguration corsConfig = super.getCorsConfiguration(handler, exchange);
 		if (handler instanceof HandlerMethod handlerMethod) {
 			if (handlerMethod.equals(PREFLIGHT_AMBIGUOUS_MATCH)) {
@@ -430,8 +428,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 * declaring class
 	 * @return the mapping, or {@code null} if the method is not mapped
 	 */
-	@Nullable
-	protected abstract T getMappingForMethod(Method method, Class<?> handlerType);
+	protected abstract @Nullable T getMappingForMethod(Method method, Class<?> handlerType);
 
 	/**
 	 * Return the request mapping paths that are not patterns.
@@ -448,8 +445,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 * @param exchange the current exchange
 	 * @return the match, or {@code null} if the mapping doesn't match
 	 */
-	@Nullable
-	protected abstract T getMatchingMapping(T mapping, ServerWebExchange exchange);
+	protected abstract @Nullable T getMatchingMapping(T mapping, ServerWebExchange exchange);
 
 	/**
 	 * Return a comparator for sorting matching mappings.
@@ -489,8 +485,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 		 * @since 5.3
 		 * @see #acquireReadLock()
 		 */
-		@Nullable
-		public List<T> getMappingsByDirectPath(ServerWebExchange exchange) {
+		public @Nullable List<T> getMappingsByDirectPath(ServerWebExchange exchange) {
 			String path = exchange.getRequest().getPath().pathWithinApplication().value();
 			return this.pathLookup.get(path);
 		}
@@ -498,8 +493,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 		/**
 		 * Return CORS configuration. Thread-safe for concurrent use.
 		 */
-		@Nullable
-		public CorsConfiguration getCorsConfiguration(HandlerMethod handlerMethod) {
+		public @Nullable CorsConfiguration getCorsConfiguration(HandlerMethod handlerMethod) {
 			HandlerMethod original = handlerMethod.getResolvedFromHandlerMethod();
 			return this.corsLookup.get(original != null ? original : handlerMethod);
 		}
@@ -524,6 +518,9 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 				HandlerMethod handlerMethod = createHandlerMethod(handler, method);
 				validateMethodMapping(handlerMethod, mapping);
 
+				// Enable method validation, if applicable
+				handlerMethod = handlerMethod.createWithValidateFlags();
+
 				Set<String> directPaths = AbstractHandlerMethodMapping.this.getDirectPaths(mapping);
 				for (String path : directPaths) {
 					this.pathLookup.add(path, mapping);
@@ -532,6 +529,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 				CorsConfiguration corsConfig = initCorsConfiguration(handler, method, mapping);
 				if (corsConfig != null) {
 					corsConfig.validateAllowCredentials();
+					corsConfig.validateAllowPrivateNetwork();
 					this.corsLookup.put(handlerMethod, corsConfig);
 				}
 

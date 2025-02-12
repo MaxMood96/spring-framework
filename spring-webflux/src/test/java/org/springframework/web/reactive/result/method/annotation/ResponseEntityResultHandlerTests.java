@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,17 +70,16 @@ import static org.springframework.web.testfixture.http.server.reactive.MockServe
 import static org.springframework.web.testfixture.method.ResolvableMethod.on;
 
 /**
- * Unit tests for {@link ResponseEntityResultHandler}. When adding a test also
+ * Tests for {@link ResponseEntityResultHandler}. When adding a test also
  * consider whether the logic under test is in a parent class, then see:
  * <ul>
  * <li>{@code MessageWriterResultHandlerTests},
  * <li>{@code ContentNegotiatingResultHandlerSupportTests}
  * </ul>
+ *
  * @author Rossen Stoyanchev
  */
 class ResponseEntityResultHandlerTests {
-
-	private static final String NEWLINE_SYSTEM_PROPERTY = System.lineSeparator();
 
 	private final ResponseEntityResultHandler resultHandler = createHandler();
 
@@ -158,7 +157,7 @@ class ResponseEntityResultHandlerTests {
 		this.resultHandler.handleResult(exchange, result).block(Duration.ofSeconds(5));
 
 		assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-		assertThat(exchange.getResponse().getHeaders()).isEmpty();
+		assertThat(exchange.getResponse().getHeaders().isEmpty()).isTrue();
 		assertResponseBodyIsEmpty(exchange);
 	}
 
@@ -172,7 +171,7 @@ class ResponseEntityResultHandlerTests {
 		this.resultHandler.handleResult(exchange, result).block(Duration.ofSeconds(5));
 
 		assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(exchange.getResponse().getHeaders()).hasSize(1);
+		assertThat(exchange.getResponse().getHeaders().size()).isOne();
 		assertThat(exchange.getResponse().getHeaders().getFirst("Allow")).isEqualTo("GET,POST,OPTIONS");
 		assertResponseBodyIsEmpty(exchange);
 	}
@@ -187,7 +186,7 @@ class ResponseEntityResultHandlerTests {
 		this.resultHandler.handleResult(exchange, result).block(Duration.ofSeconds(5));
 
 		assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.CREATED);
-		assertThat(exchange.getResponse().getHeaders()).hasSize(1);
+		assertThat(exchange.getResponse().getHeaders().size()).isOne();
 		assertThat(exchange.getResponse().getHeaders().getLocation()).isEqualTo(location);
 		assertResponseBodyIsEmpty(exchange);
 	}
@@ -237,7 +236,7 @@ class ResponseEntityResultHandlerTests {
 		this.resultHandler.handleResult(exchange, result).block(Duration.ofSeconds(5));
 
 		assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-		assertThat(exchange.getResponse().getHeaders()).hasSize(3);
+		assertThat(exchange.getResponse().getHeaders().size()).isEqualTo(3);
 		assertThat(exchange.getResponse().getHeaders().get("foo")).containsExactly("bar");
 		assertThat(exchange.getResponse().getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
 		assertResponseBody(exchange,
@@ -257,7 +256,7 @@ class ResponseEntityResultHandlerTests {
 		this.resultHandler.handleResult(exchange, result).block(Duration.ofSeconds(5));
 
 		assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-		assertThat(exchange.getResponse().getHeaders()).hasSize(2);
+		assertThat(exchange.getResponse().getHeaders().size()).isEqualTo(2);
 		assertThat(exchange.getResponse().getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
 		assertResponseBody(exchange,
 				"{\"type\":\"about:blank\"," +
@@ -386,7 +385,7 @@ class ResponseEntityResultHandlerTests {
 		this.resultHandler.handleResult(exchange, result).block(Duration.ofSeconds(5));
 
 		assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(exchange.getResponse().getHeaders()).hasSize(1);
+		assertThat(exchange.getResponse().getHeaders().size()).isOne();
 		assertThat(exchange.getResponse().getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_JSON);
 		assertResponseBodyIsEmpty(exchange);
 	}
@@ -457,10 +456,10 @@ class ResponseEntityResultHandlerTests {
 		handler.handleResult(exchange, result).block();
 
 		assertThat(exchange.getResponse().getHeaders().getContentType()).isEqualTo(halMediaType);
-		assertThat(exchange.getResponse().getBodyAsString().block()).isEqualTo(
-				"{" + NEWLINE_SYSTEM_PROPERTY +
-						"  \"name\" : \"Jason\"" + NEWLINE_SYSTEM_PROPERTY +
-						"}");
+		assertThat(exchange.getResponse().getBodyAsString().block()).isEqualToNormalizingNewlines("""
+				{
+				\s "name" : "Jason"
+				}""");
 	}
 
 	@Test  // gh-24539

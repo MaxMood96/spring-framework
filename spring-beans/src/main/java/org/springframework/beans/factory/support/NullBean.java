@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,12 @@
 
 package org.springframework.beans.factory.support;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.FactoryBean;
-import org.springframework.lang.Nullable;
 
 /**
- * Internal representation of a null bean instance, e.g. for a {@code null} value
+ * Internal representation of a null bean instance, for example, for a {@code null} value
  * returned from {@link FactoryBean#getObject()} or from a factory method.
  *
  * <p>Each such null bean is represented by a dedicated {@code NullBean} instance
@@ -40,8 +41,8 @@ final class NullBean {
 
 
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return (this == obj || obj == null);
+	public boolean equals(@Nullable Object other) {
+		return (this == other || other == null);
 	}
 
 	@Override

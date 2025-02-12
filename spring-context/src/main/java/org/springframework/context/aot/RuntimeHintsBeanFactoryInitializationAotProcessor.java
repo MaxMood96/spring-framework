@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aot.generate.GenerationContext;
 import org.springframework.aot.hint.RuntimeHints;
@@ -35,7 +36,7 @@ import org.springframework.beans.factory.aot.BeanFactoryInitializationCode;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.core.log.LogMessage;
-import org.springframework.lang.Nullable;
+import org.springframework.util.CollectionUtils;
 
 /**
  * {@link BeanFactoryInitializationAotProcessor} implementation that processes
@@ -76,8 +77,9 @@ class RuntimeHintsBeanFactoryInitializationAotProcessor implements BeanFactoryIn
 	private Set<Class<? extends RuntimeHintsRegistrar>> extractFromBeanDefinition(String beanName,
 			ImportRuntimeHints annotation) {
 
-		Set<Class<? extends RuntimeHintsRegistrar>> registrars = new LinkedHashSet<>();
-		for (Class<? extends RuntimeHintsRegistrar> registrarClass : annotation.value()) {
+		Class<? extends RuntimeHintsRegistrar>[] registrarClasses = annotation.value();
+		Set<Class<? extends RuntimeHintsRegistrar>> registrars = CollectionUtils.newLinkedHashSet(registrarClasses.length);
+		for (Class<? extends RuntimeHintsRegistrar> registrarClass : registrarClasses) {
 			if (logger.isTraceEnabled()) {
 				logger.trace(LogMessage.format("Loaded [%s] registrar from annotated bean [%s]",
 						registrarClass.getCanonicalName(), beanName));
@@ -92,8 +94,7 @@ class RuntimeHintsBeanFactoryInitializationAotProcessor implements BeanFactoryIn
 
 		private final Iterable<RuntimeHintsRegistrar> registrars;
 
-		@Nullable
-		private final ClassLoader beanClassLoader;
+		private final @Nullable ClassLoader beanClassLoader;
 
 		RuntimeHintsRegistrarContribution(Iterable<RuntimeHintsRegistrar> registrars,
 				@Nullable ClassLoader beanClassLoader) {

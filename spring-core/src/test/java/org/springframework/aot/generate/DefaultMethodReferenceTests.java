@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.springframework.aot.generate;
 
 import javax.lang.model.element.Modifier;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.aot.generate.MethodReference.ArgumentCodeGenerator;
@@ -26,7 +27,6 @@ import org.springframework.javapoet.CodeBlock;
 import org.springframework.javapoet.MethodSpec;
 import org.springframework.javapoet.MethodSpec.Builder;
 import org.springframework.javapoet.TypeName;
-import org.springframework.lang.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
@@ -88,7 +88,7 @@ class DefaultMethodReferenceTests {
 		MethodSpec method = createTestMethod("methodName", new TypeName[0], Modifier.STATIC);
 		MethodReference methodReference = new DefaultMethodReference(method, null);
 		assertThatIllegalStateException().isThrownBy(methodReference::toCodeBlock)
-				.withMessage("static method reference must define a declaring class");
+				.withMessage("Static method reference must define a declaring class");
 	}
 
 	@Test

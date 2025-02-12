@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,10 @@
 
 package org.springframework.test.context.junit4.event;
 
+import java.util.concurrent.TimeUnit;
+
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.awaitility.Awaitility;
-import org.awaitility.Durations;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -39,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * or assert the events from a separate thread, in conjunction with JUnit 4.
  *
  * @author Simon Baslé
- * @since 6.1.0
+ * @since 6.1
  */
 @RunWith(SpringRunner.class)
 @RecordApplicationEvents
@@ -70,11 +71,11 @@ public class JUnit4ApplicationEventsAsyncIntegrationTests {
 	public void asyncConsumption() {
 		context.publishEvent(new CustomEvent("sync"));
 
-		Awaitility.await().atMost(Durations.ONE_SECOND)
-				.untilAsserted(() -> assertThat(assertThat(this.applicationEvents.stream(CustomEvent.class))
+		Awaitility.await().atMost(5, TimeUnit.SECONDS)
+				.untilAsserted(() -> assertThat(this.applicationEvents.stream(CustomEvent.class))
 						.singleElement()
 						.extracting(CustomEvent::getMessage, InstanceOfAssertFactories.STRING)
-						.isEqualTo("sync")));
+						.isEqualTo("sync"));
 	}
 
 

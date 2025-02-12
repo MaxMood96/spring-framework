@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.websocket.Extension;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.web.socket.WebSocketExtension;
 
@@ -46,12 +47,13 @@ public class WebSocketToStandardExtensionAdapter implements Extension {
 					return paramName;
 				}
 				@Override
-				public String getValue() {
+				public @Nullable String getValue() {
 					return extension.getParameters().get(paramName);
 				}
 			});
 		}
 	}
+
 
 	@Override
 	public String getName() {

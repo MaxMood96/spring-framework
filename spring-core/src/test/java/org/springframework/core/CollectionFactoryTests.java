@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ import static org.springframework.core.CollectionFactory.createCollection;
 import static org.springframework.core.CollectionFactory.createMap;
 
 /**
- * Unit tests for {@link CollectionFactory}.
+ * Tests for {@link CollectionFactory}.
  *
  * @author Oliver Gierke
  * @author Sam Brannen
@@ -154,7 +154,7 @@ class CollectionFactoryTests {
 
 	@Test
 	void createApproximateCollectionFromEmptyHashSet() {
-		Collection<String> set = createApproximateCollection(new HashSet<String>(), 2);
+		Collection<String> set = createApproximateCollection(new HashSet<>(), 2);
 		assertThat(set).isEmpty();
 	}
 
@@ -180,7 +180,7 @@ class CollectionFactoryTests {
 
 	@Test
 	void createApproximateMapFromEmptyHashMap() {
-		Map<String, String> map = createApproximateMap(new HashMap<String, String>(), 2);
+		Map<String, String> map = createApproximateMap(new HashMap<>(), 2);
 		assertThat(map).isEmpty();
 	}
 
@@ -194,7 +194,7 @@ class CollectionFactoryTests {
 
 	@Test
 	void createApproximateMapFromEmptyEnumMap() {
-		Map<Color, String> colors = createApproximateMap(new EnumMap<Color, String>(Color.class), 2);
+		Map<Color, String> colors = createApproximateMap(new EnumMap<>(Color.class), 2);
 		assertThat(colors).isEmpty();
 	}
 
@@ -219,15 +219,15 @@ class CollectionFactoryTests {
 
 		// concrete types
 		testCollection(ArrayList.class, ArrayList.class);
-		testCollection(HashSet.class, LinkedHashSet.class);
+		testCollection(HashSet.class, HashSet.class);
 		testCollection(LinkedHashSet.class, LinkedHashSet.class);
 		testCollection(TreeSet.class, TreeSet.class);
 	}
 
 	private void testCollection(Class<?> collectionType, Class<?> resultType) {
 		assertThat(CollectionFactory.isApproximableCollectionType(collectionType)).isTrue();
-		assertThat(createCollection(collectionType, 0)).isInstanceOf(resultType);
-		assertThat(createCollection(collectionType, String.class, 0)).isInstanceOf(resultType);
+		assertThat(createCollection(collectionType, 0)).isExactlyInstanceOf(resultType);
+		assertThat(createCollection(collectionType, String.class, 0)).isExactlyInstanceOf(resultType);
 	}
 
 	@Test
@@ -269,7 +269,7 @@ class CollectionFactoryTests {
 		testMap(MultiValueMap.class, LinkedMultiValueMap.class);
 
 		// concrete types
-		testMap(HashMap.class, LinkedHashMap.class);
+		testMap(HashMap.class, HashMap.class);
 		testMap(LinkedHashMap.class, LinkedHashMap.class);
 		testMap(TreeMap.class, TreeMap.class);
 		testMap(LinkedMultiValueMap.class, LinkedMultiValueMap.class);
@@ -277,8 +277,8 @@ class CollectionFactoryTests {
 
 	private void testMap(Class<?> mapType, Class<?> resultType) {
 		assertThat(CollectionFactory.isApproximableMapType(mapType)).isTrue();
-		assertThat(createMap(mapType, 0)).isInstanceOf(resultType);
-		assertThat(createMap(mapType, String.class, 0)).isInstanceOf(resultType);
+		assertThat(createMap(mapType, 0)).isExactlyInstanceOf(resultType);
+		assertThat(createMap(mapType, String.class, 0)).isExactlyInstanceOf(resultType);
 	}
 
 	@Test
@@ -306,7 +306,7 @@ class CollectionFactoryTests {
 
 
 	enum Color {
-		RED, BLUE;
+		RED, BLUE
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,13 @@
 package org.springframework.context.aot;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 
 import javax.lang.model.element.Modifier;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aot.generate.GeneratedClass;
 import org.springframework.aot.generate.GeneratedMethods;
@@ -43,12 +46,12 @@ import org.springframework.javapoet.MethodSpec;
 import org.springframework.javapoet.ParameterizedTypeName;
 import org.springframework.javapoet.TypeName;
 import org.springframework.javapoet.TypeSpec;
-import org.springframework.lang.Nullable;
 
 /**
  * Internal code generator to create the {@link ApplicationContextInitializer}.
  *
  * @author Phillip Webb
+ * @author Stephane Nicoll
  * @since 6.0
  */
 class ApplicationContextInitializationCodeGenerator implements BeanFactoryInitializationCode {
@@ -57,12 +60,15 @@ class ApplicationContextInitializationCodeGenerator implements BeanFactoryInitia
 
 	private static final String APPLICATION_CONTEXT_VARIABLE = "applicationContext";
 
-	private final List<MethodReference> initializers = new ArrayList<>();
+	private final GenericApplicationContext applicationContext;
 
 	private final GeneratedClass generatedClass;
 
+	private final List<MethodReference> initializers = new ArrayList<>();
 
-	ApplicationContextInitializationCodeGenerator(GenerationContext generationContext) {
+
+	ApplicationContextInitializationCodeGenerator(GenericApplicationContext applicationContext, GenerationContext generationContext) {
+		this.applicationContext = applicationContext;
 		this.generatedClass = generationContext.getGeneratedClasses()
 				.addForFeature("ApplicationContextInitializer", this::generateType);
 		this.generatedClass.reserveMethodNames(INITIALIZE_METHOD);
@@ -97,9 +103,21 @@ class ApplicationContextInitializationCodeGenerator implements BeanFactoryInitia
 				BEAN_FACTORY_VARIABLE, ContextAnnotationAutowireCandidateResolver.class);
 		code.addStatement("$L.setDependencyComparator($T.INSTANCE)",
 				BEAN_FACTORY_VARIABLE, AnnotationAwareOrderComparator.class);
+		code.add(generateActiveProfilesInitializeCode());
 		ArgumentCodeGenerator argCodeGenerator = createInitializerMethodArgumentCodeGenerator();
 		for (MethodReference initializer : this.initializers) {
 			code.addStatement(initializer.toInvokeCodeBlock(argCodeGenerator, this.generatedClass.getName()));
+		}
+		return code.build();
+	}
+
+	private CodeBlock generateActiveProfilesInitializeCode() {
+		CodeBlock.Builder code = CodeBlock.builder();
+		ConfigurableEnvironment environment = this.applicationContext.getEnvironment();
+		if (!Arrays.equals(environment.getActiveProfiles(), environment.getDefaultProfiles())) {
+			for (String activeProfile : environment.getActiveProfiles()) {
+				code.addStatement("$L.getEnvironment().addActiveProfile($S)", APPLICATION_CONTEXT_VARIABLE, activeProfile);
+			}
 		}
 		return code.build();
 	}
@@ -122,16 +140,14 @@ class ApplicationContextInitializationCodeGenerator implements BeanFactoryInitia
 		this.initializers.add(methodReference);
 	}
 
-	private static class InitializerMethodArgumentCodeGenerator implements Function<TypeName, CodeBlock> {
+	private static class InitializerMethodArgumentCodeGenerator implements Function<TypeName, @Nullable CodeBlock> {
 
 		@Override
-		@Nullable
-		public CodeBlock apply(TypeName typeName) {
+		public @Nullable CodeBlock apply(TypeName typeName) {
 			return (typeName instanceof ClassName className ? apply(className) : null);
 		}
 
-		@Nullable
-		private CodeBlock apply(ClassName className) {
+		private @Nullable CodeBlock apply(ClassName className) {
 			String name = className.canonicalName();
 			if (name.equals(DefaultListableBeanFactory.class.getName())
 					|| name.equals(ConfigurableListableBeanFactory.class.getName())) {

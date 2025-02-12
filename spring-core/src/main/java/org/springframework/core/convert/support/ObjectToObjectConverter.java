@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,10 +25,11 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.convert.ConversionFailedException;
 import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.core.convert.converter.ConditionalGenericConverter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ConcurrentReferenceHashMap;
 import org.springframework.util.ReflectionUtils;
@@ -89,8 +90,7 @@ final class ObjectToObjectConverter implements ConditionalGenericConverter {
 	}
 
 	@Override
-	@Nullable
-	public Object convert(@Nullable Object source, TypeDescriptor sourceType, TypeDescriptor targetType) {
+	public @Nullable Object convert(@Nullable Object source, TypeDescriptor sourceType, TypeDescriptor targetType) {
 		if (source == null) {
 			return null;
 		}
@@ -133,10 +133,9 @@ final class ObjectToObjectConverter implements ConditionalGenericConverter {
 		return (getValidatedExecutable(targetClass, sourceClass) != null);
 	}
 
-	@Nullable
-	private static Executable getValidatedExecutable(Class<?> targetClass, Class<?> sourceClass) {
+	private static @Nullable Executable getValidatedExecutable(Class<?> targetClass, Class<?> sourceClass) {
 		Executable executable = conversionExecutableCache.get(targetClass);
-		if (isApplicable(executable, sourceClass)) {
+		if (executable != null && isApplicable(executable, sourceClass)) {
 			return executable;
 		}
 
@@ -169,8 +168,7 @@ final class ObjectToObjectConverter implements ConditionalGenericConverter {
 		}
 	}
 
-	@Nullable
-	private static Method determineToMethod(Class<?> targetClass, Class<?> sourceClass) {
+	private static @Nullable Method determineToMethod(Class<?> targetClass, Class<?> sourceClass) {
 		if (String.class == targetClass || String.class == sourceClass) {
 			// Do not accept a toString() method or any to methods on String itself
 			return null;
@@ -181,8 +179,7 @@ final class ObjectToObjectConverter implements ConditionalGenericConverter {
 				ClassUtils.isAssignable(targetClass, method.getReturnType()) ? method : null);
 	}
 
-	@Nullable
-	private static Method determineFactoryMethod(Class<?> targetClass, Class<?> sourceClass) {
+	private static @Nullable Method determineFactoryMethod(Class<?> targetClass, Class<?> sourceClass) {
 		if (String.class == targetClass) {
 			// Do not accept the String.valueOf(Object) method
 			return null;
@@ -209,8 +206,7 @@ final class ObjectToObjectConverter implements ConditionalGenericConverter {
 		return (ClassUtils.isAssignable(type1, type2) || ClassUtils.isAssignable(type2, type1));
 	}
 
-	@Nullable
-	private static Constructor<?> determineFactoryConstructor(Class<?> targetClass, Class<?> sourceClass) {
+	private static @Nullable Constructor<?> determineFactoryConstructor(Class<?> targetClass, Class<?> sourceClass) {
 		return ClassUtils.getConstructorIfAvailable(targetClass, sourceClass);
 	}
 

@@ -16,9 +16,10 @@
 
 package org.springframework.beans.factory.aot;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.support.RegisteredBean;
-import org.springframework.lang.Nullable;
 
 /**
  * AOT processor that makes bean registration contributions by processing
@@ -50,6 +51,15 @@ import org.springframework.lang.Nullable;
 public interface BeanRegistrationAotProcessor {
 
 	/**
+	 * The name of an attribute that can be
+	 * {@link org.springframework.core.AttributeAccessor#setAttribute set} on a
+	 * {@link org.springframework.beans.factory.config.BeanDefinition} to signal
+	 * that its registration should not be processed.
+	 * @since 6.2
+	 */
+	String IGNORE_REGISTRATION_ATTRIBUTE = "aotProcessingIgnoreRegistration";
+
+	/**
 	 * Process the given {@link RegisteredBean} instance ahead-of-time and
 	 * return a contribution or {@code null}.
 	 * <p>
@@ -63,8 +73,7 @@ public interface BeanRegistrationAotProcessor {
 	 * @param registeredBean the registered bean to process
 	 * @return a {@link BeanRegistrationAotContribution} or {@code null}
 	 */
-	@Nullable
-	BeanRegistrationAotContribution processAheadOfTime(RegisteredBean registeredBean);
+	@Nullable BeanRegistrationAotContribution processAheadOfTime(RegisteredBean registeredBean);
 
 	/**
 	 * Return if the bean instance associated with this processor should be

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
@@ -33,7 +35,6 @@ import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 import org.springframework.core.type.AnnotationMetadata;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.MultiValueMap;
@@ -90,16 +91,7 @@ class ConditionEvaluator {
 			return shouldSkip(metadata, ConfigurationPhase.REGISTER_BEAN);
 		}
 
-		List<Condition> conditions = new ArrayList<>();
-		for (String[] conditionClasses : getConditionClasses(metadata)) {
-			for (String conditionClass : conditionClasses) {
-				Condition condition = getCondition(conditionClass, this.context.getClassLoader());
-				conditions.add(condition);
-			}
-		}
-
-		AnnotationAwareOrderComparator.sort(conditions);
-
+		List<Condition> conditions = collectConditions(metadata);
 		for (Condition condition : conditions) {
 			ConfigurationPhase requiredPhase = null;
 			if (condition instanceof ConfigurationCondition configurationCondition) {
@@ -113,9 +105,31 @@ class ConditionEvaluator {
 		return false;
 	}
 
+	/**
+	 * Return the {@linkplain Condition conditions} that should be applied when
+	 * considering the given annotated type.
+	 * @param metadata the metadata of the annotated type
+	 * @return the ordered list of conditions for that type
+	 */
+	List<Condition> collectConditions(@Nullable AnnotatedTypeMetadata metadata) {
+		if (metadata == null || !metadata.isAnnotated(Conditional.class.getName())) {
+			return Collections.emptyList();
+		}
+
+		List<Condition> conditions = new ArrayList<>();
+		for (String[] conditionClasses : getConditionClasses(metadata)) {
+			for (String conditionClass : conditionClasses) {
+				Condition condition = getCondition(conditionClass, this.context.getClassLoader());
+				conditions.add(condition);
+			}
+		}
+		AnnotationAwareOrderComparator.sort(conditions);
+		return conditions;
+	}
+
 	@SuppressWarnings("unchecked")
 	private List<String[]> getConditionClasses(AnnotatedTypeMetadata metadata) {
-		MultiValueMap<String, Object> attributes = metadata.getAllAnnotationAttributes(Conditional.class.getName(), true);
+		MultiValueMap<String, @Nullable Object> attributes = metadata.getAllAnnotationAttributes(Conditional.class.getName(), true);
 		Object values = (attributes != null ? attributes.get("value") : null);
 		return (List<String[]>) (values != null ? values : Collections.emptyList());
 	}
@@ -131,18 +145,15 @@ class ConditionEvaluator {
 	 */
 	private static class ConditionContextImpl implements ConditionContext {
 
-		@Nullable
-		private final BeanDefinitionRegistry registry;
+		private final @Nullable BeanDefinitionRegistry registry;
 
-		@Nullable
-		private final ConfigurableListableBeanFactory beanFactory;
+		private final @Nullable ConfigurableListableBeanFactory beanFactory;
 
 		private final Environment environment;
 
 		private final ResourceLoader resourceLoader;
 
-		@Nullable
-		private final ClassLoader classLoader;
+		private final @Nullable ClassLoader classLoader;
 
 		public ConditionContextImpl(@Nullable BeanDefinitionRegistry registry,
 				@Nullable Environment environment, @Nullable ResourceLoader resourceLoader) {
@@ -154,8 +165,7 @@ class ConditionEvaluator {
 			this.classLoader = deduceClassLoader(resourceLoader, this.beanFactory);
 		}
 
-		@Nullable
-		private static ConfigurableListableBeanFactory deduceBeanFactory(@Nullable BeanDefinitionRegistry source) {
+		private static @Nullable ConfigurableListableBeanFactory deduceBeanFactory(@Nullable BeanDefinitionRegistry source) {
 			if (source instanceof ConfigurableListableBeanFactory configurableListableBeanFactory) {
 				return configurableListableBeanFactory;
 			}
@@ -179,8 +189,7 @@ class ConditionEvaluator {
 			return new DefaultResourceLoader();
 		}
 
-		@Nullable
-		private static ClassLoader deduceClassLoader(@Nullable ResourceLoader resourceLoader,
+		private static @Nullable ClassLoader deduceClassLoader(@Nullable ResourceLoader resourceLoader,
 				@Nullable ConfigurableListableBeanFactory beanFactory) {
 
 			if (resourceLoader != null) {
@@ -202,8 +211,7 @@ class ConditionEvaluator {
 		}
 
 		@Override
-		@Nullable
-		public ConfigurableListableBeanFactory getBeanFactory() {
+		public @Nullable ConfigurableListableBeanFactory getBeanFactory() {
 			return this.beanFactory;
 		}
 
@@ -218,8 +226,7 @@ class ConditionEvaluator {
 		}
 
 		@Override
-		@Nullable
-		public ClassLoader getClassLoader() {
+		public @Nullable ClassLoader getClassLoader() {
 			return this.classLoader;
 		}
 	}

@@ -16,7 +16,8 @@
 
 package org.springframework.transaction.support;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.transaction.TransactionStatus;
 
 /**
@@ -31,8 +32,7 @@ import org.springframework.transaction.TransactionStatus;
 public abstract class TransactionCallbackWithoutResult implements TransactionCallback<Object> {
 
 	@Override
-	@Nullable
-	public final Object doInTransaction(TransactionStatus status) {
+	public final @Nullable Object doInTransaction(TransactionStatus status) {
 		doInTransactionWithoutResult(status);
 		return null;
 	}
@@ -41,7 +41,7 @@ public abstract class TransactionCallbackWithoutResult implements TransactionCal
 	 * Gets called by {@code TransactionTemplate.execute} within a transactional
 	 * context. Does not need to care about transactions itself, although it can retrieve
 	 * and influence the status of the current transaction via the given status object,
-	 * e.g. setting rollback-only.
+	 * for example, setting rollback-only.
 	 * <p>A RuntimeException thrown by the callback is treated as application
 	 * exception that enforces a rollback. An exception gets propagated to the
 	 * caller of the template.

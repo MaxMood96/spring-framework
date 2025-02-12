@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,17 @@
 
 package org.springframework.web.reactive.config;
 
+import java.util.List;
+
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.format.Formatter;
 import org.springframework.format.FormatterRegistry;
 import org.springframework.http.codec.ServerCodecConfigurer;
-import org.springframework.lang.Nullable;
 import org.springframework.validation.MessageCodesResolver;
 import org.springframework.validation.Validator;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.reactive.accept.RequestedContentTypeResolverBuilder;
 import org.springframework.web.reactive.result.method.annotation.ArgumentResolverConfigurer;
@@ -44,53 +48,6 @@ import org.springframework.web.reactive.socket.server.WebSocketService;
  * @see DelegatingWebFluxConfiguration
  */
 public interface WebFluxConfigurer {
-
-	/**
-	 * Configure how the content type requested for the response is resolved
-	 * when handling requests with annotated controllers.
-	 * @param builder for configuring the resolvers to use
-	 */
-	default void configureContentTypeResolver(RequestedContentTypeResolverBuilder builder) {
-	}
-
-	/**
-	 * Configure "global" cross-origin request processing. The configured CORS
-	 * mappings apply to annotated controllers, functional endpoints, and static
-	 * resources.
-	 * <p>Annotated controllers can further declare more fine-grained config via
-	 * {@link org.springframework.web.bind.annotation.CrossOrigin @CrossOrigin}.
-	 * In such cases "global" CORS configuration declared here is
-	 * {@link org.springframework.web.cors.CorsConfiguration#combine(CorsConfiguration) combined}
-	 * with local CORS configuration defined on a controller method.
-	 * @see CorsRegistry
-	 * @see CorsConfiguration#combine(CorsConfiguration)
-	 */
-	default void addCorsMappings(CorsRegistry registry) {
-	}
-
-	/**
-	 * Configure path matching options.
-	 * <p>The configured path matching options will be used for mapping to
-	 * annotated controllers and also
-	 * {@link #addResourceHandlers(ResourceHandlerRegistry) static resources}.
-	 * @param configurer the {@link PathMatchConfigurer} instance
-	 */
-	default void configurePathMatching(PathMatchConfigurer configurer) {
-	}
-
-	/**
-	 * Add resource handlers for serving static resources.
-	 * @see ResourceHandlerRegistry
-	 */
-	default void addResourceHandlers(ResourceHandlerRegistry registry) {
-	}
-
-	/**
-	 * Configure resolvers for custom {@code @RequestMapping} method arguments.
-	 * @param configurer to configurer to use
-	 */
-	default void configureArgumentResolvers(ArgumentResolverConfigurer configurer) {
-	}
 
 	/**
 	 * Configure the HTTP message readers and writers for reading from the
@@ -118,8 +75,7 @@ public interface WebFluxConfigurer {
 	 * <p>The configured validator is used for validating annotated controller
 	 * method arguments.
 	 */
-	@Nullable
-	default Validator getValidator() {
+	default @Nullable Validator getValidator() {
 		return null;
 	}
 
@@ -128,9 +84,82 @@ public interface WebFluxConfigurer {
 	 * annotated controller method arguments instead of the one created by
 	 * default in {@link org.springframework.validation.DataBinder}.
 	 */
-	@Nullable
-	default MessageCodesResolver getMessageCodesResolver() {
+	default @Nullable MessageCodesResolver getMessageCodesResolver() {
 		return null;
+	}
+
+	/**
+	 * Configure "global" cross-origin request processing. The configured CORS
+	 * mappings apply to annotated controllers, functional endpoints, and static
+	 * resources.
+	 * <p>Annotated controllers can further declare more fine-grained config via
+	 * {@link org.springframework.web.bind.annotation.CrossOrigin @CrossOrigin}.
+	 * In such cases "global" CORS configuration declared here is
+	 * {@link org.springframework.web.cors.CorsConfiguration#combine(CorsConfiguration) combined}
+	 * with local CORS configuration defined on a controller method.
+	 * @see CorsRegistry
+	 * @see CorsConfiguration#combine(CorsConfiguration)
+	 */
+	default void addCorsMappings(CorsRegistry registry) {
+	}
+
+	/**
+	 * Configure settings related to blocking execution in WebFlux.
+	 * @since 6.1
+	 */
+	default void configureBlockingExecution(BlockingExecutionConfigurer configurer) {
+	}
+
+	/**
+	 * Configure how the content type requested for the response is resolved
+	 * when handling requests with annotated controllers.
+	 * @param builder for configuring the resolvers to use
+	 */
+	default void configureContentTypeResolver(RequestedContentTypeResolverBuilder builder) {
+	}
+
+	/**
+	 * Configure path matching options.
+	 * <p>The configured path matching options will be used for mapping to
+	 * annotated controllers and also
+	 * {@link #addResourceHandlers(ResourceHandlerRegistry) static resources}.
+	 * @param configurer the {@link PathMatchConfigurer} instance
+	 */
+	default void configurePathMatching(PathMatchConfigurer configurer) {
+	}
+
+	/**
+	 * Configure resolvers for custom {@code @RequestMapping} method arguments.
+	 * @param configurer to configurer to use
+	 */
+	default void configureArgumentResolvers(ArgumentResolverConfigurer configurer) {
+	}
+
+	/**
+	 * Add to the list of {@link ErrorResponse.Interceptor}'s to invoke when
+	 * rendering an RFC 9457 {@link org.springframework.http.ProblemDetail}
+	 * error response.
+	 * @param interceptors the handlers to use
+	 * @since 6.2
+	 */
+	default void addErrorResponseInterceptors(List<ErrorResponse.Interceptor> interceptors) {
+	}
+
+	/**
+	 * Configure view resolution for rendering responses with a view and a model,
+	 * where the view is typically an HTML template but could also be based on
+	 * an HTTP message writer (for example, JSON, XML).
+	 * <p>The configured view resolvers will be used for both annotated
+	 * controllers and functional endpoints.
+	 */
+	default void configureViewResolvers(ViewResolverRegistry registry) {
+	}
+
+	/**
+	 * Add resource handlers for serving static resources.
+	 * @see ResourceHandlerRegistry
+	 */
+	default void addResourceHandlers(ResourceHandlerRegistry registry) {
 	}
 
 	/**
@@ -140,19 +169,8 @@ public interface WebFluxConfigurer {
 	 * {@link org.springframework.web.reactive.socket.server.RequestUpgradeStrategy}.
 	 * @since 5.3
 	 */
-	@Nullable
-	default WebSocketService getWebSocketService() {
+	default @Nullable WebSocketService getWebSocketService() {
 		return null;
-	}
-
-	/**
-	 * Configure view resolution for rendering responses with a view and a model,
-	 * where the view is typically an HTML template but could also be based on
-	 * an HTTP message writer (e.g. JSON, XML).
-	 * <p>The configured view resolvers will be used for both annotated
-	 * controllers and functional endpoints.
-	 */
-	default void configureViewResolvers(ViewResolverRegistry registry) {
 	}
 
 }

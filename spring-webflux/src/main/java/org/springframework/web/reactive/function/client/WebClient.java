@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,10 +28,10 @@ import java.util.function.Predicate;
 
 import io.micrometer.observation.ObservationConvention;
 import io.micrometer.observation.ObservationRegistry;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.context.Context;
 
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.ReactiveAdapterRegistry;
@@ -291,7 +291,7 @@ public interface WebClient {
 		/**
 		 * Configure the {@link ClientHttpConnector} to use. This is useful for
 		 * plugging in and/or customizing options of the underlying HTTP client
-		 * library (e.g. SSL).
+		 * library (for example, SSL).
 		 * <p>By default this is set to
 		 * {@link org.springframework.http.client.reactive.ReactorClientHttpConnector
 		 * ReactorClientHttpConnector}.
@@ -318,16 +318,6 @@ public interface WebClient {
 		 * @param strategies the strategies to use
 		 */
 		Builder exchangeStrategies(ExchangeStrategies strategies);
-
-		/**
-		 * Customize the strategies configured via
-		 * {@link #exchangeStrategies(ExchangeStrategies)}. This method is
-		 * designed for use in scenarios where multiple parties wish to update
-		 * the {@code ExchangeStrategies}.
-		 * @deprecated as of 5.1.13 in favor of {@link #codecs(Consumer)}
-		 */
-		@Deprecated
-		Builder exchangeStrategies(Consumer<ExchangeStrategies.Builder> configurer);
 
 		/**
 		 * Provide an {@link ExchangeFunction} pre-configured with
@@ -388,14 +378,14 @@ public interface WebClient {
 
 		/**
 		 * Specify the URI for the request using a URI template and URI variables.
-		 * If a {@link UriBuilderFactory} was configured for the client (e.g.
+		 * If a {@link UriBuilderFactory} was configured for the client (for example,
 		 * with a base URI) it will be used to expand the URI template.
 		 */
-		S uri(String uri, Object... uriVariables);
+		S uri(String uri, @Nullable Object... uriVariables);
 
 		/**
 		 * Specify the URI for the request using a URI template and URI variables.
-		 * If a {@link UriBuilderFactory} was configured for the client (e.g.
+		 * If a {@link UriBuilderFactory} was configured for the client (for example,
 		 * with a base URI) it will be used to expand the URI template.
 		 */
 		S uri(String uri, Map<String, ?> uriVariables);
@@ -502,17 +492,6 @@ public interface WebClient {
 		S attributes(Consumer<Map<String, Object>> attributesConsumer);
 
 		/**
-		 * Provide a function to populate the Reactor {@code Context}.
-		 * @param contextModifier the function to modify the context with
-		 * @since 5.3.1
-		 * @deprecated in 5.3.2 to be removed soon after; this method cannot
-		 * provide context to downstream (nested or subsequent) requests and is
-		 * of limited value.
-		 */
-		@Deprecated
-		S context(Function<Context, Context> contextModifier);
-
-		/**
 		 * Callback for access to the {@link ClientHttpRequest} that in turn
 		 * provides access to the native request of the underlying HTTP library.
 		 * This could be useful for setting advanced, per-request options that
@@ -605,44 +584,6 @@ public interface WebClient {
 		 * @since 5.3
 		 */
 		<V> Flux<V> exchangeToFlux(Function<ClientResponse, ? extends Flux<V>> responseHandler);
-
-		/**
-		 * Perform the HTTP request and return a {@link ClientResponse} with the
-		 * response status and headers. You can then use methods of the response
-		 * to consume the body:
-		 * <p><pre>
-		 * Mono&lt;Person&gt; mono = client.get()
-		 *     .uri("/persons/1")
-		 *     .accept(MediaType.APPLICATION_JSON)
-		 *     .exchange()
-		 *     .flatMap(response -&gt; response.bodyToMono(Person.class));
-		 *
-		 * Flux&lt;Person&gt; flux = client.get()
-		 *     .uri("/persons")
-		 *     .accept(MediaType.APPLICATION_STREAM_JSON)
-		 *     .exchange()
-		 *     .flatMapMany(response -&gt; response.bodyToFlux(Person.class));
-		 * </pre>
-		 * <p><strong>NOTE:</strong> Unlike {@link #retrieve()}, when using
-		 * {@code exchange()}, it is the responsibility of the application to
-		 * consume any response content regardless of the scenario (success,
-		 * error, unexpected data, etc). Not doing so can cause a memory leak.
-		 * See {@link ClientResponse} for a list of all the available options
-		 * for consuming the body. Generally prefer using {@link #retrieve()}
-		 * unless you have a good reason to use {@code exchange()} which does
-		 * allow to check the response status and headers before deciding how or
-		 * if to consume the response.
-		 * @return a {@code Mono} for the response
-		 * @see #retrieve()
-		 * @deprecated since 5.3 due to the possibility to leak memory and/or
-		 * connections; please, use {@link #exchangeToMono(Function)},
-		 * {@link #exchangeToFlux(Function)}; consider also using
-		 * {@link #retrieve()} which provides access to the response status
-		 * and headers via {@link ResponseEntity} along with error status
-		 * handling.
-		 */
-		@Deprecated
-		Mono<ClientResponse> exchange();
 	}
 
 
@@ -692,8 +633,37 @@ public interface WebClient {
 		 * @throws IllegalArgumentException if {@code body} is a
 		 * {@link Publisher} or producer known to {@link ReactiveAdapterRegistry}
 		 * @since 5.2
+		 * @see #bodyValue(Object, ParameterizedTypeReference)
 		 */
 		RequestHeadersSpec<?> bodyValue(Object body);
+
+		/**
+		 * Shortcut for {@link #body(BodyInserter)} with a
+		 * {@linkplain BodyInserters#fromValue value inserter}.
+		 * For example:
+		 * <p><pre class="code">
+		 * List&lt;Person&gt; list = ... ;
+		 *
+		 * Mono&lt;Void&gt; result = client.post()
+		 *     .uri("/persons/{id}", id)
+		 *     .contentType(MediaType.APPLICATION_JSON)
+		 *     .bodyValue(list, new ParameterizedTypeReference&lt;List&lt;Person&gt;&gt;() {};)
+		 *     .retrieve()
+		 *     .bodyToMono(Void.class);
+		 * </pre>
+		 * <p>For multipart requests consider providing
+		 * {@link org.springframework.util.MultiValueMap MultiValueMap} prepared
+		 * with {@link org.springframework.http.client.MultipartBodyBuilder
+		 * MultipartBodyBuilder}.
+		 * @param body the value to write to the request body
+		 * @param bodyType the type of the body, used to capture the generic type
+		 * @param <T> the type of the body
+		 * @return this builder
+		 * @throws IllegalArgumentException if {@code body} is a
+		 * {@link Publisher} or producer known to {@link ReactiveAdapterRegistry}
+		 * @since 6.2
+		 */
+		<T> RequestHeadersSpec<?> bodyValue(T body, ParameterizedTypeReference<T> bodyType);
 
 		/**
 		 * Shortcut for {@link #body(BodyInserter)} with a
@@ -759,15 +729,6 @@ public interface WebClient {
 		 * @see org.springframework.web.reactive.function.BodyInserters
 		 */
 		RequestHeadersSpec<?> body(BodyInserter<?, ? super ClientHttpRequest> inserter);
-
-		/**
-		 * Shortcut for {@link #body(BodyInserter)} with a
-		 * {@linkplain BodyInserters#fromValue value inserter}.
-		 * As of 5.2 this method delegates to {@link #bodyValue(Object)}.
-		 * @deprecated as of Spring Framework 5.2 in favor of {@link #bodyValue(Object)}
-		 */
-		@Deprecated
-		RequestHeadersSpec<?> syncBody(Object body);
 	}
 
 
@@ -795,7 +756,7 @@ public interface WebClient {
 		 *     .retrieve()
 		 *     .bodyToMono(Account.class)
 		 *     .onErrorResume(WebClientResponseException.class,
-		 *          ex -&gt; ex.getRawStatusCode() == 404 ? Mono.empty() : Mono.error(ex));
+		 *          ex -&gt; ex.getStatusCode().value() == 404 ? Mono.empty() : Mono.error(ex));
 		 * </pre>
 		 * @param statusPredicate to match responses with
 		 * @param exceptionFunction to map the response to an error signal

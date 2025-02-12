@@ -67,7 +67,7 @@ To provide a different default key generator, you need to implement the
 The default key generation strategy changed with the release of Spring 4.0. Earlier
 versions of Spring used a key generation strategy that, for multiple key parameters,
 considered only the `hashCode()` of parameters and not `equals()`. This could cause
-unexpected key collisions (see https://jira.spring.io/browse/SPR-10237[SPR-10237]
+unexpected key collisions (see {spring-framework-issues}/14870[spring-framework#14870]
 for background). The new `SimpleKeyGenerator` uses a compound key for such scenarios.
 
 If you want to keep using the previous key strategy, you can configure the deprecated
@@ -98,9 +98,9 @@ through its `key` attribute. You can use xref:core/expressions.adoc[SpEL] to pic
 arguments of interest (or their nested properties), perform operations, or even
 invoke arbitrary methods without having to write any code or implement any interface.
 This is the recommended approach over the
-xref:integration/cache/annotations.adoc#cache-annotations-cacheable-default-key[default generator], since methods tend to be
-quite different in signatures as the code base grows. While the default strategy might
-work for some methods, it rarely works for all methods.
+xref:integration/cache/annotations.adoc#cache-annotations-cacheable-default-key[default generator],
+since methods tend to be quite different in signatures as the code base grows. While the
+default strategy might work for some methods, it rarely works for all methods.
 
 The following examples use various SpEL declarations (if you are not familiar with SpEL,
 do yourself a favor and read xref:core/expressions.adoc[Spring Expression Language]):
@@ -137,9 +137,8 @@ that specifies both results in an exception.
 [[cache-annotations-cacheable-default-cache-resolver]]
 === Default Cache Resolution
 
-The caching abstraction uses a simple `CacheResolver` that
-retrieves the caches defined at the operation level by using the configured
-`CacheManager`.
+The caching abstraction uses a simple `CacheResolver` that retrieves the caches
+defined at the operation level by using the configured `CacheManager`.
 
 To provide a different default cache resolver, you need to implement the
 `org.springframework.cache.interceptor.CacheResolver` interface.
@@ -160,12 +159,11 @@ For applications that work with several cache managers, you can set the
 ----
 <1> Specifying `anotherCacheManager`.
 
-
 You can also replace the `CacheResolver` entirely in a fashion similar to that of
-replacing xref:integration/cache/annotations.adoc#cache-annotations-cacheable-key[key generation]. The resolution is
-requested for every cache operation, letting the implementation actually resolve
-the caches to use based on runtime arguments. The following example shows how to
-specify a `CacheResolver`:
+replacing xref:integration/cache/annotations.adoc#cache-annotations-cacheable-key[key generation].
+The resolution is requested for every cache operation, letting the implementation
+actually resolve the caches to use based on runtime arguments. The following example
+shows how to specify a `CacheResolver`:
 
 [source,java,indent=0,subs="verbatim,quotes"]
 ----
@@ -173,7 +171,6 @@ specify a `CacheResolver`:
 	public Book findBook(ISBN isbn) {...}
 ----
 <1> Specifying the `CacheResolver`.
-
 
 [NOTE]
 ====
@@ -211,6 +208,76 @@ NOTE: This is an optional feature, and your favorite cache library may not suppo
 All `CacheManager` implementations provided by the core framework support it. See the
 documentation of your cache provider for more details.
 
+[[cache-annotations-cacheable-reactive]]
+=== Caching with CompletableFuture and Reactive Return Types
+
+As of 6.1, cache annotations take `CompletableFuture` and reactive return types
+into account, automatically adapting the cache interaction accordingly.
+
+For a method returning a `CompletableFuture`, the object produced by that future
+will be cached whenever it is complete, and the cache lookup for a cache hit will
+be retrieved via a `CompletableFuture`:
+
+[source,java,indent=0,subs="verbatim,quotes"]
+----
+	@Cacheable("books")
+	public CompletableFuture<Book> findBook(ISBN isbn) {...}
+----
+
+For a method returning a Reactor `Mono`, the object emitted by that Reactive Streams
+publisher will be cached whenever it is available, and the cache lookup for a cache
+hit will be retrieved as a `Mono` (backed by a `CompletableFuture`):
+
+[source,java,indent=0,subs="verbatim,quotes"]
+----
+	@Cacheable("books")
+	public Mono<Book> findBook(ISBN isbn) {...}
+----
+
+For a method returning a Reactor `Flux`, the objects emitted by that Reactive Streams
+publisher will be collected into a `List` and cached whenever that list is complete,
+and the cache lookup for a cache hit will be retrieved as a `Flux` (backed by a
+`CompletableFuture` for the cached `List` value):
+
+[source,java,indent=0,subs="verbatim,quotes"]
+----
+	@Cacheable("books")
+	public Flux<Book> findBooks(String author) {...}
+----
+
+Such `CompletableFuture` and reactive adaptation also works for synchronized caching,
+computing the value only once in case of a concurrent cache miss:
+
+[source,java,indent=0,subs="verbatim,quotes"]
+----
+	@Cacheable(cacheNames="foos", sync=true) <1>
+	public CompletableFuture<Foo> executeExpensiveOperation(String id) {...}
+----
+<1> Using the `sync` attribute.
+
+NOTE: In order for such an arrangement to work at runtime, the configured cache
+needs to be capable of `CompletableFuture`-based retrieval. The Spring-provided
+`ConcurrentMapCacheManager` automatically adapts to that retrieval style, and
+`CaffeineCacheManager` natively supports it when its asynchronous cache mode is
+enabled: set `setAsyncCacheMode(true)` on your `CaffeineCacheManager` instance.
+
+[source,java,indent=0,subs="verbatim,quotes"]
+----
+	@Bean
+	CacheManager cacheManager() {
+		CaffeineCacheManager cacheManager = new CaffeineCacheManager();
+		cacheManager.setCacheSpecification(...);
+		cacheManager.setAsyncCacheMode(true);
+		return cacheManager;
+	}
+----
+
+Last but not least, be aware that annotation-driven caching is not appropriate
+for sophisticated reactive interactions involving composition and back pressure.
+If you choose to declare `@Cacheable` on specific reactive methods, consider the
+impact of the rather coarse-granular cache interaction which simply stores the
+emitted object for a `Mono` or even a pre-collected list of objects for a `Flux`.
+
 [[cache-annotations-cacheable-condition]]
 === Conditional Caching
 
@@ -229,7 +296,6 @@ argument `name` has a length shorter than 32:
 ----
 <1> Setting a condition on `@Cacheable`.
 
-
 In addition to the `condition` parameter, you can use the `unless` parameter to veto the
 adding of a value to the cache. Unlike `condition`, `unless` expressions are evaluated
 after the method has been invoked. To expand on the previous example, perhaps we only
@@ -241,7 +307,6 @@ want to cache paperback books, as the following example does:
 	public Book findBook(String name)
 ----
 <1> Using the `unless` attribute to block hardbacks.
-
 
 The cache abstraction supports `java.util.Optional` return types. If an `Optional` value
 is _present_, it will be stored in the associated cache. If an `Optional` value is not
@@ -267,7 +332,7 @@ metadata, such as the argument names. The following table describes the items ma
 available to the context so that you can use them for key and conditional computations:
 
 [[cache-spel-context-tbl]]
-.Cache SpEL available metadata
+.Cache metadata available in SpEL expressions
 |===
 | Name| Location| Description| Example
 
@@ -293,7 +358,7 @@ available to the context so that you can use them for key and conditional comput
 
 | `args`
 | Root object
-| The arguments (as array) used for invoking the target
+| The arguments (as an object array) used for invoking the target
 | `#root.args[0]`
 
 | `caches`
@@ -303,9 +368,10 @@ available to the context so that you can use them for key and conditional comput
 
 | Argument name
 | Evaluation context
-| Name of any of the method arguments. If the names are not available
-  (perhaps due to having no debug information), the argument names are also available under the `#a<#arg>`
-  where `#arg` stands for the argument index (starting from `0`).
+| The name of a particular method argument. If the names are not available
+  (for example, because the code was compiled without the `-parameters` flag), individual
+  arguments are also available using the `#a<#arg>` syntax where `<#arg>` stands for the
+  argument index (starting from 0).
 | `#iban` or `#a0` (you can also use `#p0` or `#p<#arg>` notation as an alias).
 
 | `result`
@@ -342,9 +408,12 @@ other), such declarations should be avoided. Note also that such conditions shou
 on the result object (that is, the `#result` variable), as these are validated up-front to
 confirm the exclusion.
 
+As of 6.1, `@CachePut` takes `CompletableFuture` and reactive return types into account,
+performing the put operation whenever the produced object is available.
+
 
 [[cache-annotations-evict]]
-== The `@CacheEvict` annotation
+== The `@CacheEvict` Annotation
 
 The cache abstraction allows not just population of a cache store but also eviction.
 This process is useful for removing stale or unused data from the cache. As opposed to
@@ -384,6 +453,9 @@ trigger, the return values are ignored (as they do not interact with the cache).
 not the case with `@Cacheable` which adds data to the cache or updates data in the cache
 and, thus, requires a result.
 
+As of 6.1, `@CacheEvict` takes `CompletableFuture` and reactive return types into account,
+performing an after-invocation evict operation whenever processing has completed.
+
 
 [[cache-annotations-caching]]
 == The `@Caching` Annotation
@@ -402,7 +474,7 @@ The following example uses two `@CacheEvict` annotations:
 
 
 [[cache-annotations-config]]
-== The `@CacheConfig` annotation
+== The `@CacheConfig` Annotation
 
 So far, we have seen that caching operations offer many customization options and that
 you can set these options for each operation. However, some of the customization options
@@ -429,9 +501,12 @@ Placing this annotation on the class does not turn on any caching operation.
 An operation-level customization always overrides a customization set on `@CacheConfig`.
 Therefore, this gives three levels of customizations for each cache operation:
 
-* Globally configured, available for `CacheManager`, `KeyGenerator`.
+* Globally configured, for example, through `CachingConfigurer`: see next section.
 * At the class level, using `@CacheConfig`.
 * At the operation level.
+
+NOTE: Provider-specific settings are typically available on the `CacheManager` bean,
+for example, on `CaffeineCacheManager`. These are effectively also global.
 
 
 [[cache-annotation-enable]]
@@ -444,30 +519,9 @@ disable it by removing only one configuration line rather than all the annotatio
 your code).
 
 To enable caching annotations add the annotation `@EnableCaching` to one of your
-`@Configuration` classes:
+`@Configuration` classes or use the `cache:annotation-driven` element with XML:
 
-[source,java,indent=0,subs="verbatim,quotes"]
-----
-	@Configuration
-	@EnableCaching
-	public class AppConfig {
-	}
-----
-
-Alternatively, for XML configuration you can use the `cache:annotation-driven` element:
-
-[source,xml,indent=0,subs="verbatim,quotes"]
-----
-	<beans xmlns="http://www.springframework.org/schema/beans"
-		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-		xmlns:cache="http://www.springframework.org/schema/cache"
-		xsi:schemaLocation="
-			http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
-			http://www.springframework.org/schema/cache https://www.springframework.org/schema/cache/spring-cache.xsd">
-
-			<cache:annotation-driven/>
-	</beans>
-----
+include-code::./CacheConfiguration[tag=snippet,indent=0]
 
 Both the `cache:annotation-driven` element and the `@EnableCaching` annotation let you
 specify various options that influence the way the caching behavior is added to the
@@ -481,7 +535,7 @@ switching to `aspectj` mode in combination with compile-time or load-time weavin
 
 NOTE: For more detail about advanced customizations (using Java configuration) that are
 required to implement `CachingConfigurer`, see the
-{api-spring-framework}/cache/annotation/CachingConfigurer.html[javadoc].
+{spring-framework-api}/cache/annotation/CachingConfigurer.html[javadoc].
 
 [[cache-annotation-driven-settings]]
 .Cache annotation settings
@@ -490,7 +544,7 @@ required to implement `CachingConfigurer`, see the
 | XML Attribute | Annotation Attribute | Default | Description
 
 | `cache-manager`
-| N/A (see the {api-spring-framework}/cache/annotation/CachingConfigurer.html[`CachingConfigurer`] javadoc)
+| N/A (see the {spring-framework-api}/cache/annotation/CachingConfigurer.html[`CachingConfigurer`] javadoc)
 | `cacheManager`
 | The name of the cache manager to use. A default `CacheResolver` is initialized behind
   the scenes with this cache manager (or `cacheManager` if not set). For more
@@ -498,19 +552,19 @@ required to implement `CachingConfigurer`, see the
   attribute.
 
 | `cache-resolver`
-| N/A (see the {api-spring-framework}/cache/annotation/CachingConfigurer.html[`CachingConfigurer`] javadoc)
+| N/A (see the {spring-framework-api}/cache/annotation/CachingConfigurer.html[`CachingConfigurer`] javadoc)
 | A `SimpleCacheResolver` using the configured `cacheManager`.
 | The bean name of the CacheResolver that is to be used to resolve the backing caches.
   This attribute is not required and needs to be specified only as an alternative to
   the 'cache-manager' attribute.
 
 | `key-generator`
-| N/A (see the {api-spring-framework}/cache/annotation/CachingConfigurer.html[`CachingConfigurer`] javadoc)
+| N/A (see the {spring-framework-api}/cache/annotation/CachingConfigurer.html[`CachingConfigurer`] javadoc)
 | `SimpleKeyGenerator`
 | Name of the custom key generator to use.
 
 | `error-handler`
-| N/A (see the {api-spring-framework}/cache/annotation/CachingConfigurer.html[`CachingConfigurer`] javadoc)
+| N/A (see the {spring-framework-api}/cache/annotation/CachingConfigurer.html[`CachingConfigurer`] javadoc)
 | `SimpleCacheErrorHandler`
 | The name of the custom cache error handler to use. By default, any exception thrown during
   a cache related operation is thrown back at the client.

@@ -16,7 +16,6 @@
 
 package org.springframework.aot.generate;
 
-import java.io.IOException;
 import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
@@ -149,8 +148,8 @@ class GeneratedClassesTests {
 				"one", TestComponent.class, emptyTypeCustomizer);
 		GeneratedClass generatedClass2 = this.generatedClasses.getOrAddForFeatureComponent(
 				"one", TestComponent.class, emptyTypeCustomizer);
-		GeneratedClass generatedClass3 = prefixed.getOrAddForFeatureComponent
-				("one", TestComponent.class, emptyTypeCustomizer);
+		GeneratedClass generatedClass3 = prefixed.getOrAddForFeatureComponent(
+				"one", TestComponent.class, emptyTypeCustomizer);
 		GeneratedClass generatedClass4 = prefixed.getOrAddForFeatureComponent(
 				"one", TestComponent.class, emptyTypeCustomizer);
 		assertThat(generatedClass1).isSameAs(generatedClass2).isNotSameAs(generatedClass3);
@@ -158,8 +157,7 @@ class GeneratedClassesTests {
 	}
 
 	@Test
-	@SuppressWarnings("unchecked")
-	void writeToInvokeTypeSpecCustomizer() throws IOException {
+	void writeToInvokeTypeSpecCustomizer() {
 		Consumer<TypeSpec.Builder> typeSpecCustomizer = mock();
 		this.generatedClasses.addForFeatureComponent("one", TestComponent.class, typeSpecCustomizer);
 		verifyNoInteractions(typeSpecCustomizer);

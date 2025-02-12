@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,11 +28,10 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.PushBuilder;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpMethod;
-import org.springframework.lang.Nullable;
-import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.context.request.WebRequest;
@@ -42,23 +41,25 @@ import org.springframework.web.multipart.MultipartRequest;
 import org.springframework.web.servlet.support.RequestContextUtils;
 
 /**
- * Resolves servlet backed request-related method arguments. Supports values of the
- * following types:
+ * Resolves servlet backed request-related method arguments.
+ *
+ * <p>Supports values of the following types:
+ *
  * <ul>
  * <li>{@link WebRequest}
  * <li>{@link ServletRequest}
  * <li>{@link MultipartRequest}
  * <li>{@link HttpSession}
- * <li>{@link PushBuilder} (as of Spring 5.0 on Servlet 4.0)
+ * <li>{@link PushBuilder}
  * <li>{@link Principal} but only if not annotated in order to allow custom
- * resolvers to resolve it, and the falling back on
- * {@link PrincipalMethodArgumentResolver}.
+ * resolvers to resolve it, and then falling back on
+ * {@link PrincipalMethodArgumentResolver}
  * <li>{@link InputStream}
  * <li>{@link Reader}
- * <li>{@link HttpMethod} (as of Spring 4.0)
+ * <li>{@link HttpMethod}
  * <li>{@link Locale}
- * <li>{@link TimeZone} (as of Spring 4.0)
- * <li>{@link java.time.ZoneId} (as of Spring 4.0 and Java 8)
+ * <li>{@link TimeZone}
+ * <li>{@link ZoneId}
  * </ul>
  *
  * @author Arjen Poutsma
@@ -68,29 +69,15 @@ import org.springframework.web.servlet.support.RequestContextUtils;
  */
 public class ServletRequestMethodArgumentResolver implements HandlerMethodArgumentResolver {
 
-	@Nullable
-	private static Class<?> pushBuilder;
-
-	static {
-		try {
-			pushBuilder = ClassUtils.forName("jakarta.servlet.http.PushBuilder",
-					ServletRequestMethodArgumentResolver.class.getClassLoader());
-		}
-		catch (ClassNotFoundException ex) {
-			// Servlet 4.0 PushBuilder not found - not supported for injection
-			pushBuilder = null;
-		}
-	}
-
-
 	@Override
+	@SuppressWarnings("deprecation")
 	public boolean supportsParameter(MethodParameter parameter) {
 		Class<?> paramType = parameter.getParameterType();
 		return (WebRequest.class.isAssignableFrom(paramType) ||
 				ServletRequest.class.isAssignableFrom(paramType) ||
 				MultipartRequest.class.isAssignableFrom(paramType) ||
 				HttpSession.class.isAssignableFrom(paramType) ||
-				(pushBuilder != null && pushBuilder.isAssignableFrom(paramType)) ||
+				PushBuilder.class.isAssignableFrom(paramType) ||
 				(Principal.class.isAssignableFrom(paramType) && !parameter.hasParameterAnnotations()) ||
 				InputStream.class.isAssignableFrom(paramType) ||
 				Reader.class.isAssignableFrom(paramType) ||
@@ -101,7 +88,7 @@ public class ServletRequestMethodArgumentResolver implements HandlerMethodArgume
 	}
 
 	@Override
-	public Object resolveArgument(MethodParameter parameter, @Nullable ModelAndViewContainer mavContainer,
+	public @Nullable Object resolveArgument(MethodParameter parameter, @Nullable ModelAndViewContainer mavContainer,
 			NativeWebRequest webRequest, @Nullable WebDataBinderFactory binderFactory) throws Exception {
 
 		Class<?> paramType = parameter.getParameterType();
@@ -133,8 +120,8 @@ public class ServletRequestMethodArgumentResolver implements HandlerMethodArgume
 		return nativeRequest;
 	}
 
-	@Nullable
-	private Object resolveArgument(Class<?> paramType, HttpServletRequest request) throws IOException {
+	@SuppressWarnings("deprecation")
+	private @Nullable Object resolveArgument(Class<?> paramType, HttpServletRequest request) throws IOException {
 		if (HttpSession.class.isAssignableFrom(paramType)) {
 			HttpSession session = request.getSession();
 			if (session != null && !paramType.isInstance(session)) {
@@ -143,8 +130,13 @@ public class ServletRequestMethodArgumentResolver implements HandlerMethodArgume
 			}
 			return session;
 		}
-		else if (pushBuilder != null && pushBuilder.isAssignableFrom(paramType)) {
-			return PushBuilderDelegate.resolvePushBuilder(request, paramType);
+		else if (PushBuilder.class.isAssignableFrom(paramType)) {
+			PushBuilder pushBuilder = request.newPushBuilder();
+			if (pushBuilder != null && !paramType.isInstance(pushBuilder)) {
+				throw new IllegalStateException(
+						"Current push builder is not of type [" + paramType.getName() + "]: " + pushBuilder);
+			}
+			return pushBuilder;
 		}
 		else if (InputStream.class.isAssignableFrom(paramType)) {
 			InputStream inputStream = request.getInputStream();
@@ -187,24 +179,6 @@ public class ServletRequestMethodArgumentResolver implements HandlerMethodArgume
 
 		// Should never happen...
 		throw new UnsupportedOperationException("Unknown parameter type: " + paramType.getName());
-	}
-
-
-	/**
-	 * Inner class to avoid a hard dependency on Servlet API 4.0 at runtime.
-	 */
-	private static class PushBuilderDelegate {
-
-		@Nullable
-		public static Object resolvePushBuilder(HttpServletRequest request, Class<?> paramType) {
-			PushBuilder pushBuilder = request.newPushBuilder();
-			if (pushBuilder != null && !paramType.isInstance(pushBuilder)) {
-				throw new IllegalStateException(
-						"Current push builder is not of type [" + paramType.getName() + "]: " + pushBuilder);
-			}
-			return pushBuilder;
-
-		}
 	}
 
 }

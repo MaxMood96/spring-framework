@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,17 @@
 
 package org.springframework.web.servlet.tags;
 
+import jakarta.el.ELContext;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.DispatcherServlet;
 import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.SimpleWebApplicationContext;
-import org.springframework.web.servlet.ThemeResolver;
 import org.springframework.web.servlet.i18n.AcceptHeaderLocaleResolver;
-import org.springframework.web.servlet.theme.FixedThemeResolver;
 import org.springframework.web.testfixture.servlet.MockHttpServletRequest;
 import org.springframework.web.testfixture.servlet.MockHttpServletResponse;
 import org.springframework.web.testfixture.servlet.MockPageContext;
@@ -51,19 +55,37 @@ public abstract class AbstractTagTests {
 			request.setAttribute(DispatcherServlet.WEB_APPLICATION_CONTEXT_ATTRIBUTE, wac);
 			LocaleResolver lr = new AcceptHeaderLocaleResolver();
 			request.setAttribute(DispatcherServlet.LOCALE_RESOLVER_ATTRIBUTE, lr);
-			ThemeResolver tr = new FixedThemeResolver();
-			request.setAttribute(DispatcherServlet.THEME_RESOLVER_ATTRIBUTE, tr);
-			request.setAttribute(DispatcherServlet.THEME_SOURCE_ATTRIBUTE, wac);
 		}
 		else {
 			sc.setAttribute(WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE, wac);
 		}
 
-		return new MockPageContext(sc, request, response);
+		return new ExtendedMockPageContext(sc, request, response);
 	}
 
 	protected boolean inDispatcherServlet() {
 		return true;
+	}
+
+
+	protected static class ExtendedMockPageContext extends MockPageContext {
+
+		private ELContext elContext;
+
+		public ExtendedMockPageContext(@Nullable ServletContext servletContext, @Nullable HttpServletRequest request,
+				@Nullable HttpServletResponse response) {
+
+			super(servletContext, request, response);
+		}
+
+		@Override
+		public ELContext getELContext() {
+			return this.elContext;
+		}
+
+		public void setELContext(ELContext elContext) {
+			this.elContext = elContext;
+		}
 	}
 
 }

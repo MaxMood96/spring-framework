@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,8 @@ import java.util.Properties;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.util.WebUtils;
 
@@ -49,37 +49,32 @@ public class SimpleMappingExceptionResolver extends AbstractHandlerExceptionReso
 	public static final String DEFAULT_EXCEPTION_ATTRIBUTE = "exception";
 
 
-	@Nullable
-	private Properties exceptionMappings;
+	private @Nullable Properties exceptionMappings;
 
-	@Nullable
-	private Class<?>[] excludedExceptions;
+	private Class<?> @Nullable [] excludedExceptions;
 
-	@Nullable
-	private String defaultErrorView;
+	private @Nullable String defaultErrorView;
 
-	@Nullable
-	private Integer defaultStatusCode;
+	private @Nullable Integer defaultStatusCode;
 
 	private final Map<String, Integer> statusCodes = new HashMap<>();
 
-	@Nullable
-	private String exceptionAttribute = DEFAULT_EXCEPTION_ATTRIBUTE;
+	private @Nullable String exceptionAttribute = DEFAULT_EXCEPTION_ATTRIBUTE;
 
 
 	/**
 	 * Set the mappings between exception class names and error view names.
-	 * The exception class name can be a substring, with no wildcard support at present.
-	 * A value of "ServletException" would match {@code jakarta.servlet.ServletException}
-	 * and subclasses, for example.
-	 * <p><b>NB:</b> Consider carefully how
-	 * specific the pattern is, and whether to include package information (which isn't mandatory).
-	 * For example, "Exception" will match nearly anything, and will probably hide other rules.
-	 * "java.lang.Exception" would be correct if "Exception" was meant to define a rule for all
-	 * checked exceptions. With more unusual exception names such as "BaseBusinessException"
-	 * there's no need to use a FQN.
-	 * @param mappings exception patterns (can also be fully qualified class names) as keys,
-	 * and error view names as values
+	 * <p>The exception class name can be a substring, with no wildcard support
+	 * at present. For example, a value of "ServletException" would match
+	 * {@code jakarta.servlet.ServletException} and subclasses.
+	 * <p><b>NB:</b> Consider carefully how specific the pattern is and whether
+	 * to include package information (which isn't mandatory). For example,
+	 * "Exception" will match nearly anything and will probably hide other rules.
+	 * "java.lang.Exception" would be correct if "Exception" was meant to define
+	 * a rule for all checked exceptions. With more unique exception names such
+	 * as "BaseBusinessException" there's no need to use a fully-qualified class name.
+	 * @param mappings exception patterns (can also be fully-qualified class names)
+	 * as keys, and error view names as values
 	 */
 	public void setExceptionMappings(Properties mappings) {
 		this.exceptionMappings = mappings;
@@ -181,8 +176,7 @@ public class SimpleMappingExceptionResolver extends AbstractHandlerExceptionReso
 	 * or {@code null} for default processing in the resolution chain
 	 */
 	@Override
-	@Nullable
-	protected ModelAndView doResolveException(
+	protected @Nullable ModelAndView doResolveException(
 			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler, Exception ex) {
 
 		// Expose ModelAndView for chosen error view.
@@ -210,8 +204,7 @@ public class SimpleMappingExceptionResolver extends AbstractHandlerExceptionReso
 	 * @param request current HTTP request (useful for obtaining metadata)
 	 * @return the resolved view name, or {@code null} if excluded or none found
 	 */
-	@Nullable
-	protected String determineViewName(Exception ex, HttpServletRequest request) {
+	protected @Nullable String determineViewName(Exception ex, HttpServletRequest request) {
 		String viewName = null;
 		if (this.excludedExceptions != null) {
 			for (Class<?> excludedEx : this.excludedExceptions) {
@@ -241,8 +234,7 @@ public class SimpleMappingExceptionResolver extends AbstractHandlerExceptionReso
 	 * @return the view name, or {@code null} if none found
 	 * @see #setExceptionMappings
 	 */
-	@Nullable
-	protected String findMatchingViewName(Properties exceptionMappings, Exception ex) {
+	protected @Nullable String findMatchingViewName(Properties exceptionMappings, Exception ex) {
 		String viewName = null;
 		String dominantMapping = null;
 		int deepest = Integer.MAX_VALUE;
@@ -296,8 +288,7 @@ public class SimpleMappingExceptionResolver extends AbstractHandlerExceptionReso
 	 * @see #setDefaultStatusCode
 	 * @see #applyStatusCodeIfPossible
 	 */
-	@Nullable
-	protected Integer determineStatusCode(HttpServletRequest request, String viewName) {
+	protected @Nullable Integer determineStatusCode(HttpServletRequest request, String viewName) {
 		if (this.statusCodes.containsKey(viewName)) {
 			return this.statusCodes.get(viewName);
 		}

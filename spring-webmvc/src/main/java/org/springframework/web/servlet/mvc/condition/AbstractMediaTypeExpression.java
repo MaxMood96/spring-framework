@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,9 @@ package org.springframework.web.servlet.mvc.condition;
 
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
 
@@ -68,7 +69,7 @@ abstract class AbstractMediaTypeExpression implements MediaTypeExpression, Compa
 
 	@Override
 	public int compareTo(AbstractMediaTypeExpression other) {
-		MediaType mediaType1 = this.getMediaType();
+		MediaType mediaType1 = getMediaType();
 		MediaType mediaType2 = other.getMediaType();
 		if (mediaType1.isMoreSpecific(mediaType2)) {
 			return -1;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,9 @@ package org.springframework.util.function;
 
 import java.util.function.Supplier;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
+import org.springframework.lang.Contract;
 
 /**
  * Convenience utilities for {@link java.util.function.Supplier} handling.
@@ -35,9 +37,20 @@ public abstract class SupplierUtils {
 	 * @param supplier the supplier to resolve
 	 * @return the supplier's result, or {@code null} if none
 	 */
-	@Nullable
-	public static <T> T resolve(@Nullable Supplier<T> supplier) {
+	@Contract("null -> null; !null -> !null")
+	public static <T> @Nullable T resolve(@Nullable Supplier<T> supplier) {
 		return (supplier != null ? supplier.get() : null);
+	}
+
+	/**
+	 * Resolve a given {@code Supplier}, getting its result or immediately
+	 * returning the given Object as-is if not a {@code Supplier}.
+	 * @param candidate the candidate to resolve (potentially a {@code Supplier})
+	 * @return a supplier's result or the given Object as-is
+	 * @since 6.1.4
+	 */
+	public static @Nullable Object resolve(@Nullable Object candidate) {
+		return (candidate instanceof Supplier<?> supplier ? supplier.get() : candidate);
 	}
 
 }

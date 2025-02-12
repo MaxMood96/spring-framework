@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,9 +25,9 @@ import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ser.FilterProvider;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
-import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.servlet.View;
@@ -38,7 +38,7 @@ import org.springframework.web.servlet.View;
  *
  * <p>By default, the entire contents of the model map (with the exception of framework-specific classes)
  * will be encoded as JSON. If the model contains only one key, you can have it extracted encoded as JSON
- * alone via  {@link #setExtractValueFromSingleKeyModel}.
+ * alone via {@link #setExtractValueFromSingleKeyModel}.
  *
  * <p>The default constructor uses the default configuration provided by {@link Jackson2ObjectMapperBuilder}.
  *
@@ -57,11 +57,9 @@ public class MappingJackson2JsonView extends AbstractJackson2View {
 	 */
 	public static final String DEFAULT_CONTENT_TYPE = "application/json";
 
-	@Nullable
-	private String jsonPrefix;
+	private @Nullable String jsonPrefix;
 
-	@Nullable
-	private Set<String> modelKeys;
+	private @Nullable Set<String> modelKeys;
 
 	private boolean extractValueFromSingleKeyModel = false;
 
@@ -106,9 +104,6 @@ public class MappingJackson2JsonView extends AbstractJackson2View {
 		this.jsonPrefix = (prefixJson ? ")]}', " : null);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void setModelKey(String modelKey) {
 		this.modelKeys = Collections.singleton(modelKey);
@@ -125,8 +120,7 @@ public class MappingJackson2JsonView extends AbstractJackson2View {
 	/**
 	 * Return the attributes in the model that should be rendered by this view.
 	 */
-	@Nullable
-	public final Set<String> getModelKeys() {
+	public final @Nullable Set<String> getModelKeys() {
 		return this.modelKeys;
 	}
 

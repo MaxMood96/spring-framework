@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Unit tests for {@link org.springframework.http.RequestEntity}.
+ * Tests for {@link RequestEntity}.
  *
  * @author Arjen Poutsma
  * @author Parviz Rozikov
@@ -52,7 +52,7 @@ class RequestEntityTests {
 
 		assertThat(requestEntity).isNotNull();
 		assertThat(requestEntity.getMethod()).isEqualTo(HttpMethod.GET);
-		assertThat(requestEntity.getHeaders().containsKey(headerName)).isTrue();
+		assertThat(requestEntity.getHeaders().containsHeader(headerName)).isTrue();
 		assertThat(requestEntity.getHeaders().getFirst(headerName)).isEqualTo(headerValue);
 		assertThat(requestEntity.getBody()).isEqualTo(entity);
 	}
@@ -100,7 +100,7 @@ class RequestEntityTests {
 
 		assertThat(requestEntity).isNotNull();
 		assertThat(requestEntity.getMethod()).isEqualTo(HttpMethod.GET);
-		assertThat(requestEntity.getHeaders().containsKey(HttpHeaders.ACCEPT)).isTrue();
+		assertThat(requestEntity.getHeaders().containsHeader(HttpHeaders.ACCEPT)).isTrue();
 		assertThat(requestEntity.getHeaders().getFirst(HttpHeaders.ACCEPT)).isEqualTo("image/gif, image/jpeg, image/png");
 		assertThat(requestEntity.getBody()).isNull();
 	}
@@ -120,7 +120,7 @@ class RequestEntityTests {
 				ifNoneMatch(ifNoneMatch).
 				contentLength(contentLength).
 				contentType(contentType).
-				headers(headers -> assertThat(headers).hasSize(6)).
+				headers(headers -> assertThat(headers.size()).isEqualTo(6)).
 				build();
 
 		assertThat(responseEntity).isNotNull();

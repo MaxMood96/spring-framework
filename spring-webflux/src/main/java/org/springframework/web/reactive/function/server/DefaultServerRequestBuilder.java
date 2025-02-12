@@ -28,6 +28,7 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -48,7 +49,6 @@ import org.springframework.http.codec.multipart.Part;
 import org.springframework.http.server.RequestPath;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
@@ -75,8 +75,7 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 
 	private URI uri;
 
-	@Nullable
-	private String contextPath;
+	private @Nullable String contextPath;
 
 	private final HttpHeaders headers = new HttpHeaders();
 
@@ -193,7 +192,7 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 	@Override
 	public ServerRequest build() {
 		ServerHttpRequest serverHttpRequest = new BuiltServerHttpRequest(this.exchange.getRequest().getId(),
-				this.method, this.uri, this.contextPath, this.headers, this.cookies, this.body);
+				this.method, this.uri, this.contextPath, this.headers, this.cookies, this.body, this.attributes);
 		ServerWebExchange exchange = new DelegatingServerWebExchange(
 				serverHttpRequest, this.attributes, this.exchange, this.messageReaders);
 		return new DefaultServerRequest(exchange, this.messageReaders);
@@ -220,8 +219,10 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 
 		private final Flux<DataBuffer> body;
 
+		private final Map<String, Object> attributes;
+
 		public BuiltServerHttpRequest(String id, HttpMethod method, URI uri, @Nullable String contextPath,
-				HttpHeaders headers, MultiValueMap<String, HttpCookie> cookies, Flux<DataBuffer> body) {
+				HttpHeaders headers, MultiValueMap<String, HttpCookie> cookies, Flux<DataBuffer> body, Map<String, Object> attributes) {
 
 			this.id = id;
 			this.method = method;
@@ -231,6 +232,7 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 			this.cookies = unmodifiableCopy(cookies);
 			this.queryParams = parseQueryParams(uri);
 			this.body = body;
+			this.attributes = attributes;
 		}
 
 		private static <K, V> MultiValueMap<K, V> unmodifiableCopy(MultiValueMap<K, V> original) {
@@ -271,6 +273,11 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 		@Override
 		public URI getURI() {
 			return this.uri;
+		}
+
+		@Override
+		public Map<String, Object> getAttributes() {
+			return this.attributes;
 		}
 
 		@Override
@@ -420,9 +427,8 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 			return this.delegate.getLocaleContext();
 		}
 
-		@Nullable
 		@Override
-		public ApplicationContext getApplicationContext() {
+		public @Nullable ApplicationContext getApplicationContext() {
 			return this.delegate.getApplicationContext();
 		}
 

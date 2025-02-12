@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,9 +21,9 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
 import jakarta.servlet.http.Cookie;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.style.ToStringCreator;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -43,11 +43,18 @@ public class MockCookie extends Cookie {
 
 	private static final long serialVersionUID = 4312531139502726325L;
 
+	private static final String PATH = "Path";
+	private static final String DOMAIN = "Domain";
+	private static final String COMMENT = "Comment";
+	private static final String SECURE = "Secure";
+	private static final String HTTP_ONLY = "HttpOnly";
+	private static final String PARTITIONED = "Partitioned";
 	private static final String SAME_SITE = "SameSite";
+	private static final String MAX_AGE = "Max-Age";
 	private static final String EXPIRES = "Expires";
 
-	@Nullable
-	private ZonedDateTime expires;
+
+	private @Nullable ZonedDateTime expires;
 
 
 	/**
@@ -73,8 +80,7 @@ public class MockCookie extends Cookie {
 	 * @return the "Expires" attribute for this cookie, or {@code null} if not set
 	 * @since 5.1.11
 	 */
-	@Nullable
-	public ZonedDateTime getExpires() {
+	public @Nullable ZonedDateTime getExpires() {
 		return this.expires;
 	}
 
@@ -93,9 +99,31 @@ public class MockCookie extends Cookie {
 	 * Get the "SameSite" attribute for this cookie.
 	 * @return the "SameSite" attribute for this cookie, or {@code null} if not set
 	 */
-	@Nullable
-	public String getSameSite() {
+	public @Nullable String getSameSite() {
 		return getAttribute(SAME_SITE);
+	}
+
+	/**
+	 * Set the "Partitioned" attribute for this cookie.
+	 * @since 6.2
+	 * @see <a href="https://datatracker.ietf.org/doc/html/draft-cutler-httpbis-partitioned-cookies#section-2.1">The Partitioned attribute spec</a>
+	 */
+	public void setPartitioned(boolean partitioned) {
+		if (partitioned) {
+			setAttribute(PARTITIONED, "");
+		}
+		else {
+			setAttribute(PARTITIONED, null);
+		}
+	}
+
+	/**
+	 * Return whether the "Partitioned" attribute is set for this cookie.
+	 * @since 6.2
+	 * @see <a href="https://datatracker.ietf.org/doc/html/draft-cutler-httpbis-partitioned-cookies#section-2.1">The Partitioned attribute spec</a>
+	 */
+	public boolean isPartitioned() {
+		return getAttribute(PARTITIONED) != null;
 	}
 
 	/**
@@ -116,10 +144,10 @@ public class MockCookie extends Cookie {
 
 		MockCookie cookie = new MockCookie(name, value);
 		for (String attribute : attributes) {
-			if (StringUtils.startsWithIgnoreCase(attribute, "Domain")) {
+			if (StringUtils.startsWithIgnoreCase(attribute, DOMAIN)) {
 				cookie.setDomain(extractAttributeValue(attribute, setCookieHeader));
 			}
-			else if (StringUtils.startsWithIgnoreCase(attribute, "Max-Age")) {
+			else if (StringUtils.startsWithIgnoreCase(attribute, MAX_AGE)) {
 				cookie.setMaxAge(Integer.parseInt(extractAttributeValue(attribute, setCookieHeader)));
 			}
 			else if (StringUtils.startsWithIgnoreCase(attribute, EXPIRES)) {
@@ -131,20 +159,23 @@ public class MockCookie extends Cookie {
 					// ignore invalid date formats
 				}
 			}
-			else if (StringUtils.startsWithIgnoreCase(attribute, "Path")) {
+			else if (StringUtils.startsWithIgnoreCase(attribute, PATH)) {
 				cookie.setPath(extractAttributeValue(attribute, setCookieHeader));
 			}
-			else if (StringUtils.startsWithIgnoreCase(attribute, "Secure")) {
+			else if (StringUtils.startsWithIgnoreCase(attribute, SECURE)) {
 				cookie.setSecure(true);
 			}
-			else if (StringUtils.startsWithIgnoreCase(attribute, "HttpOnly")) {
+			else if (StringUtils.startsWithIgnoreCase(attribute, HTTP_ONLY)) {
 				cookie.setHttpOnly(true);
 			}
 			else if (StringUtils.startsWithIgnoreCase(attribute, SAME_SITE)) {
 				cookie.setSameSite(extractAttributeValue(attribute, setCookieHeader));
 			}
-			else if (StringUtils.startsWithIgnoreCase(attribute, "Comment")) {
+			else if (StringUtils.startsWithIgnoreCase(attribute, COMMENT)) {
 				cookie.setComment(extractAttributeValue(attribute, setCookieHeader));
+			}
+			else if (!attribute.isEmpty()) {
+				cookie.setAttribute(attribute, extractOptionalAttributeValue(attribute, setCookieHeader));
 			}
 		}
 		return cookie;
@@ -155,6 +186,11 @@ public class MockCookie extends Cookie {
 		Assert.isTrue(nameAndValue.length == 2,
 				() -> "No value in attribute '" + nameAndValue[0] + "' for Set-Cookie header '" + header + "'");
 		return nameAndValue[1];
+	}
+
+	private static String extractOptionalAttributeValue(String attribute, String header) {
+		String[] nameAndValue = attribute.split("=");
+		return nameAndValue.length == 2 ? nameAndValue[1] : "";
 	}
 
 	@Override
@@ -170,14 +206,15 @@ public class MockCookie extends Cookie {
 		return new ToStringCreator(this)
 				.append("name", getName())
 				.append("value", getValue())
-				.append("Path", getPath())
-				.append("Domain", getDomain())
+				.append(PATH, getPath())
+				.append(DOMAIN, getDomain())
 				.append("Version", getVersion())
-				.append("Comment", getComment())
-				.append("Secure", getSecure())
-				.append("HttpOnly", isHttpOnly())
+				.append(COMMENT, getComment())
+				.append(SECURE, getSecure())
+				.append(HTTP_ONLY, isHttpOnly())
+				.append(PARTITIONED, isPartitioned())
 				.append(SAME_SITE, getSameSite())
-				.append("Max-Age", getMaxAge())
+				.append(MAX_AGE, getMaxAge())
 				.append(EXPIRES, getAttribute(EXPIRES))
 				.toString();
 	}

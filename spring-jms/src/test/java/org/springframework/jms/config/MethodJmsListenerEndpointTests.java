@@ -29,6 +29,7 @@ import jakarta.jms.ObjectMessage;
 import jakarta.jms.QueueSender;
 import jakarta.jms.Session;
 import jakarta.jms.TextMessage;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
@@ -47,7 +48,6 @@ import org.springframework.jms.support.JmsMessageHeaderAccessor;
 import org.springframework.jms.support.QosSettings;
 import org.springframework.jms.support.converter.MessageConverter;
 import org.springframework.jms.support.destination.DestinationResolver;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.converter.MessageConversionException;
@@ -410,7 +410,7 @@ class MethodJmsListenerEndpointTests {
 	}
 
 	@Test
-	void validatePayloadInvalid() throws JMSException {
+	void validatePayloadInvalid() {
 		DefaultMessageHandlerMethodFactory customFactory = new DefaultMessageHandlerMethodFactory();
 		customFactory.setValidator(testValidator("invalid value"));
 
@@ -427,7 +427,7 @@ class MethodJmsListenerEndpointTests {
 	// failure scenario
 
 	@Test
-	void invalidPayloadType() throws JMSException {
+	void invalidPayloadType() {
 		MessagingMessageListenerAdapter listener = createDefaultInstance(Integer.class);
 		Session session = mock();
 
@@ -439,7 +439,7 @@ class MethodJmsListenerEndpointTests {
 	}
 
 	@Test
-	void invalidMessagePayloadType() throws JMSException {
+	void invalidMessagePayloadType() {
 		MessagingMessageListenerAdapter listener = createDefaultInstance(Message.class);
 		Session session = mock();
 

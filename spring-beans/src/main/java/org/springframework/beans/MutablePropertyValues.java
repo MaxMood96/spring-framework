@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,10 +25,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Spliterator;
-import java.util.Spliterators;
 import java.util.stream.Stream;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.StringUtils;
 
 /**
@@ -46,8 +46,7 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 
 	private final List<PropertyValue> propertyValueList;
 
-	@Nullable
-	private Set<String> processedProperties;
+	private @Nullable Set<String> processedProperties;
 
 	private volatile boolean converted;
 
@@ -255,7 +254,7 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 
 	@Override
 	public Spliterator<PropertyValue> spliterator() {
-		return Spliterators.spliterator(this.propertyValueList, 0);
+		return this.propertyValueList.spliterator();
 	}
 
 	@Override
@@ -269,8 +268,7 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 	}
 
 	@Override
-	@Nullable
-	public PropertyValue getPropertyValue(String propertyName) {
+	public @Nullable PropertyValue getPropertyValue(String propertyName) {
 		for (PropertyValue pv : this.propertyValueList) {
 			if (pv.getName().equals(propertyName)) {
 				return pv;
@@ -287,8 +285,7 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 	 * @see #getPropertyValue(String)
 	 * @see PropertyValue#getValue()
 	 */
-	@Nullable
-	public Object get(String propertyName) {
+	public @Nullable Object get(String propertyName) {
 		PropertyValue pv = getPropertyValue(propertyName);
 		return (pv != null ? pv.getValue() : null);
 	}
@@ -366,8 +363,8 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 
 
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return (this == obj || (obj instanceof MutablePropertyValues that &&
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof MutablePropertyValues that &&
 				this.propertyValueList.equals(that.propertyValueList)));
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@
 package org.springframework.web.context.request;
 
 import jakarta.faces.context.FacesContext;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.NamedInheritableThreadLocal;
 import org.springframework.core.NamedThreadLocal;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
 
 /**
@@ -42,7 +42,7 @@ import org.springframework.util.ClassUtils;
  * @see org.springframework.web.filter.RequestContextFilter
  * @see org.springframework.web.servlet.DispatcherServlet
  */
-public abstract class RequestContextHolder  {
+public abstract class RequestContextHolder {
 
 	private static final boolean jsfPresent =
 			ClassUtils.isPresent("jakarta.faces.context.FacesContext", RequestContextHolder.class.getClassLoader());
@@ -100,8 +100,7 @@ public abstract class RequestContextHolder  {
 	 * @return the RequestAttributes currently bound to the thread,
 	 * or {@code null} if none bound
 	 */
-	@Nullable
-	public static RequestAttributes getRequestAttributes() {
+	public static @Nullable RequestAttributes getRequestAttributes() {
 		RequestAttributes attributes = requestAttributesHolder.get();
 		if (attributes == null) {
 			attributes = inheritableRequestAttributesHolder.get();
@@ -145,8 +144,7 @@ public abstract class RequestContextHolder  {
  	 */
 	private static class FacesRequestAttributesFactory {
 
-		@Nullable
-		public static RequestAttributes getFacesRequestAttributes() {
+		public static @Nullable RequestAttributes getFacesRequestAttributes() {
 			try {
 				FacesContext facesContext = FacesContext.getCurrentInstance();
 				return (facesContext != null ? new FacesRequestAttributes(facesContext) : null);

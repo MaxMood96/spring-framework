@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package org.springframework.transaction.annotation;
 import java.lang.reflect.AnnotatedElement;
 import java.util.LinkedHashSet;
 import java.util.Set;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aot.generate.GenerationContext;
 import org.springframework.aot.hint.MemberCategory;
@@ -42,14 +44,14 @@ import org.springframework.util.ReflectionUtils;
  */
 class TransactionBeanRegistrationAotProcessor implements BeanRegistrationAotProcessor {
 
-	private final static String JAKARTA_TRANSACTIONAL_CLASS_NAME = "jakarta.transaction.Transactional";
+	private static final String JAKARTA_TRANSACTIONAL_CLASS_NAME = "jakarta.transaction.Transactional";
 
 
 	@Override
-	public BeanRegistrationAotContribution processAheadOfTime(RegisteredBean registeredBean) {
+	public @Nullable BeanRegistrationAotContribution processAheadOfTime(RegisteredBean registeredBean) {
 		Class<?> beanClass = registeredBean.getBeanClass();
 		if (isTransactional(beanClass)) {
-			return new TransactionBeanRegistrationAotContribution(beanClass);
+			return new AotContribution(beanClass);
 		}
 		return null;
 	}
@@ -69,11 +71,11 @@ class TransactionBeanRegistrationAotProcessor implements BeanRegistrationAotProc
 	}
 
 
-	private static class TransactionBeanRegistrationAotContribution implements BeanRegistrationAotContribution {
+	private static class AotContribution implements BeanRegistrationAotContribution {
 
 		private final Class<?> beanClass;
 
-		public TransactionBeanRegistrationAotContribution(Class<?> beanClass) {
+		public AotContribution(Class<?> beanClass) {
 			this.beanClass = beanClass;
 		}
 
@@ -81,9 +83,6 @@ class TransactionBeanRegistrationAotProcessor implements BeanRegistrationAotProc
 		public void applyTo(GenerationContext generationContext, BeanRegistrationCode beanRegistrationCode) {
 			RuntimeHints runtimeHints = generationContext.getRuntimeHints();
 			Class<?>[] proxyInterfaces = ClassUtils.getAllInterfacesForClass(this.beanClass);
-			if (proxyInterfaces.length == 0) {
-				return;
-			}
 			for (Class<?> proxyInterface : proxyInterfaces) {
 				runtimeHints.reflection().registerType(proxyInterface, MemberCategory.INVOKE_DECLARED_METHODS);
 			}

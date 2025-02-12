@@ -20,9 +20,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.core.io.AbstractResource;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -81,8 +82,8 @@ class BeanDefinitionResource extends AbstractResource {
 	 * This implementation compares the underlying BeanDefinition.
 	 */
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return (this == obj || (obj instanceof BeanDefinitionResource that &&
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof BeanDefinitionResource that &&
 				this.beanDefinition.equals(that.beanDefinition)));
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -34,7 +35,6 @@ import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.http.server.ServletServerHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
 
 /**
@@ -54,6 +54,18 @@ public class DefaultCorsProcessor implements CorsProcessor {
 
 	private static final Log logger = LogFactory.getLog(DefaultCorsProcessor.class);
 
+	/**
+	 * The {@code Access-Control-Request-Private-Network} request header field name.
+	 * @see <a href="https://wicg.github.io/private-network-access/">Private Network Access specification</a>
+	 */
+	static final String ACCESS_CONTROL_REQUEST_PRIVATE_NETWORK = "Access-Control-Request-Private-Network";
+
+	/**
+	 * The {@code Access-Control-Allow-Private-Network} response header field name.
+	 * @see <a href="https://wicg.github.io/private-network-access/">Private Network Access specification</a>
+	 */
+	static final String ACCESS_CONTROL_ALLOW_PRIVATE_NETWORK = "Access-Control-Allow-Private-Network";
+
 
 	@Override
 	@SuppressWarnings("resource")
@@ -71,8 +83,15 @@ public class DefaultCorsProcessor implements CorsProcessor {
 			response.addHeader(HttpHeaders.VARY, HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS);
 		}
 
-		if (!CorsUtils.isCorsRequest(request)) {
-			return true;
+		try {
+			if (!CorsUtils.isCorsRequest(request)) {
+				return true;
+			}
+		}
+		catch (IllegalArgumentException ex) {
+			logger.debug("Reject: origin is malformed");
+			rejectRequest(new ServletServerHttpResponse(response));
+			return false;
 		}
 
 		if (response.getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN) != null) {
@@ -143,7 +162,7 @@ public class DefaultCorsProcessor implements CorsProcessor {
 			responseHeaders.setAccessControlAllowMethods(allowMethods);
 		}
 
-		if (preFlightRequest && !allowHeaders.isEmpty()) {
+		if (preFlightRequest && !CollectionUtils.isEmpty(allowHeaders)) {
 			responseHeaders.setAccessControlAllowHeaders(allowHeaders);
 		}
 
@@ -153,6 +172,11 @@ public class DefaultCorsProcessor implements CorsProcessor {
 
 		if (Boolean.TRUE.equals(config.getAllowCredentials())) {
 			responseHeaders.setAccessControlAllowCredentials(true);
+		}
+
+		if (Boolean.TRUE.equals(config.getAllowPrivateNetwork()) &&
+				Boolean.parseBoolean(request.getHeaders().getFirst(ACCESS_CONTROL_REQUEST_PRIVATE_NETWORK))) {
+			responseHeaders.set(ACCESS_CONTROL_ALLOW_PRIVATE_NETWORK, Boolean.toString(true));
 		}
 
 		if (preFlightRequest && config.getMaxAge() != null) {
@@ -168,8 +192,7 @@ public class DefaultCorsProcessor implements CorsProcessor {
 	 * implementation simply delegates to
 	 * {@link org.springframework.web.cors.CorsConfiguration#checkOrigin(String)}.
 	 */
-	@Nullable
-	protected String checkOrigin(CorsConfiguration config, @Nullable String requestOrigin) {
+	protected @Nullable String checkOrigin(CorsConfiguration config, @Nullable String requestOrigin) {
 		return config.checkOrigin(requestOrigin);
 	}
 
@@ -178,29 +201,26 @@ public class DefaultCorsProcessor implements CorsProcessor {
 	 * pre-flight request. The default implementation simply delegates to
 	 * {@link org.springframework.web.cors.CorsConfiguration#checkHttpMethod(HttpMethod)}.
 	 */
-	@Nullable
-	protected List<HttpMethod> checkMethods(CorsConfiguration config, @Nullable HttpMethod requestMethod) {
+	protected @Nullable List<HttpMethod> checkMethods(CorsConfiguration config, @Nullable HttpMethod requestMethod) {
 		return config.checkHttpMethod(requestMethod);
 	}
 
-	@Nullable
-	private HttpMethod getMethodToUse(ServerHttpRequest request, boolean isPreFlight) {
+	private @Nullable HttpMethod getMethodToUse(ServerHttpRequest request, boolean isPreFlight) {
 		return (isPreFlight ? request.getHeaders().getAccessControlRequestMethod() : request.getMethod());
 	}
 
 	/**
 	 * Check the headers and determine the headers for the response of a
 	 * pre-flight request. The default implementation simply delegates to
-	 * {@link org.springframework.web.cors.CorsConfiguration#checkOrigin(String)}.
+	 * {@link org.springframework.web.cors.CorsConfiguration#checkHeaders(List)}.
 	 */
-	@Nullable
-	protected List<String> checkHeaders(CorsConfiguration config, List<String> requestHeaders) {
+	protected @Nullable List<String> checkHeaders(CorsConfiguration config, List<String> requestHeaders) {
 		return config.checkHeaders(requestHeaders);
 	}
 
 	private List<String> getHeadersToUse(ServerHttpRequest request, boolean isPreFlight) {
 		HttpHeaders headers = request.getHeaders();
-		return (isPreFlight ? headers.getAccessControlRequestHeaders() : new ArrayList<>(headers.keySet()));
+		return (isPreFlight ? headers.getAccessControlRequestHeaders() : new ArrayList<>(headers.headerNames()));
 	}
 
 }
